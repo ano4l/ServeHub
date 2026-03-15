@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import {
   BadgeCheck,
   Bell,
@@ -56,12 +56,18 @@ export default function DemoPage() {
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
   const touchStartY = useRef<number | null>(null);
   const wheelLock = useRef(false);
+  const dragY = useMotionValue(0);
+  const activeCardScale = useTransform(dragY, [-220, 0, 220], [0.965, 1, 0.965]);
+  const activeCardRotate = useTransform(dragY, [-220, 0, 220], [-1.5, 0, 1.5]);
+  const activeCardBrightness = useTransform(dragY, [-220, 0, 220], [0.88, 1, 0.88]);
 
   const selectedBooking = useMemo(
     () => demoBookings.find((booking) => booking.id === selectedBookingId) ?? demoBookings[0],
     [selectedBookingId]
   );
   const activePost = demoFeedPosts[feedIndex];
+  const nextPost = demoFeedPosts[(feedIndex + 1) % demoFeedPosts.length];
+  const previousPost = demoFeedPosts[(feedIndex - 1 + demoFeedPosts.length) % demoFeedPosts.length];
   const currentMessages = bookingMessages[selectedBooking.id] ?? selectedBooking.thread;
   const filteredServices = homeServices.filter((service) =>
     `${service.title} ${service.subtitle}`.toLowerCase().includes(searchText.toLowerCase())
@@ -90,6 +96,7 @@ export default function DemoPage() {
   }, [activeTab]);
 
   const moveFeed = (direction: 1 | -1) => {
+    dragY.set(0);
     setFeedDirection(direction);
     setFeedIndex((current) => {
       const next = current + direction;
@@ -98,6 +105,15 @@ export default function DemoPage() {
       return next;
     });
     setExploreProgress(0);
+  };
+
+  const onExploreDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const swipePower = Math.abs(info.offset.y) + Math.abs(info.velocity.y) * 0.18;
+    if (swipePower < 140) {
+      dragY.set(0);
+      return;
+    }
+    moveFeed(info.offset.y > 0 ? -1 : 1);
   };
 
   const sendBookingMessage = (text: string) => {
@@ -275,6 +291,23 @@ export default function DemoPage() {
                   </div>
 
                   <div className="relative h-[calc(100vh-11.8rem)] min-h-[560px] overflow-hidden rounded-[30px] border border-white/10 bg-black/20">
+                    <div className="pointer-events-none absolute inset-x-5 top-5 z-10">
+                      <div className="mx-auto max-w-[10rem] rounded-full border border-white/10 bg-black/20 px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em] text-white/58 backdrop-blur-md">
+                        Drag up for next
+                      </div>
+                    </div>
+                    <div className="pointer-events-none absolute inset-x-4 top-0 bottom-0">
+                      <div className="absolute inset-x-4 top-6 h-28 overflow-hidden rounded-[26px] opacity-35">
+                        <div className={`absolute inset-0 bg-gradient-to-br ${previousPost.accent}`} />
+                        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${previousPost.imageUrl})` }} />
+                        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
+                      </div>
+                      <div className="absolute inset-x-4 bottom-6 h-28 overflow-hidden rounded-[26px] opacity-45">
+                        <div className={`absolute inset-0 bg-gradient-to-br ${nextPost.accent}`} />
+                        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${nextPost.imageUrl})` }} />
+                        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
+                      </div>
+                    </div>
                     <AnimatePresence initial={false} custom={feedDirection} mode="wait">
                       <motion.article
                         key={activePost.id}
@@ -283,7 +316,13 @@ export default function DemoPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: feedDirection > 0 ? -90 : 90 }}
                         transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute inset-0 overflow-hidden"
+                        drag="y"
+                        dragConstraints={{ top: 0, bottom: 0 }}
+                        dragElastic={0.18}
+                        dragMomentum={false}
+                        style={{ y: dragY, scale: activeCardScale, rotate: activeCardRotate, filter: activeCardBrightness }}
+                        onDragEnd={onExploreDragEnd}
+                        className="absolute inset-3 overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(2,8,23,0.45)] will-change-transform"
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${activePost.accent}`} />
                         <div className="absolute inset-0 bg-cover bg-center opacity-28 mix-blend-screen" style={{ backgroundImage: `url(${activePost.imageUrl})` }} />
@@ -354,6 +393,11 @@ export default function DemoPage() {
                                 <Repeat2 className="h-5 w-5" />
                               </button>
                               <span className="text-xs text-white/70">{activePost.stats.reposts}</span>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex items-center justify-center">
+                            <div className="rounded-full bg-black/20 px-3 py-1.5 text-[11px] font-medium tracking-[0.18em] text-white/60 backdrop-blur-md">
+                              {feedIndex + 1} / {demoFeedPosts.length}
                             </div>
                           </div>
                         </div>
