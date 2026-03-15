@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform, type PanInfo } from "framer-motion";
 import {
   BadgeCheck,
   Bell,
@@ -56,10 +56,18 @@ export default function DemoPage() {
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
   const touchStartY = useRef<number | null>(null);
   const wheelLock = useRef(false);
+  const wheelIntent = useRef(0);
   const dragY = useMotionValue(0);
-  const activeCardScale = useTransform(dragY, [-220, 0, 220], [0.965, 1, 0.965]);
-  const activeCardRotate = useTransform(dragY, [-220, 0, 220], [-1.5, 0, 1.5]);
-  const activeCardBrightness = useTransform(dragY, [-220, 0, 220], [0.88, 1, 0.88]);
+  const smoothDragY = useSpring(dragY, { stiffness: 260, damping: 28, mass: 0.55 });
+  const activeCardScale = useTransform(smoothDragY, [-260, 0, 260], [0.958, 1, 0.958]);
+  const activeCardRotate = useTransform(smoothDragY, [-260, 0, 260], [-1.8, 0, 1.8]);
+  const activeCardFilter = useTransform(smoothDragY, [-260, 0, 260], ["brightness(0.9)", "brightness(1)", "brightness(0.9)"]);
+  const previousPeekY = useTransform(smoothDragY, [-260, 0, 260], [-8, 0, 20]);
+  const nextPeekY = useTransform(smoothDragY, [-260, 0, 260], [-20, 0, 8]);
+  const previousPeekScale = useTransform(smoothDragY, [-260, 0, 260], [0.98, 0.94, 0.88]);
+  const nextPeekScale = useTransform(smoothDragY, [-260, 0, 260], [0.88, 0.94, 0.98]);
+  const previousPeekOpacity = useTransform(smoothDragY, [-260, 0, 260], [0.52, 0.35, 0.18]);
+  const nextPeekOpacity = useTransform(smoothDragY, [-260, 0, 260], [0.18, 0.45, 0.52]);
 
   const selectedBooking = useMemo(
     () => demoBookings.find((booking) => booking.id === selectedBookingId) ?? demoBookings[0],
@@ -96,6 +104,7 @@ export default function DemoPage() {
   }, [activeTab]);
 
   const moveFeed = (direction: 1 | -1) => {
+    wheelIntent.current = 0;
     dragY.set(0);
     setFeedDirection(direction);
     setFeedIndex((current) => {
@@ -108,8 +117,8 @@ export default function DemoPage() {
   };
 
   const onExploreDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const swipePower = Math.abs(info.offset.y) + Math.abs(info.velocity.y) * 0.18;
-    if (swipePower < 140) {
+    const swipePower = Math.abs(info.offset.y) + Math.abs(info.velocity.y) * 0.22;
+    if (swipePower < 150) {
       dragY.set(0);
       return;
     }
@@ -127,12 +136,18 @@ export default function DemoPage() {
   };
 
   const onExploreWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (wheelLock.current || Math.abs(event.deltaY) < 30) return;
+    event.preventDefault();
+    if (wheelLock.current) return;
+    const normalizedDelta = Math.max(-36, Math.min(36, event.deltaY));
+    if (Math.abs(normalizedDelta) < 4) return;
+    wheelIntent.current += normalizedDelta;
+    if (Math.abs(wheelIntent.current) < 72) return;
     wheelLock.current = true;
-    moveFeed(event.deltaY > 0 ? 1 : -1);
+    moveFeed(wheelIntent.current > 0 ? 1 : -1);
     window.setTimeout(() => {
       wheelLock.current = false;
-    }, 420);
+      wheelIntent.current = 0;
+    }, 360);
   };
 
   const onExploreTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -281,7 +296,7 @@ export default function DemoPage() {
               )}
 
               {activeTab === "explore" && (
-                <div className="animate-fade-in mt-4" onWheel={onExploreWheel} onTouchStart={onExploreTouchStart} onTouchEnd={onExploreTouchEnd}>
+                <div className="animate-fade-in mt-4 overscroll-none" onWheel={onExploreWheel} onTouchStart={onExploreTouchStart} onTouchEnd={onExploreTouchEnd}>
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Explore</p>
@@ -290,23 +305,23 @@ export default function DemoPage() {
                     <div className="rounded-full bg-white/8 px-3 py-2 text-xs text-white/70">Swipe or scroll</div>
                   </div>
 
-                  <div className="relative h-[calc(100vh-11.8rem)] min-h-[560px] overflow-hidden rounded-[30px] border border-white/10 bg-black/20">
+                  <div className="relative h-[calc(100vh-11.8rem)] min-h-[560px] overflow-hidden rounded-[30px] border border-white/10 bg-black/20 touch-none">
                     <div className="pointer-events-none absolute inset-x-5 top-5 z-10">
                       <div className="mx-auto max-w-[10rem] rounded-full border border-white/10 bg-black/20 px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em] text-white/58 backdrop-blur-md">
                         Drag up for next
                       </div>
                     </div>
                     <div className="pointer-events-none absolute inset-x-4 top-0 bottom-0">
-                      <div className="absolute inset-x-4 top-6 h-28 overflow-hidden rounded-[26px] opacity-35">
+                      <motion.div className="absolute inset-x-4 top-6 h-28 overflow-hidden rounded-[26px]" style={{ y: previousPeekY, scale: previousPeekScale, opacity: previousPeekOpacity }}>
                         <div className={`absolute inset-0 bg-gradient-to-br ${previousPost.accent}`} />
                         <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${previousPost.imageUrl})` }} />
                         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
-                      </div>
-                      <div className="absolute inset-x-4 bottom-6 h-28 overflow-hidden rounded-[26px] opacity-45">
+                      </motion.div>
+                      <motion.div className="absolute inset-x-4 bottom-6 h-28 overflow-hidden rounded-[26px]" style={{ y: nextPeekY, scale: nextPeekScale, opacity: nextPeekOpacity }}>
                         <div className={`absolute inset-0 bg-gradient-to-br ${nextPost.accent}`} />
                         <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${nextPost.imageUrl})` }} />
                         <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
-                      </div>
+                      </motion.div>
                     </div>
                     <AnimatePresence initial={false} custom={feedDirection} mode="wait">
                       <motion.article
@@ -315,12 +330,13 @@ export default function DemoPage() {
                         initial={{ opacity: 0, y: feedDirection > 0 ? 90 : -90 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: feedDirection > 0 ? -90 : 90 }}
-                        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
                         drag="y"
+                        dragDirectionLock
                         dragConstraints={{ top: 0, bottom: 0 }}
-                        dragElastic={0.18}
+                        dragElastic={0.12}
                         dragMomentum={false}
-                        style={{ y: dragY, scale: activeCardScale, rotate: activeCardRotate, filter: activeCardBrightness }}
+                        style={{ y: dragY, scale: activeCardScale, rotate: activeCardRotate, filter: activeCardFilter }}
                         onDragEnd={onExploreDragEnd}
                         className="absolute inset-3 overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(2,8,23,0.45)] will-change-transform"
                       >
