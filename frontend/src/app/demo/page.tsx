@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform, type PanInfo } from "framer-motion";
+import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BadgeCheck,
   Bell,
@@ -47,35 +47,15 @@ export default function DemoPage() {
   const [bookingMessages, setBookingMessages] = useState(
     Object.fromEntries(demoBookings.map((booking) => [booking.id, booking.thread]))
   );
-  const [feedIndex, setFeedIndex] = useState(0);
-  const [feedDirection, setFeedDirection] = useState(1);
-  const [exploreProgress, setExploreProgress] = useState(0);
   const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
-  const touchStartY = useRef<number | null>(null);
-  const wheelLock = useRef(false);
-  const wheelIntent = useRef(0);
-  const dragY = useMotionValue(0);
-  const smoothDragY = useSpring(dragY, { stiffness: 260, damping: 28, mass: 0.55 });
-  const activeCardScale = useTransform(smoothDragY, [-260, 0, 260], [0.958, 1, 0.958]);
-  const activeCardRotate = useTransform(smoothDragY, [-260, 0, 260], [-1.8, 0, 1.8]);
-  const activeCardFilter = useTransform(smoothDragY, [-260, 0, 260], ["brightness(0.9)", "brightness(1)", "brightness(0.9)"]);
-  const previousPeekY = useTransform(smoothDragY, [-260, 0, 260], [-8, 0, 20]);
-  const nextPeekY = useTransform(smoothDragY, [-260, 0, 260], [-20, 0, 8]);
-  const previousPeekScale = useTransform(smoothDragY, [-260, 0, 260], [0.98, 0.94, 0.88]);
-  const nextPeekScale = useTransform(smoothDragY, [-260, 0, 260], [0.88, 0.94, 0.98]);
-  const previousPeekOpacity = useTransform(smoothDragY, [-260, 0, 260], [0.52, 0.35, 0.18]);
-  const nextPeekOpacity = useTransform(smoothDragY, [-260, 0, 260], [0.18, 0.45, 0.52]);
 
   const selectedBooking = useMemo(
     () => demoBookings.find((booking) => booking.id === selectedBookingId) ?? demoBookings[0],
     [selectedBookingId]
   );
-  const activePost = demoFeedPosts[feedIndex];
-  const nextPost = demoFeedPosts[(feedIndex + 1) % demoFeedPosts.length];
-  const previousPost = demoFeedPosts[(feedIndex - 1 + demoFeedPosts.length) % demoFeedPosts.length];
   const currentMessages = bookingMessages[selectedBooking.id] ?? selectedBooking.thread;
   const filteredServices = homeServices.filter((service) =>
     `${service.title} ${service.subtitle}`.toLowerCase().includes(searchText.toLowerCase())
@@ -83,46 +63,6 @@ export default function DemoPage() {
 
   const selectTab = (tab: AppTab) => {
     setActiveTab(tab);
-    if (tab !== "explore") {
-      setExploreProgress(0);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab !== "explore") return;
-    const timer = window.setInterval(() => {
-      setExploreProgress((current) => {
-        if (current >= 100) {
-          setFeedDirection(1);
-          setFeedIndex((prev) => (prev + 1) % demoFeedPosts.length);
-          return 0;
-        }
-        return current + 2;
-      });
-    }, 120);
-    return () => window.clearInterval(timer);
-  }, [activeTab]);
-
-  const moveFeed = (direction: 1 | -1) => {
-    wheelIntent.current = 0;
-    dragY.set(0);
-    setFeedDirection(direction);
-    setFeedIndex((current) => {
-      const next = current + direction;
-      if (next < 0) return demoFeedPosts.length - 1;
-      if (next >= demoFeedPosts.length) return 0;
-      return next;
-    });
-    setExploreProgress(0);
-  };
-
-  const onExploreDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const swipePower = Math.abs(info.offset.y) + Math.abs(info.velocity.y) * 0.22;
-    if (swipePower < 150) {
-      dragY.set(0);
-      return;
-    }
-    moveFeed(info.offset.y > 0 ? -1 : 1);
   };
 
   const sendBookingMessage = (text: string) => {
@@ -135,31 +75,6 @@ export default function DemoPage() {
     }));
   };
 
-  const onExploreWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (wheelLock.current) return;
-    const normalizedDelta = Math.max(-36, Math.min(36, event.deltaY));
-    if (Math.abs(normalizedDelta) < 4) return;
-    wheelIntent.current += normalizedDelta;
-    if (Math.abs(wheelIntent.current) < 72) return;
-    wheelLock.current = true;
-    moveFeed(wheelIntent.current > 0 ? 1 : -1);
-    window.setTimeout(() => {
-      wheelLock.current = false;
-      wheelIntent.current = 0;
-    }, 360);
-  };
-
-  const onExploreTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchStartY.current = event.touches[0]?.clientY ?? null;
-  };
-
-  const onExploreTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStartY.current == null) return;
-    const delta = touchStartY.current - (event.changedTouches[0]?.clientY ?? touchStartY.current);
-    if (Math.abs(delta) > 45) moveFeed(delta > 0 ? 1 : -1);
-    touchStartY.current = null;
-  };
 
   return (
     <div className="min-h-screen bg-[#07111f] text-white">
@@ -296,52 +211,26 @@ export default function DemoPage() {
               )}
 
               {activeTab === "explore" && (
-                <div className="animate-fade-in mt-4 overscroll-none" onWheel={onExploreWheel} onTouchStart={onExploreTouchStart} onTouchEnd={onExploreTouchEnd}>
+                <div className="animate-fade-in mt-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Explore</p>
                       <h2 className="text-2xl font-semibold tracking-[-0.04em]">Live service feed</h2>
                     </div>
-                    <div className="rounded-full bg-white/8 px-3 py-2 text-xs text-white/70">Swipe or scroll</div>
+                    <div className="rounded-full bg-white/8 px-3 py-2 text-xs text-white/70">Scroll feed</div>
                   </div>
 
-                  <div className="relative h-[calc(100vh-11.8rem)] min-h-[560px] overflow-hidden rounded-[30px] border border-white/10 bg-black/20 touch-none">
-                    <div className="pointer-events-none absolute inset-x-5 top-5 z-10">
-                      <div className="mx-auto max-w-[10rem] rounded-full border border-white/10 bg-black/20 px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em] text-white/58 backdrop-blur-md">
-                        Drag up for next
-                      </div>
-                    </div>
-                    <div className="pointer-events-none absolute inset-x-4 top-0 bottom-0">
-                      <motion.div className="absolute inset-x-4 top-6 h-28 overflow-hidden rounded-[26px]" style={{ y: previousPeekY, scale: previousPeekScale, opacity: previousPeekOpacity }}>
-                        <div className={`absolute inset-0 bg-gradient-to-br ${previousPost.accent}`} />
-                        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${previousPost.imageUrl})` }} />
-                        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
-                      </motion.div>
-                      <motion.div className="absolute inset-x-4 bottom-6 h-28 overflow-hidden rounded-[26px]" style={{ y: nextPeekY, scale: nextPeekScale, opacity: nextPeekOpacity }}>
-                        <div className={`absolute inset-0 bg-gradient-to-br ${nextPost.accent}`} />
-                        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${nextPost.imageUrl})` }} />
-                        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.08),rgba(5,11,20,0.75))]" />
-                      </motion.div>
-                    </div>
-                    <AnimatePresence initial={false} custom={feedDirection} mode="wait">
+                  <div className="h-[calc(100vh-11.8rem)] min-h-[560px] space-y-4 overflow-y-auto rounded-[30px] border border-white/10 bg-black/20 p-3 pb-8 scroll-smooth snap-y snap-mandatory">
+                    {demoFeedPosts.map((post, index) => (
                       <motion.article
-                        key={activePost.id}
-                        custom={feedDirection}
-                        initial={{ opacity: 0, y: feedDirection > 0 ? 90 : -90 }}
+                        key={post.id}
+                        initial={{ opacity: 0, y: 32 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: feedDirection > 0 ? -90 : 90 }}
-                        transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
-                        drag="y"
-                        dragDirectionLock
-                        dragConstraints={{ top: 0, bottom: 0 }}
-                        dragElastic={0.12}
-                        dragMomentum={false}
-                        style={{ y: dragY, scale: activeCardScale, rotate: activeCardRotate, filter: activeCardFilter }}
-                        onDragEnd={onExploreDragEnd}
-                        className="absolute inset-3 overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(2,8,23,0.45)] will-change-transform"
+                        transition={{ duration: 0.35, delay: index * 0.04 }}
+                        className="relative min-h-[calc(100vh-14rem)] snap-start overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(2,8,23,0.45)]"
                       >
-                        <div className={`absolute inset-0 bg-gradient-to-br ${activePost.accent}`} />
-                        <div className="absolute inset-0 bg-cover bg-center opacity-28 mix-blend-screen" style={{ backgroundImage: `url(${activePost.imageUrl})` }} />
+                        <div className={`absolute inset-0 bg-gradient-to-br ${post.accent}`} />
+                        <div className="absolute inset-0 bg-cover bg-center opacity-28 mix-blend-screen" style={{ backgroundImage: `url(${post.imageUrl})` }} />
                         <motion.div
                           animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 0] }}
                           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
@@ -353,27 +242,22 @@ export default function DemoPage() {
                         </motion.div>
                         <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.98),rgba(5,11,20,0.18)_56%,rgba(5,11,20,0.04))]" />
 
-                        <div className="relative flex h-full flex-col justify-between p-5">
+                        <div className="relative flex h-full min-h-[calc(100vh-14rem)] flex-col justify-between p-5">
                           <div>
-                            <div className="mb-4 flex gap-1">
-                              {demoFeedPosts.map((post, index) => (
-                                <div key={post.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
-                                  <div
-                                    className="h-full rounded-full bg-white"
-                                    style={{ width: index < feedIndex ? "100%" : index === feedIndex ? `${exploreProgress}%` : "0%" }}
-                                  />
-                                </div>
-                              ))}
+                            <div className="mb-4">
+                              <div className="inline-flex rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white/58 backdrop-blur-md">
+                                Post {index + 1} of {demoFeedPosts.length}
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <Avatar src={activePost.avatarUrl} name={activePost.provider} size="lg" />
+                              <Avatar src={post.avatarUrl} name={post.provider} size="lg" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
-                                  <p className="truncate text-sm font-semibold">{activePost.provider}</p>
+                                  <p className="truncate text-sm font-semibold">{post.provider}</p>
                                   <BadgeCheck className="h-4 w-4 text-cyan-200" />
                                 </div>
-                                <p className="text-xs text-white/62">{activePost.category} | {activePost.location}</p>
+                                <p className="text-xs text-white/62">{post.category} | {post.location}</p>
                               </div>
                             </div>
                           </div>
@@ -381,44 +265,39 @@ export default function DemoPage() {
                           <div className="flex items-end gap-4">
                             <div className="min-w-0 flex-1">
                               <div className="mb-3 flex flex-wrap gap-2">
-                                {activePost.moments.map((moment) => (
+                                {post.moments.map((moment) => (
                                   <span key={moment} className="rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/88">{moment}</span>
                                 ))}
                               </div>
-                              <h3 className="max-w-[16rem] text-3xl font-semibold leading-tight tracking-[-0.04em]">{activePost.headline}</h3>
-                              <p className="mt-3 max-w-[17rem] text-sm leading-6 text-white/82">{activePost.caption}</p>
+                              <h3 className="max-w-[16rem] text-3xl font-semibold leading-tight tracking-[-0.04em]">{post.headline}</h3>
+                              <p className="mt-3 max-w-[17rem] text-sm leading-6 text-white/82">{post.caption}</p>
                               <div className="mt-3 flex flex-wrap gap-2 text-xs text-cyan-100/80">
-                                {activePost.hashtags.map((tag) => <span key={tag}>{tag}</span>)}
+                                {post.hashtags.map((tag) => <span key={tag}>{tag}</span>)}
                               </div>
                               <div className="mt-4 flex items-center gap-3 text-xs text-white/66">
-                                <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-current text-amber-300" />{activePost.rating.toFixed(1)}</span>
-                                <span>{activePost.reviews} reviews</span>
+                                <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-current text-amber-300" />{post.rating.toFixed(1)}</span>
+                                <span>{post.reviews} reviews</span>
                               </div>
                             </div>
 
                             <div className="flex flex-col items-center gap-3">
-                              <button type="button" onClick={() => setLikedPosts((current) => ({ ...current, [activePost.id]: !current[activePost.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${likedPosts[activePost.id] ? "bg-rose-500 text-white" : "bg-white/10 text-white"}`}>
-                                <Heart className={`h-5 w-5 ${likedPosts[activePost.id] ? "fill-current" : ""}`} />
+                              <button type="button" onClick={() => setLikedPosts((current) => ({ ...current, [post.id]: !current[post.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${likedPosts[post.id] ? "bg-rose-500 text-white" : "bg-white/10 text-white"}`}>
+                                <Heart className={`h-5 w-5 ${likedPosts[post.id] ? "fill-current" : ""}`} />
                               </button>
-                              <span className="text-xs text-white/70">{activePost.stats.likes}</span>
-                              <button type="button" onClick={() => setOpenCommentsFor(activePost.id)} className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white">
+                              <span className="text-xs text-white/70">{post.stats.likes}</span>
+                              <button type="button" onClick={() => setOpenCommentsFor(post.id)} className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white">
                                 <MessageCircle className="h-5 w-5" />
                               </button>
-                              <span className="text-xs text-white/70">{activePost.stats.comments}</span>
-                              <button type="button" onClick={() => setRepostedPosts((current) => ({ ...current, [activePost.id]: !current[activePost.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${repostedPosts[activePost.id] ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-white"}`}>
+                              <span className="text-xs text-white/70">{post.stats.comments}</span>
+                              <button type="button" onClick={() => setRepostedPosts((current) => ({ ...current, [post.id]: !current[post.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${repostedPosts[post.id] ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-white"}`}>
                                 <Repeat2 className="h-5 w-5" />
                               </button>
-                              <span className="text-xs text-white/70">{activePost.stats.reposts}</span>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex items-center justify-center">
-                            <div className="rounded-full bg-black/20 px-3 py-1.5 text-[11px] font-medium tracking-[0.18em] text-white/60 backdrop-blur-md">
-                              {feedIndex + 1} / {demoFeedPosts.length}
+                              <span className="text-xs text-white/70">{post.stats.reposts}</span>
                             </div>
                           </div>
                         </div>
                       </motion.article>
-                    </AnimatePresence>
+                    ))}
                   </div>
                 </div>
               )}
