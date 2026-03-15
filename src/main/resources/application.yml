@@ -128,6 +128,18 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        add-additional-paths: true
+      group:
+        readiness:
+          include: readinessState,db,ping
+        liveness:
+          include: livenessState,ping
+  health:
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
   metrics:
     export:
       prometheus:
