@@ -11,7 +11,7 @@ Two services from one GitHub repo:
 
 ## 1  Backend service
 
-**Healthcheck Path:** `/readyz`  
+**Healthcheck Path:** `/api/v1/actuator/health/readiness`  
 **Start command:** leave Railway auto-detect on (uses the root `Dockerfile`)
 
 ### Required environment variables
@@ -114,6 +114,6 @@ Postgres console.
 - `next.config.ts` has `output: "standalone"` so the frontend Dockerfile produces a minimal image.
 - The backend supports Railway's injected `PORT` and `PG*` variables — no extra config needed.
 - `SPRING_CACHE_TYPE=simple` removes the Redis requirement for a basic deploy. Add Redis and flip to `redis` when you need production caching.
-- Health checks use `/readyz`, which Spring Boot exposes on the main server port when readiness/liveness probes are enabled with additional paths.
+- Health checks use `/api/v1/actuator/health/readiness`, the canonical readiness endpoint behind the app context path.
 - The WebSocket endpoint is at `/api/v1/ws` — set `NEXT_PUBLIC_WS_URL` to the full backend URL including that path.
 - If Flyway fails to start, check for duplicate migration version files under `src/main/resources/db/migration/`. Each `V<n>__*.sql` version must be unique.

@@ -129,11 +129,13 @@ management:
     health:
       show-details: when_authorized
       probes:
-        add-additional-paths: true
+        enabled: true
       group:
         readiness:
+          additional-path: "server:/readyz"
           include: readinessState,db,ping
         liveness:
+          additional-path: "server:/livez"
           include: livenessState,ping
   health:
     redis:
