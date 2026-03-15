@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  CreditCard,
   Droplets,
   Heart,
   Home,
@@ -35,6 +36,7 @@ import {
   demoAddressBook,
   demoBookings,
   demoFeedPosts,
+  demoPaymentMethods,
   homeHighlights,
   homeServices,
   orderHistory,
@@ -43,6 +45,7 @@ import {
 } from "@/lib/demo-data";
 
 type AppTab = "home" | "explore" | "bookings" | "profile";
+type FeedMode = "for-you" | "nearby" | "trending";
 type FeedPost = (typeof demoFeedPosts)[number];
 type FeedComment = FeedPost["comments"][number];
 type FinderSuggestion = {
@@ -269,6 +272,9 @@ export default function DemoPage() {
   const [searchText, setSearchText] = useState("");
   const [serviceGridOpen, setServiceGridOpen] = useState(false);
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [mapFilterOpen, setMapFilterOpen] = useState(false);
+  const [mapCategoryFilter, setMapCategoryFilter] = useState("All");
+  const [selectedMapServiceId, setSelectedMapServiceId] = useState<string | null>(null);
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSavedStatus, setProfileSavedStatus] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
@@ -284,6 +290,7 @@ export default function DemoPage() {
   ]);
   const [notificationMode, setNotificationMode] = useState("Push + SMS");
   const [preferredWindow, setPreferredWindow] = useState("After work");
+  const [feedMode, setFeedMode] = useState<FeedMode>("for-you");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
   const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
@@ -341,9 +348,10 @@ export default function DemoPage() {
     );
   }, [address]);
   const serviceCategoryOptions = useMemo(
-    () => Array.from(new Set(homeServices.map((service) => service.category))).slice(0, 6),
+    () => Array.from(new Set(homeServices.map((service) => service.category))),
     [],
   );
+  const mapCategoryOptions = useMemo(() => ["All", ...serviceCategoryOptions], [serviceCategoryOptions]);
   const activeSavedAddress = useMemo(
     () => demoAddressBook.find((item) => item.value === address) ?? null,
     [address],
@@ -373,35 +381,91 @@ export default function DemoPage() {
           .includes(searchText.toLowerCase()),
       )
       .sort(
-        (left, right) =>
-          serviceTravelMinutes(left.id, activeAddressSuggestion) -
-          serviceTravelMinutes(right.id, activeAddressSuggestion),
+        (left, right) => {
+          const leftFavorite = favoriteCategories.includes(left.category) ? 0 : 1;
+          const rightFavorite = favoriteCategories.includes(right.category) ? 0 : 1;
+          if (leftFavorite !== rightFavorite) return leftFavorite - rightFavorite;
+
+          return (
+            serviceTravelMinutes(left.id, activeAddressSuggestion) -
+            serviceTravelMinutes(right.id, activeAddressSuggestion)
+          );
+        },
       )
       .map((service) => ({
         ...service,
         neighborhood: serviceNeighborhoodById[service.id] ?? activeAddressSuggestion.neighborhood,
         dynamicEta: `${serviceTravelMinutes(service.id, activeAddressSuggestion)} min`,
       })),
-    [activeAddressSuggestion, searchText],
+    [activeAddressSuggestion, favoriteCategories, searchText],
+  );
+  const mapVisibleServices = useMemo(
+    () =>
+      filteredServices.filter((service) =>
+        mapCategoryFilter === "All" ? true : service.category === mapCategoryFilter,
+      ),
+    [filteredServices, mapCategoryFilter],
+  );
+  const mapPins = useMemo(() => {
+    const latitudes = finderSuggestions.map((suggestion) => suggestion.lat);
+    const longitudes = finderSuggestions.map((suggestion) => suggestion.lng);
+    const latMin = Math.min(...latitudes);
+    const latMax = Math.max(...latitudes);
+    const lngMin = Math.min(...longitudes);
+    const lngMax = Math.max(...longitudes);
+
+    return mapVisibleServices.slice(0, 10).map((service, index) => {
+      const suggestion = getSuggestionByNeighborhood(service.neighborhood);
+      const normalizedX = (suggestion.lng - lngMin) / (lngMax - lngMin || 1);
+      const normalizedY = (latMax - suggestion.lat) / (latMax - latMin || 1);
+
+      return {
+        ...service,
+        left: 10 + normalizedX * 78 + ((index % 3) - 1) * 2.2,
+        top: 12 + normalizedY * 68 + (index % 2 === 0 ? -2.4 : 2.1),
+      };
+    });
+  }, [mapVisibleServices]);
+  const selectedMapService = useMemo(
+    () => mapVisibleServices.find((service) => service.id === selectedMapServiceId) ?? mapVisibleServices[0] ?? null,
+    [mapVisibleServices, selectedMapServiceId],
   );
   const filteredFeedPosts = useMemo(
-    () =>
-      demoFeedPosts.filter((post) =>
-        `${post.provider} ${post.category} ${post.headline} ${post.caption} ${post.location}`
-          .toLowerCase()
-          .includes(searchText.toLowerCase()),
-      ).sort(
-        (left, right) =>
-          serviceTravelMinutes(
-            homeServices.find((service) => service.provider === left.provider)?.id ?? "service-1",
-            activeAddressSuggestion,
-          ) -
-          serviceTravelMinutes(
-            homeServices.find((service) => service.provider === right.provider)?.id ?? "service-1",
-            activeAddressSuggestion,
-          ),
-      ),
-    [activeAddressSuggestion, searchText],
+    () => {
+      const query = searchText.toLowerCase();
+      return demoFeedPosts
+        .filter((post) =>
+          `${post.provider} ${post.category} ${post.headline} ${post.caption} ${post.location}`
+            .toLowerCase()
+            .includes(query),
+        )
+        .sort((left, right) => {
+          const leftService =
+            homeServices.find((service) => service.provider === left.provider) ?? homeServices[0];
+          const rightService =
+            homeServices.find((service) => service.provider === right.provider) ?? homeServices[0];
+          const leftDistance = serviceTravelMinutes(leftService.id, activeAddressSuggestion);
+          const rightDistance = serviceTravelMinutes(rightService.id, activeAddressSuggestion);
+          const leftTrend =
+            parseCompactCount(left.stats.likes) +
+            parseCompactCount(left.stats.comments) * 4 +
+            parseCompactCount(left.stats.reposts) * 6;
+          const rightTrend =
+            parseCompactCount(right.stats.likes) +
+            parseCompactCount(right.stats.comments) * 4 +
+            parseCompactCount(right.stats.reposts) * 6;
+          const leftFavoriteBoost = favoriteCategories.includes(left.category) ? 4000 : 0;
+          const rightFavoriteBoost = favoriteCategories.includes(right.category) ? 4000 : 0;
+
+          if (feedMode === "nearby") return leftDistance - rightDistance;
+          if (feedMode === "trending") return rightTrend - leftTrend;
+
+          const leftScore = leftTrend + left.rating * 100 + leftFavoriteBoost - leftDistance * 14;
+          const rightScore = rightTrend + right.rating * 100 + rightFavoriteBoost - rightDistance * 14;
+          return rightScore - leftScore;
+        });
+    },
+    [activeAddressSuggestion, favoriteCategories, feedMode, searchText],
   );
   const openCommentPost = openCommentsFor
     ? demoFeedPosts.find((post) => post.id === openCommentsFor) ?? null
@@ -411,6 +475,7 @@ export default function DemoPage() {
   const openServiceGrid = (serviceId?: string) => {
     setServiceGridOpen(true);
     setExpandedServiceId(serviceId ?? filteredServices[0]?.id ?? null);
+    if (serviceId) setSelectedMapServiceId(serviceId);
   };
 
   const applyAddressSuggestion = (suggestion: FinderSuggestion) => {
@@ -781,6 +846,113 @@ export default function DemoPage() {
                 </div>
               </div>
 
+              <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Service map</p>
+                    <p className="text-xs text-white/45">
+                      Pins around {activeAddressSuggestion.neighborhood}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMapFilterOpen((current) => !current)}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/76"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </button>
+                </div>
+                {mapFilterOpen ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {mapCategoryOptions.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setMapCategoryFilter(category)}
+                        className={`min-h-10 rounded-full px-3 py-2 text-xs ${
+                          mapCategoryFilter === category
+                            ? "bg-white text-slate-950"
+                            : "border border-white/10 bg-black/20 text-white/72"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-[#091220]">
+                  <div className="relative h-[250px]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_80%_80%,rgba(251,191,36,0.14),transparent_28%),linear-gradient(180deg,rgba(9,18,32,0.98),rgba(5,12,22,0.96))]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:44px_44px]" />
+                    <div className="absolute left-[14%] top-[18%] h-24 w-24 rounded-full border border-cyan-300/12 bg-cyan-300/10 blur-2xl" />
+                    <div className="absolute right-[10%] top-[22%] h-28 w-28 rounded-full border border-amber-300/12 bg-amber-300/10 blur-2xl" />
+
+                    <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-white/72">
+                      Live near {activeAddressSuggestion.neighborhood}
+                    </div>
+                    <div className="absolute bottom-4 left-4 rounded-full border border-cyan-300/18 bg-cyan-400/12 px-3 py-2 text-xs text-cyan-100">
+                      You are here
+                    </div>
+
+                    {mapPins.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        onClick={() => setSelectedMapServiceId(service.id)}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${service.left}%`, top: `${service.top}%` }}
+                      >
+                        <span
+                          className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-[0_12px_24px_rgba(5,11,20,0.45)] ${
+                            selectedMapService?.id === service.id
+                              ? "border-cyan-200 bg-cyan-400 text-slate-950"
+                              : "border-white/14 bg-black/45"
+                          }`}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </span>
+                      </button>
+                    ))}
+
+                    {mapPins.length === 0 ? (
+                      <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 rounded-[20px] border border-dashed border-white/10 bg-black/35 p-4 text-center">
+                        <p className="text-sm font-semibold">No pins for this filter yet</p>
+                        <p className="mt-1 text-xs text-white/52">
+                          Try another category or clear your search to repopulate the map.
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {selectedMapService ? (
+                      <div className="absolute inset-x-4 bottom-4 rounded-[20px] border border-white/10 bg-[#08111f]/92 p-4 backdrop-blur-md">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{selectedMapService.title}</p>
+                            <p className="mt-1 text-xs text-white/52">
+                              {selectedMapService.provider} | {selectedMapService.neighborhood}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/72">
+                            {selectedMapService.dynamicEta}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <p className="text-xs text-white/48">{selectedMapService.price}</p>
+                          <button
+                            type="button"
+                            onClick={() => openServiceGrid(selectedMapService.id)}
+                            className="text-xs font-semibold text-cyan-200"
+                          >
+                            Open service
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               <div className="mt-5">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
@@ -795,8 +967,9 @@ export default function DemoPage() {
                   </button>
                 </div>
                 {showServiceGrid ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {filteredServices.slice(0, 12).map((service, index) => {
+                  filteredServices.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {filteredServices.slice(0, 12).map((service, index) => {
                       const Icon = serviceIcons[index % serviceIcons.length];
                       const expanded = expandedServiceId === service.id;
                       return (
@@ -872,7 +1045,15 @@ export default function DemoPage() {
                         </button>
                       );
                     })}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-white/12 bg-white/6 p-5 text-center">
+                      <p className="text-sm font-semibold">No services found</p>
+                      <p className="mt-2 text-sm text-white/50">
+                        Try a different search or switch your address to a nearby area.
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
                     {filteredServices.slice(0, 6).map((service, index) => {
@@ -1014,6 +1195,30 @@ export default function DemoPage() {
                 </div>
               </div>
 
+              <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {[
+                  { id: "for-you" as const, label: "For you" },
+                  { id: "nearby" as const, label: "Nearby" },
+                  { id: "trending" as const, label: "Trending" },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setFeedMode(mode.id)}
+                    className={`min-h-11 shrink-0 rounded-full px-4 py-2 text-sm ${
+                      feedMode === mode.id
+                        ? "bg-white text-slate-950"
+                        : "border border-white/10 bg-white/8 text-white/70"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+                <div className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-cyan-100/70">
+                  {activeAddressSuggestion.neighborhood}
+                </div>
+              </div>
+
               <div className="mb-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
                 <Input
                   value={searchText}
@@ -1025,8 +1230,9 @@ export default function DemoPage() {
               </div>
 
               <div className="h-[calc(100vh-15rem)] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth">
-                <div className="space-y-4 pb-10">
-                  {filteredFeedPosts.map((post, postIndex) => {
+                {filteredFeedPosts.length > 0 ? (
+                  <div className="space-y-4 pb-10">
+                    {filteredFeedPosts.map((post, postIndex) => {
                     const stats = feedStats[post.id];
                     const comments = feedComments[post.id] ?? [];
 
@@ -1048,7 +1254,7 @@ export default function DemoPage() {
                         <div className="relative flex h-full flex-col justify-between p-5">
                           <div>
                             <div className="mb-4 flex gap-1">
-                              {demoFeedPosts.map((feedPost, index) => (
+                              {filteredFeedPosts.map((feedPost, index) => (
                                 <div
                                   key={feedPost.id}
                                   className="h-1 flex-1 overflow-hidden rounded-full bg-white/20"
@@ -1057,7 +1263,7 @@ export default function DemoPage() {
                                     className="h-full rounded-full bg-white"
                                     style={{
                                       width:
-                                        demoFeedPosts.findIndex((item) => item.id === post.id) >=
+                                        filteredFeedPosts.findIndex((item) => item.id === post.id) >=
                                         index
                                           ? "100%"
                                           : "0%",
@@ -1077,6 +1283,13 @@ export default function DemoPage() {
                                 <p className="text-xs text-white/62">
                                   {post.category} | {post.location}
                                 </p>
+                              </div>
+                              <div className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.14em] text-white/72">
+                                {feedMode === "for-you"
+                                  ? "For you"
+                                  : feedMode === "nearby"
+                                    ? "Nearby"
+                                    : "Trending"}
                               </div>
                             </div>
                           </div>
@@ -1110,6 +1323,13 @@ export default function DemoPage() {
                                   {post.rating.toFixed(1)}
                                 </span>
                                 <span>{post.reviews} reviews</span>
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/72">
+                                  {serviceTravelMinutes(
+                                    homeServices.find((service) => service.provider === post.provider)?.id ?? "service-1",
+                                    activeAddressSuggestion,
+                                  )}{" "}
+                                  min away
+                                </span>
                               </div>
                               {comments.length > 0 ? (
                                 <div className="mt-4 rounded-[20px] border border-white/8 bg-white/8 p-3 text-sm text-white/78">
@@ -1194,8 +1414,18 @@ export default function DemoPage() {
                         </div>
                       </motion.article>
                     );
-                  })}
-                </div>
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="w-full rounded-[28px] border border-dashed border-white/10 bg-white/8 p-6 text-center">
+                      <p className="text-lg font-semibold">No posts match that search yet</p>
+                      <p className="mt-2 text-sm text-white/52">
+                        Try another keyword or switch to a different feed mode.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : null}
@@ -1687,6 +1917,39 @@ export default function DemoPage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                <div className="mb-3 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-cyan-200" />
+                  <p className="text-sm font-semibold">Payment methods</p>
+                </div>
+                <div className="space-y-3">
+                  {demoPaymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between rounded-[18px] bg-black/20 px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {method.brand} ending in {method.last4}
+                        </p>
+                        <p className="mt-1 text-xs text-white/52">
+                          {method.holder} | expires {method.expiry}
+                        </p>
+                      </div>
+                      {method.default ? (
+                        <span className="rounded-full bg-emerald-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
+                          Default
+                        </span>
+                      ) : (
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/38">
+                          Saved
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
