@@ -71,6 +71,15 @@ public class ProviderController {
         return ProviderDetailResponse.from(provider);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('PROVIDER')")
+    public ProviderDetailResponse getProfile() {
+        UserAccount user = currentUserService.requireUser();
+        ProviderProfile provider = providerRepository.findByUserId(user.getId())
+            .orElseThrow(() -> new EntityNotFoundException("Provider profile not found"));
+        return ProviderDetailResponse.from(provider);
+    }
+
     @PutMapping("/me")
     @PreAuthorize("hasRole('PROVIDER')")
     @Transactional

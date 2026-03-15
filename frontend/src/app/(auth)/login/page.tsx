@@ -49,7 +49,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       setAuth(user, accessToken, refreshToken);
-      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/dashboard";
+      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/";
       router.replace(dest);
     } catch (error: unknown) {
       addToast({ type: "error", message: getErrorMessage(error) });

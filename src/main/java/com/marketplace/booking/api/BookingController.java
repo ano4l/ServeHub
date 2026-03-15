@@ -34,6 +34,12 @@ public class BookingController {
         return bookingService.listBookings();
     }
 
+    @GetMapping("/{bookingId}")
+    @PreAuthorize("isAuthenticated()")
+    public BookingResponse getBooking(@PathVariable Long bookingId) {
+        return bookingService.getBooking(bookingId);
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CUSTOMER')")
     public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
@@ -93,12 +99,14 @@ public class BookingController {
     }
 
     public record CreateBookingRequest(
-        @NotNull Long customerId,
-        @NotNull Long providerId,
-        @NotNull Long serviceOfferingId,
-        @NotNull @Future OffsetDateTime scheduledFor,
+        Long customerId,
+        Long providerId,
+        Long serviceOfferingId,
+        @Future OffsetDateTime scheduledFor,
         @NotBlank String address,
-        String notes
+        String notes,
+        Long offeringId,
+        @Future OffsetDateTime scheduledAt
     ) {
     }
 

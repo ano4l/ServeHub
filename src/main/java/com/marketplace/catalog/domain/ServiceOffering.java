@@ -82,4 +82,24 @@ public class ServiceOffering {
     public Integer getEstimatedDurationMinutes() {
         return estimatedDurationMinutes;
     }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
+
+    public void setPricingType(PricingType pricingType) {
+        this.pricingType = pricingType;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) {
+        this.estimatedDurationMinutes = estimatedDurationMinutes;
+    }
 }

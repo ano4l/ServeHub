@@ -16,9 +16,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,11 +44,31 @@ public class CatalogController {
     }
 
     @GetMapping
-    public List<ServiceOfferingResponse> listServices(@RequestParam(required = false) String category) {
-        List<ServiceOffering> services = category == null || category.isBlank()
-            ? serviceRepository.findAll()
-            : serviceRepository.findByCategoryIgnoreCase(category);
+    public List<ServiceOfferingResponse> listServices(@RequestParam(required = false) String category,
+                                                      @RequestParam(required = false) Long providerId) {
+        List<ServiceOffering> services;
+        if (providerId != null) {
+            services = category == null || category.isBlank()
+                ? serviceRepository.findByProviderIdOrderByServiceNameAsc(providerId)
+                : serviceRepository.findByProviderIdAndCategoryIgnoreCase(providerId, category);
+        } else {
+            services = category == null || category.isBlank()
+                ? serviceRepository.findAll()
+                : serviceRepository.findByCategoryIgnoreCase(category);
+        }
         return services.stream().map(ServiceOfferingResponse::from).toList();
+    }
+
+    @GetMapping("/providers/{providerId}/offerings")
+    public List<ServiceOfferingResponse> listProviderOfferings(@PathVariable Long providerId,
+                                                               @RequestParam(required = false) String category) {
+        return listServices(category, providerId);
+    }
+
+    @GetMapping("/offerings")
+    public List<ServiceOfferingResponse> listOfferings(@RequestParam(required = false) String category,
+                                                       @RequestParam(required = false) Long providerId) {
+        return listServices(category, providerId);
     }
 
     @PostMapping
@@ -53,15 +76,7 @@ public class CatalogController {
     public ServiceOfferingResponse createService(@Valid @RequestBody CreateServiceOfferingRequest request) {
         ProviderProfile provider = providerRepository.findById(request.providerId())
             .orElseThrow(() -> new EntityNotFoundException("Provider not found: " + request.providerId()));
-        var actor = currentUserService.requireUser();
-        if (actor.getRole() == Role.PROVIDER && !provider.getUser().getId().equals(actor.getId())) {
-            throw new IllegalArgumentException("Providers may only manage their own service offerings");
-        }
-
-        if (provider.getVerificationStatus() != VerificationStatus.VERIFIED
-            && provider.getVerificationStatus() != VerificationStatus.PENDING_REVIEW) {
-            throw new IllegalArgumentException("Provider cannot publish services in status " + provider.getVerificationStatus());
-        }
+        assertProviderCanManageOfferings(provider);
 
         ServiceOffering offering = serviceRepository.save(new ServiceOffering(
             provider,
@@ -75,6 +90,60 @@ public class CatalogController {
         return ServiceOfferingResponse.from(offering);
     }
 
+    @PostMapping("/offerings")
+    @PreAuthorize("hasAnyRole('PROVIDER','ADMIN')")
+    public ServiceOfferingResponse createOffering(@Valid @RequestBody CreateServiceOfferingRequest request) {
+        return createService(request);
+    }
+
+    @PutMapping("/offerings/{offeringId}")
+    @PreAuthorize("hasAnyRole('PROVIDER','ADMIN')")
+    public ServiceOfferingResponse updateOffering(@PathVariable Long offeringId,
+                                                  @Valid @RequestBody UpdateServiceOfferingRequest request) {
+        ServiceOffering offering = serviceRepository.findById(offeringId)
+            .orElseThrow(() -> new EntityNotFoundException("Service offering not found: " + offeringId));
+        assertProviderCanManageOfferings(offering.getProvider());
+
+        if (request.category() != null) {
+            offering.setCategory(request.category());
+        }
+        if (request.serviceName() != null) {
+            offering.setServiceName(request.serviceName());
+        }
+        if (request.pricingType() != null) {
+            offering.setPricingType(request.pricingType());
+        }
+        if (request.price() != null) {
+            offering.setPrice(request.price());
+        }
+        if (request.estimatedDurationMinutes() != null) {
+            offering.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
+        }
+
+        return ServiceOfferingResponse.from(offering);
+    }
+
+    @DeleteMapping("/offerings/{offeringId}")
+    @PreAuthorize("hasAnyRole('PROVIDER','ADMIN')")
+    public void deleteOffering(@PathVariable Long offeringId) {
+        ServiceOffering offering = serviceRepository.findById(offeringId)
+            .orElseThrow(() -> new EntityNotFoundException("Service offering not found: " + offeringId));
+        assertProviderCanManageOfferings(offering.getProvider());
+        serviceRepository.delete(offering);
+    }
+
+    private void assertProviderCanManageOfferings(ProviderProfile provider) {
+        var actor = currentUserService.requireUser();
+        if (actor.getRole() == Role.PROVIDER && !provider.getUser().getId().equals(actor.getId())) {
+            throw new IllegalArgumentException("Providers may only manage their own service offerings");
+        }
+
+        if (provider.getVerificationStatus() != VerificationStatus.VERIFIED
+            && provider.getVerificationStatus() != VerificationStatus.PENDING_REVIEW) {
+            throw new IllegalArgumentException("Provider cannot publish services in status " + provider.getVerificationStatus());
+        }
+    }
+
     public record CreateServiceOfferingRequest(
         @NotNull Long providerId,
         @NotBlank String category,
@@ -82,6 +151,15 @@ public class CatalogController {
         @NotNull PricingType pricingType,
         @NotNull @DecimalMin("0.00") BigDecimal price,
         @NotNull @Min(15) Integer estimatedDurationMinutes
+    ) {
+    }
+
+    public record UpdateServiceOfferingRequest(
+        String category,
+        String serviceName,
+        PricingType pricingType,
+        @DecimalMin("0.00") BigDecimal price,
+        @Min(15) Integer estimatedDurationMinutes
     ) {
     }
 

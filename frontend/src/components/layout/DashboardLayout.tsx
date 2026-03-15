@@ -23,7 +23,7 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
     }
 
     if (requiredRole && user?.activeRole !== requiredRole) {
-      router.replace("/dashboard");
+      router.replace(user?.activeRole === "CUSTOMER" ? "/" : "/dashboard");
     }
   }, [isAuthenticated, requiredRole, router, user]);
 

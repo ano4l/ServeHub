@@ -17,7 +17,6 @@ import com.marketplace.identity.domain.UserAccountRepository;
 import com.marketplace.notification.application.NotificationService;
 import com.marketplace.payment.application.PaymentService;
 import com.marketplace.provider.domain.ProviderProfile;
-import com.marketplace.provider.domain.ProviderProfileRepository;
 import com.marketplace.provider.domain.VerificationStatus;
 import com.marketplace.security.CurrentUserService;
 import jakarta.persistence.EntityNotFoundException;
@@ -33,20 +32,18 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingEventRepository eventRepository;
     private final UserAccountRepository userRepository;
-    private final ProviderProfileRepository providerRepository;
     private final ServiceOfferingRepository serviceRepository;
     private final PaymentService paymentService;
     private final NotificationService notificationService;
     private final CurrentUserService currentUserService;
 
     public BookingService(BookingRepository bookingRepository, BookingEventRepository eventRepository,
-                          UserAccountRepository userRepository, ProviderProfileRepository providerRepository,
+                          UserAccountRepository userRepository,
                           ServiceOfferingRepository serviceRepository, PaymentService paymentService,
                           NotificationService notificationService, CurrentUserService currentUserService) {
         this.bookingRepository = bookingRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
-        this.providerRepository = providerRepository;
         this.serviceRepository = serviceRepository;
         this.paymentService = paymentService;
         this.notificationService = notificationService;
@@ -64,36 +61,50 @@ public class BookingService {
         return bookings.stream().map(this::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
+    public BookingResponse getBooking(Long bookingId) {
+        return toResponse(requireAccessibleBooking(bookingId));
+    }
+
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request) {
         UserAccount actor = currentUserService.requireUser();
-        if (actor.getRole() == Role.CUSTOMER && !actor.getId().equals(request.customerId())) {
+        Long customerId = request.customerId() != null ? request.customerId() : actor.getId();
+        if (actor.getRole() == Role.CUSTOMER && !actor.getId().equals(customerId)) {
             throw new IllegalArgumentException("Customers may only create bookings for themselves");
         }
 
-        UserAccount customer = userRepository.findById(request.customerId())
-            .orElseThrow(() -> new EntityNotFoundException("Customer not found: " + request.customerId()));
-        if (customer.getRole() != Role.CUSTOMER) {
-            throw new IllegalArgumentException("User is not a customer: " + request.customerId());
+        Long offeringId = request.serviceOfferingId() != null ? request.serviceOfferingId() : request.offeringId();
+        if (offeringId == null) {
+            throw new IllegalArgumentException("serviceOfferingId is required");
         }
 
-        ProviderProfile provider = providerRepository.findById(request.providerId())
-            .orElseThrow(() -> new EntityNotFoundException("Provider not found: " + request.providerId()));
+        OffsetDateTime scheduledFor = request.scheduledFor() != null ? request.scheduledFor() : request.scheduledAt();
+        if (scheduledFor == null || !scheduledFor.isAfter(OffsetDateTime.now())) {
+            throw new IllegalArgumentException("scheduledFor must be in the future");
+        }
+
+        UserAccount customer = userRepository.findById(customerId)
+            .orElseThrow(() -> new EntityNotFoundException("Customer not found: " + customerId));
+        if (customer.getRole() != Role.CUSTOMER) {
+            throw new IllegalArgumentException("User is not a customer: " + customerId);
+        }
+
+        ServiceOffering offering = serviceRepository.findById(offeringId)
+            .orElseThrow(() -> new EntityNotFoundException("Service offering not found: " + offeringId));
+        ProviderProfile provider = offering.getProvider();
+        if (request.providerId() != null && !offering.getProvider().getId().equals(request.providerId())) {
+            throw new IllegalArgumentException("Service offering does not belong to provider");
+        }
         if (provider.getVerificationStatus() != VerificationStatus.VERIFIED) {
             throw new IllegalArgumentException("Provider must be VERIFIED before accepting bookings");
-        }
-
-        ServiceOffering offering = serviceRepository.findById(request.serviceOfferingId())
-            .orElseThrow(() -> new EntityNotFoundException("Service offering not found: " + request.serviceOfferingId()));
-        if (!offering.getProvider().getId().equals(provider.getId())) {
-            throw new IllegalArgumentException("Service offering does not belong to provider");
         }
 
         Booking booking = bookingRepository.save(new Booking(
             customer,
             provider,
             offering,
-            request.scheduledFor(),
+            scheduledFor,
             request.address(),
             request.notes(),
             offering.getPrice()

@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
 
 const rolePaths: Record<UserRole, string> = {
-  CUSTOMER: "/dashboard",
+  CUSTOMER: "/",
   PROVIDER: "/provider",
   ADMIN: "/admin",
   SUPPORT: "/admin",

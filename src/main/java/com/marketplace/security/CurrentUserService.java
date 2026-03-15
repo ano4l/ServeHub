@@ -2,6 +2,7 @@ package com.marketplace.security;
 
 import com.marketplace.identity.domain.Role;
 import com.marketplace.identity.domain.UserAccount;
+import java.util.Optional;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,15 +11,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class CurrentUserService {
 
-    public UserAccount requireUser() {
+    public Optional<UserAccount> currentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null
             || !authentication.isAuthenticated()
             || authentication instanceof AnonymousAuthenticationToken
             || !(authentication.getPrincipal() instanceof UserAccount user)) {
+            return Optional.empty();
+        }
+        return Optional.of(user);
+    }
+
+    public UserAccount requireUser() {
+        Optional<UserAccount> currentUser = currentUser();
+        if (currentUser.isEmpty()) {
             throw new IllegalArgumentException("Authenticated user is required");
         }
-        return user;
+        return currentUser.get();
     }
 
     public boolean hasAnyRole(Role... roles) {

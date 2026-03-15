@@ -48,10 +48,15 @@ public class SecurityConfig {
                     "/actuator/health",
                     "/actuator/info",
                     "/catalog/services",
+                    "/catalog/services/**",
+                    "/offerings",
+                    "/offerings/*",
+                    "/social/feed",
+                    "/social/feed/*/comments",
                     "/providers",
-                    "/providers/{id}",
-                    "/providers/{id}/reviews",
-                    "/admin/categories",
+                    "/providers/*",
+                    "/providers/*/reviews",
+                    "/providers/*/offerings",
                     "/categories"
                 ).permitAll()
                 .anyRequest().authenticated()

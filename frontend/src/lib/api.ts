@@ -109,6 +109,17 @@ interface BackendChatMessage {
   sentAt: string;
 }
 
+interface BackendServiceOffering {
+  id: number;
+  providerId: number;
+  providerName: string;
+  category: string;
+  serviceName: string;
+  pricingType: string;
+  price: number | string;
+  estimatedDurationMinutes: number;
+}
+
 interface BackendWalletBalance {
   available: number;
   pending: number;
@@ -135,6 +146,69 @@ interface BackendAnalytics {
   totalReviews: number;
   revenue: number;
   completionRate: number;
+}
+
+interface BackendCustomerProfile {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  avatarUrl?: string | null;
+}
+
+interface BackendCustomerAddress {
+  id: number;
+  label: string;
+  value: string;
+  note?: string | null;
+  defaultAddress: boolean;
+}
+
+interface BackendSavedPaymentMethod {
+  id: number;
+  brand: string;
+  last4: string;
+  holderName: string;
+  expiry: string;
+  defaultMethod: boolean;
+}
+
+interface BackendSocialComment {
+  id: number;
+  offeringId: number;
+  authorId: number;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
+interface BackendSocialFeedPost {
+  id: number;
+  providerId: number;
+  providerName: string;
+  providerAvatarUrl?: string | null;
+  category: string;
+  serviceName: string;
+  caption: string;
+  city: string;
+  verified: boolean;
+  rating: number | null;
+  reviewCount: number;
+  likes: number;
+  comments: number;
+  reposts: number;
+  likedByViewer: boolean;
+  repostedByViewer: boolean;
+  commentPreview: BackendSocialComment[];
+}
+
+interface BackendSocialReaction {
+  offeringId: number;
+  type: "LIKE" | "REPOST";
+  active: boolean;
+  likes: number;
+  reposts: number;
+  comments: number;
 }
 
 export interface ProviderListItem {
@@ -178,6 +252,80 @@ export interface ChatMessageItem {
   content: string;
   sentAt: string;
   read: boolean;
+}
+
+export interface ServiceOfferingItem {
+  id: string;
+  providerId: string;
+  providerName: string;
+  category: string;
+  serviceName: string;
+  pricingType: string;
+  price: number;
+  estimatedDurationMinutes: number;
+}
+
+export interface CustomerProfileItem {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  avatarUrl?: string;
+}
+
+export interface CustomerAddressItem {
+  id: string;
+  label: string;
+  value: string;
+  note?: string;
+  defaultAddress: boolean;
+}
+
+export interface SavedPaymentMethodItem {
+  id: string;
+  brand: string;
+  last4: string;
+  holderName: string;
+  expiry: string;
+  defaultMethod: boolean;
+}
+
+export interface SocialCommentItem {
+  id: string;
+  offeringId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SocialFeedPostItem {
+  id: string;
+  providerId: string;
+  providerName: string;
+  providerAvatarUrl?: string;
+  category: string;
+  serviceName: string;
+  caption: string;
+  city: string;
+  verified: boolean;
+  rating: number;
+  reviewCount: number;
+  likes: number;
+  comments: number;
+  reposts: number;
+  likedByViewer: boolean;
+  repostedByViewer: boolean;
+  commentPreview: SocialCommentItem[];
+}
+
+export interface SocialReactionToggleItem {
+  offeringId: string;
+  type: "LIKE" | "REPOST";
+  active: boolean;
+  likes: number;
+  reposts: number;
+  comments: number;
 }
 
 function splitFullName(fullName: string) {
@@ -258,6 +406,94 @@ function toChatMessageItem(message: BackendChatMessage): ChatMessageItem {
   };
 }
 
+function toServiceOfferingItem(service: BackendServiceOffering): ServiceOfferingItem {
+  return {
+    id: String(service.id),
+    providerId: String(service.providerId),
+    providerName: service.providerName,
+    category: service.category,
+    serviceName: service.serviceName,
+    pricingType: service.pricingType,
+    price: Number(service.price),
+    estimatedDurationMinutes: service.estimatedDurationMinutes,
+  };
+}
+
+function toCustomerProfileItem(profile: BackendCustomerProfile): CustomerProfileItem {
+  return {
+    id: String(profile.id),
+    fullName: profile.fullName,
+    email: profile.email,
+    phoneNumber: profile.phoneNumber,
+    avatarUrl: profile.avatarUrl ?? undefined,
+  };
+}
+
+function toCustomerAddressItem(address: BackendCustomerAddress): CustomerAddressItem {
+  return {
+    id: String(address.id),
+    label: address.label,
+    value: address.value,
+    note: address.note ?? undefined,
+    defaultAddress: address.defaultAddress,
+  };
+}
+
+function toSavedPaymentMethodItem(method: BackendSavedPaymentMethod): SavedPaymentMethodItem {
+  return {
+    id: String(method.id),
+    brand: method.brand,
+    last4: method.last4,
+    holderName: method.holderName,
+    expiry: method.expiry,
+    defaultMethod: method.defaultMethod,
+  };
+}
+
+function toSocialCommentItem(comment: BackendSocialComment): SocialCommentItem {
+  return {
+    id: String(comment.id),
+    offeringId: String(comment.offeringId),
+    authorId: String(comment.authorId),
+    authorName: comment.authorName,
+    content: comment.content,
+    createdAt: comment.createdAt,
+  };
+}
+
+function toSocialFeedPostItem(post: BackendSocialFeedPost): SocialFeedPostItem {
+  return {
+    id: String(post.id),
+    providerId: String(post.providerId),
+    providerName: post.providerName,
+    providerAvatarUrl: post.providerAvatarUrl ?? undefined,
+    category: post.category,
+    serviceName: post.serviceName,
+    caption: post.caption,
+    city: post.city,
+    verified: post.verified,
+    rating: Number(post.rating ?? 0),
+    reviewCount: post.reviewCount,
+    likes: post.likes,
+    comments: post.comments,
+    reposts: post.reposts,
+    likedByViewer: post.likedByViewer,
+    repostedByViewer: post.repostedByViewer,
+    commentPreview: post.commentPreview.map(toSocialCommentItem),
+  };
+}
+
+function toSocialReactionToggleItem(item: BackendSocialReaction): SocialReactionToggleItem {
+  return {
+    offeringId: String(item.offeringId),
+    type: item.type,
+    active: item.active,
+    likes: item.likes,
+    reposts: item.reposts,
+    comments: item.comments,
+  };
+}
+
 export default api;
 
 export const authApi = {
@@ -296,16 +532,25 @@ export const providersApi = {
   getProfile: () => api.get("/providers/me"),
   update: (data: Partial<ProviderProfile>) => api.put("/providers/me", data),
   uploadDoc: (file: FormData) => api.post("/providers/me/documents", file, { headers: { "Content-Type": "multipart/form-data" } }),
-  getOfferings: (providerId: string) => api.get(`/providers/${providerId}/offerings`),
+  async getOfferings(providerId: string): ApiResult<ServiceOfferingItem[]> {
+    const { data } = await api.get<BackendServiceOffering[]>(`/catalog/services/providers/${providerId}/offerings`);
+    return { data: data.map(toServiceOfferingItem) };
+  },
 };
 
 export const catalogApi = {
   getCategories: () => api.get("/categories"),
-  getServices: (categoryId?: string) => api.get("/catalog/services", { params: { category: categoryId } }),
-  getOfferings: (params?: object) => api.get("/offerings", { params }),
-  createOffering: (data: object) => api.post("/offerings", data),
-  updateOffering: (id: string, data: object) => api.put(`/offerings/${id}`, data),
-  deleteOffering: (id: string) => api.delete(`/offerings/${id}`),
+  async getServices(categoryId?: string): ApiResult<ServiceOfferingItem[]> {
+    const { data } = await api.get<BackendServiceOffering[]>("/catalog/services", { params: { category: categoryId } });
+    return { data: data.map(toServiceOfferingItem) };
+  },
+  async getOfferings(params?: object): ApiResult<ServiceOfferingItem[]> {
+    const { data } = await api.get<BackendServiceOffering[]>("/catalog/services/offerings", { params });
+    return { data: data.map(toServiceOfferingItem) };
+  },
+  createOffering: (data: object) => api.post("/catalog/services/offerings", data),
+  updateOffering: (id: string, data: object) => api.put(`/catalog/services/offerings/${id}`, data),
+  deleteOffering: (id: string) => api.delete(`/catalog/services/offerings/${id}`),
 };
 
 export const bookingsApi = {
@@ -314,8 +559,14 @@ export const bookingsApi = {
     const { data } = await api.get<BackendBooking[]>("/bookings");
     return { data: { content: data.map(toBookingListItem) } };
   },
-  getById: (id: string) => api.get(`/bookings/${id}`),
-  create: (data: CreateBookingPayload) => api.post("/bookings", data),
+  async getById(id: string): ApiResult<BookingListItem> {
+    const { data } = await api.get<BackendBooking>(`/bookings/${id}`);
+    return { data: toBookingListItem(data) };
+  },
+  async create(data: CreateBookingPayload): ApiResult<BookingListItem> {
+    const response = await api.post<BackendBooking>("/bookings", data);
+    return { data: toBookingListItem(response.data) };
+  },
   accept: (id: string) => api.post(`/bookings/${id}/accept`),
   decline: (id: string, reason: string) => api.post(`/bookings/${id}/decline`, { reason }),
   start: (id: string) => api.post(`/bookings/${id}/start`),
@@ -333,6 +584,90 @@ export const messagesApi = {
   async send(bookingId: string, content: string): ApiResult<ChatMessageItem> {
     const { data } = await api.post<BackendChatMessage>(`/bookings/${bookingId}/messages`, { content });
     return { data: toChatMessageItem(data) };
+  },
+};
+
+export const customerApi = {
+  async getProfile(): ApiResult<CustomerProfileItem> {
+    const { data } = await api.get<BackendCustomerProfile>("/customers/me");
+    return { data: toCustomerProfileItem(data) };
+  },
+  async updateProfile(data: {
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    avatarUrl?: string;
+  }): ApiResult<CustomerProfileItem> {
+    const response = await api.put<BackendCustomerProfile>("/customers/me", data);
+    return { data: toCustomerProfileItem(response.data) };
+  },
+  async getAddresses(): ApiResult<CustomerAddressItem[]> {
+    const { data } = await api.get<BackendCustomerAddress[]>("/customers/me/addresses");
+    return { data: data.map(toCustomerAddressItem) };
+  },
+  async createAddress(data: {
+    label: string;
+    value: string;
+    note?: string;
+    defaultAddress?: boolean;
+  }): ApiResult<CustomerAddressItem> {
+    const response = await api.post<BackendCustomerAddress>("/customers/me/addresses", data);
+    return { data: toCustomerAddressItem(response.data) };
+  },
+  async updateAddress(id: string, data: {
+    label: string;
+    value: string;
+    note?: string;
+    defaultAddress?: boolean;
+  }): ApiResult<CustomerAddressItem> {
+    const response = await api.put<BackendCustomerAddress>(`/customers/me/addresses/${id}`, data);
+    return { data: toCustomerAddressItem(response.data) };
+  },
+  deleteAddress: (id: string) => api.delete(`/customers/me/addresses/${id}`),
+  async getPaymentMethods(): ApiResult<SavedPaymentMethodItem[]> {
+    const { data } = await api.get<BackendSavedPaymentMethod[]>("/customers/me/payment-methods");
+    return { data: data.map(toSavedPaymentMethodItem) };
+  },
+  async createPaymentMethod(data: {
+    holderName: string;
+    cardNumber: string;
+    expiry: string;
+    defaultMethod?: boolean;
+  }): ApiResult<SavedPaymentMethodItem> {
+    const response = await api.post<BackendSavedPaymentMethod>("/customers/me/payment-methods", data);
+    return { data: toSavedPaymentMethodItem(response.data) };
+  },
+  async updatePaymentMethod(id: string, data: {
+    holderName?: string;
+    expiry?: string;
+    defaultMethod?: boolean;
+  }): ApiResult<SavedPaymentMethodItem> {
+    const response = await api.put<BackendSavedPaymentMethod>(`/customers/me/payment-methods/${id}`, data);
+    return { data: toSavedPaymentMethodItem(response.data) };
+  },
+  deletePaymentMethod: (id: string) => api.delete(`/customers/me/payment-methods/${id}`),
+};
+
+export const socialApi = {
+  async getFeed(params?: { category?: string; q?: string; size?: number }): ApiResult<SocialFeedPostItem[]> {
+    const { data } = await api.get<BackendSocialFeedPost[]>("/social/feed", { params });
+    return { data: data.map(toSocialFeedPostItem) };
+  },
+  async getComments(offeringId: string): ApiResult<SocialCommentItem[]> {
+    const { data } = await api.get<BackendSocialComment[]>(`/social/feed/${offeringId}/comments`);
+    return { data: data.map(toSocialCommentItem) };
+  },
+  async addComment(offeringId: string, content: string): ApiResult<SocialCommentItem> {
+    const { data } = await api.post<BackendSocialComment>(`/social/feed/${offeringId}/comments`, { content });
+    return { data: toSocialCommentItem(data) };
+  },
+  async toggleLike(offeringId: string): ApiResult<SocialReactionToggleItem> {
+    const { data } = await api.post<BackendSocialReaction>(`/social/feed/${offeringId}/likes/toggle`);
+    return { data: toSocialReactionToggleItem(data) };
+  },
+  async toggleRepost(offeringId: string): ApiResult<SocialReactionToggleItem> {
+    const { data } = await api.post<BackendSocialReaction>(`/social/feed/${offeringId}/reposts/toggle`);
+    return { data: toSocialReactionToggleItem(data) };
   },
 };
 
