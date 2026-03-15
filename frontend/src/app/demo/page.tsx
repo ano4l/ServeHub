@@ -5,18 +5,23 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BadgeCheck,
   Bell,
+  Check,
   ChevronRight,
   Clock3,
   Droplets,
   Heart,
   Home,
+  Mail,
   MapPin,
   MessageCircle,
+  PencilLine,
+  Phone,
   Repeat2,
   Search,
   Send,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Star,
   UserRound,
@@ -27,12 +32,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  demoAddressBook,
   demoBookings,
   demoFeedPosts,
   homeHighlights,
   homeServices,
   orderHistory,
-  profileAddresses,
   profileSettings,
   profileStats,
 } from "@/lib/demo-data";
@@ -40,8 +45,201 @@ import {
 type AppTab = "home" | "explore" | "bookings" | "profile";
 type FeedPost = (typeof demoFeedPosts)[number];
 type FeedComment = FeedPost["comments"][number];
+type FinderSuggestion = {
+  id: string;
+  label: string;
+  value: string;
+  neighborhood: string;
+  lat: number;
+  lng: number;
+};
 
 const serviceIcons = [Droplets, Sparkles, Zap, Wrench];
+const finderSuggestions: FinderSuggestion[] = [
+  {
+    id: "finder-home",
+    label: "Home",
+    value: "14 Beach Road, Sea Point",
+    neighborhood: "Sea Point",
+    lat: -33.9105,
+    lng: 18.3903,
+  },
+  {
+    id: "finder-office",
+    label: "Office",
+    value: "97 Bree Street, Cape Town",
+    neighborhood: "Cape Town",
+    lat: -33.9226,
+    lng: 18.4174,
+  },
+  {
+    id: "finder-mom",
+    label: "Mom's house",
+    value: "40 Main Road, Green Point",
+    neighborhood: "Green Point",
+    lat: -33.9042,
+    lng: 18.409,
+  },
+  {
+    id: "finder-de-waterkant",
+    label: "De Waterkant",
+    value: "4 Loader Street, De Waterkant",
+    neighborhood: "De Waterkant",
+    lat: -33.9147,
+    lng: 18.4152,
+  },
+  {
+    id: "finder-gardens",
+    label: "Gardens",
+    value: "92 Kloof Street, Gardens",
+    neighborhood: "Gardens",
+    lat: -33.9287,
+    lng: 18.4086,
+  },
+  {
+    id: "finder-camps-bay",
+    label: "Camps Bay",
+    value: "17 Victoria Road, Camps Bay",
+    neighborhood: "Camps Bay",
+    lat: -33.9501,
+    lng: 18.3774,
+  },
+  {
+    id: "finder-bantry-bay",
+    label: "Bantry Bay",
+    value: "8 Alexander Road, Bantry Bay",
+    neighborhood: "Bantry Bay",
+    lat: -33.9254,
+    lng: 18.3773,
+  },
+  {
+    id: "finder-city-bowl",
+    label: "City Bowl",
+    value: "44 Loop Street, City Bowl",
+    neighborhood: "City Bowl",
+    lat: -33.9239,
+    lng: 18.4197,
+  },
+  {
+    id: "finder-woodstock",
+    label: "Woodstock",
+    value: "63 Albert Road, Woodstock",
+    neighborhood: "Woodstock",
+    lat: -33.9285,
+    lng: 18.4473,
+  },
+  {
+    id: "finder-oranjezicht",
+    label: "Oranjezicht",
+    value: "31 Upper Orange Street, Oranjezicht",
+    neighborhood: "Oranjezicht",
+    lat: -33.9347,
+    lng: 18.4125,
+  },
+  {
+    id: "finder-observatory",
+    label: "Observatory",
+    value: "39 Lower Main Road, Observatory",
+    neighborhood: "Observatory",
+    lat: -33.9362,
+    lng: 18.4662,
+  },
+  {
+    id: "finder-claremont",
+    label: "Claremont",
+    value: "11 Cavendish Avenue, Claremont",
+    neighborhood: "Claremont",
+    lat: -33.9793,
+    lng: 18.4654,
+  },
+  {
+    id: "finder-tamboerskloof",
+    label: "Tamboerskloof",
+    value: "5 Warren Street, Tamboerskloof",
+    neighborhood: "Tamboerskloof",
+    lat: -33.928,
+    lng: 18.402,
+  },
+  {
+    id: "finder-rondebosch",
+    label: "Rondebosch",
+    value: "18 Belmont Road, Rondebosch",
+    neighborhood: "Rondebosch",
+    lat: -33.9595,
+    lng: 18.4712,
+  },
+];
+const serviceNeighborhoodById: Record<string, string> = {
+  "service-1": "Sea Point",
+  "service-2": "De Waterkant",
+  "service-3": "Gardens",
+  "service-4": "Camps Bay",
+  "service-5": "Green Point",
+  "service-6": "Bantry Bay",
+  "service-7": "Camps Bay",
+  "service-8": "Sea Point",
+  "service-9": "City Bowl",
+  "service-10": "Green Point",
+  "service-11": "Woodstock",
+  "service-12": "Oranjezicht",
+  "service-13": "Observatory",
+  "service-14": "Claremont",
+  "service-15": "Tamboerskloof",
+  "service-16": "Rondebosch",
+  "service-17": "Claremont",
+  "service-18": "Woodstock",
+};
+
+function getSuggestionByNeighborhood(neighborhood: string) {
+  return (
+    finderSuggestions.find((suggestion) => suggestion.neighborhood === neighborhood) ??
+    finderSuggestions[0]
+  );
+}
+
+function inferSuggestionFromAddress(address: string) {
+  const normalized = address.trim().toLowerCase();
+  if (!normalized) return finderSuggestions[0];
+
+  const directMatch = finderSuggestions.find(
+    (suggestion) =>
+      suggestion.value.toLowerCase() === normalized ||
+      suggestion.neighborhood.toLowerCase() === normalized ||
+      normalized.includes(suggestion.neighborhood.toLowerCase()) ||
+      normalized.includes(suggestion.label.toLowerCase()),
+  );
+
+  if (directMatch) return directMatch;
+
+  const savedAddressMatch = demoAddressBook.find((saved) =>
+    normalized.includes(saved.value.toLowerCase()) || normalized.includes(saved.label.toLowerCase()),
+  );
+
+  if (savedAddressMatch) {
+    return (
+      finderSuggestions.find((suggestion) =>
+        suggestion.value.toLowerCase().includes(savedAddressMatch.value.toLowerCase()),
+      ) ?? finderSuggestions[0]
+    );
+  }
+
+  return finderSuggestions[0];
+}
+
+function distanceBetween(
+  first: { lat: number; lng: number },
+  second: { lat: number; lng: number },
+) {
+  const lat = first.lat - second.lat;
+  const lng = first.lng - second.lng;
+  return Math.sqrt(lat * lat + lng * lng);
+}
+
+function serviceTravelMinutes(serviceId: string, activeSuggestion: FinderSuggestion) {
+  const serviceSuggestion = getSuggestionByNeighborhood(serviceNeighborhoodById[serviceId] ?? "Sea Point");
+  const distance = distanceBetween(activeSuggestion, serviceSuggestion);
+  return Math.max(9, Math.round(9 + distance * 180));
+}
 
 function parseCompactCount(value: string) {
   const trimmed = value.trim().toUpperCase();
@@ -59,6 +257,9 @@ function compactCount(value: number) {
 export default function DemoPage() {
   const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [address, setAddress] = useState("14 Beach Road, Sea Point");
+  const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
+  const [addressFinderStatus, setAddressFinderStatus] = useState<string | null>(null);
+  const [isLocatingAddress, setIsLocatingAddress] = useState(false);
   const [bookings] = useState(demoBookings);
   const [selectedBookingId, setSelectedBookingId] = useState(demoBookings[0].id);
   const [bookingMessages, setBookingMessages] = useState(
@@ -66,6 +267,23 @@ export default function DemoPage() {
   );
   const [bookingComposer, setBookingComposer] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [serviceGridOpen, setServiceGridOpen] = useState(false);
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileSavedStatus, setProfileSavedStatus] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({
+    fullName: "Ano Dzinotyiwei",
+    email: "ano@example.com",
+    phone: "+27 82 555 0134",
+    tagline: "Keep the home admin light while trusted pros handle the hard stuff.",
+  });
+  const [favoriteCategories, setFavoriteCategories] = useState<string[]>([
+    "Plumbing",
+    "Cleaning",
+    "Hair",
+  ]);
+  const [notificationMode, setNotificationMode] = useState("Push + SMS");
+  const [preferredWindow, setPreferredWindow] = useState("After work");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
   const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
@@ -95,6 +313,53 @@ export default function DemoPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openCommentsFor]);
 
+  useEffect(() => {
+    if (!addressFinderStatus) return;
+    const timeout = window.setTimeout(() => setAddressFinderStatus(null), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [addressFinderStatus]);
+
+  useEffect(() => {
+    if (!profileSavedStatus) return;
+    const timeout = window.setTimeout(() => setProfileSavedStatus(null), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [profileSavedStatus]);
+
+  const activeAddressSuggestion = useMemo(
+    () => inferSuggestionFromAddress(address),
+    [address],
+  );
+  const addressSuggestions = useMemo(() => {
+    const query = address.trim().toLowerCase();
+    if (!query) return finderSuggestions;
+
+    return finderSuggestions.filter(
+      (suggestion) =>
+        suggestion.value.toLowerCase().includes(query) ||
+        suggestion.neighborhood.toLowerCase().includes(query) ||
+        suggestion.label.toLowerCase().includes(query),
+    );
+  }, [address]);
+  const serviceCategoryOptions = useMemo(
+    () => Array.from(new Set(homeServices.map((service) => service.category))).slice(0, 6),
+    [],
+  );
+  const activeSavedAddress = useMemo(
+    () => demoAddressBook.find((item) => item.value === address) ?? null,
+    [address],
+  );
+  const profileCompletion = useMemo(() => {
+    const completedFields = [
+      profileForm.fullName,
+      profileForm.email,
+      profileForm.phone,
+      profileForm.tagline,
+      activeSavedAddress?.value ?? address,
+    ].filter((value) => value.trim().length > 0).length;
+
+    return Math.min(100, Math.round((completedFields / 5) * 100));
+  }, [activeSavedAddress, address, profileForm]);
+
   const selectedBooking = useMemo(
     () => bookings.find((booking) => booking.id === selectedBookingId) ?? bookings[0],
     [bookings, selectedBookingId],
@@ -106,8 +371,18 @@ export default function DemoPage() {
         `${service.title} ${service.subtitle} ${service.provider} ${service.category}`
           .toLowerCase()
           .includes(searchText.toLowerCase()),
-      ),
-    [searchText],
+      )
+      .sort(
+        (left, right) =>
+          serviceTravelMinutes(left.id, activeAddressSuggestion) -
+          serviceTravelMinutes(right.id, activeAddressSuggestion),
+      )
+      .map((service) => ({
+        ...service,
+        neighborhood: serviceNeighborhoodById[service.id] ?? activeAddressSuggestion.neighborhood,
+        dynamicEta: `${serviceTravelMinutes(service.id, activeAddressSuggestion)} min`,
+      })),
+    [activeAddressSuggestion, searchText],
   );
   const filteredFeedPosts = useMemo(
     () =>
@@ -115,12 +390,88 @@ export default function DemoPage() {
         `${post.provider} ${post.category} ${post.headline} ${post.caption} ${post.location}`
           .toLowerCase()
           .includes(searchText.toLowerCase()),
+      ).sort(
+        (left, right) =>
+          serviceTravelMinutes(
+            homeServices.find((service) => service.provider === left.provider)?.id ?? "service-1",
+            activeAddressSuggestion,
+          ) -
+          serviceTravelMinutes(
+            homeServices.find((service) => service.provider === right.provider)?.id ?? "service-1",
+            activeAddressSuggestion,
+          ),
       ),
-    [searchText],
+    [activeAddressSuggestion, searchText],
   );
   const openCommentPost = openCommentsFor
     ? demoFeedPosts.find((post) => post.id === openCommentsFor) ?? null
     : null;
+  const showServiceGrid = serviceGridOpen || searchText.trim().length > 0;
+
+  const openServiceGrid = (serviceId?: string) => {
+    setServiceGridOpen(true);
+    setExpandedServiceId(serviceId ?? filteredServices[0]?.id ?? null);
+  };
+
+  const applyAddressSuggestion = (suggestion: FinderSuggestion) => {
+    setAddress(suggestion.value);
+    setAddressSuggestionsOpen(false);
+    setAddressFinderStatus(`Showing services closest to ${suggestion.neighborhood}`);
+  };
+
+  const updateProfileField = (field: keyof typeof profileForm, value: string) => {
+    setProfileForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const saveProfile = () => {
+    setProfileEditing(false);
+    setProfileSavedStatus("Profile updated and saved to your demo account.");
+  };
+
+  const toggleFavoriteCategory = (category: string) => {
+    setFavoriteCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category],
+    );
+  };
+
+  const findCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setAddressFinderStatus("Current location isn't supported here yet.");
+      return;
+    }
+
+    setIsLocatingAddress(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const current = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        const nearest = finderSuggestions.reduce((closest, suggestion) => {
+          const closestDistance = distanceBetween(closest, current);
+          const suggestionDistance = distanceBetween(suggestion, current);
+          return suggestionDistance < closestDistance ? suggestion : closest;
+        }, finderSuggestions[0]);
+
+        setAddress(nearest.value);
+        setAddressSuggestionsOpen(false);
+        setAddressFinderStatus(`Using current area near ${nearest.neighborhood}`);
+        setIsLocatingAddress(false);
+      },
+      () => {
+        setAddressFinderStatus("Couldn't access your location. Choose a nearby area below.");
+        setIsLocatingAddress(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 300000,
+      },
+    );
+  };
 
   const sendBookingMessage = (inputText?: string) => {
     const text = (inputText ?? bookingComposer).trim();
@@ -273,12 +624,70 @@ export default function DemoPage() {
               <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
                 <Input
                   value={address}
-                  onChange={(event) => setAddress(event.target.value)}
+                  onChange={(event) => {
+                    setAddress(event.target.value);
+                    setAddressSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setAddressSuggestionsOpen(true)}
+                  onBlur={() => {
+                    window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && addressSuggestions[0]) {
+                      event.preventDefault();
+                      applyAddressSuggestion(addressSuggestions[0]);
+                    }
+                  }}
                   placeholder="Enter address"
                   leftIcon={<MapPin className="h-4 w-4" />}
                   rightIcon={<ChevronRight className="h-4 w-4" />}
                   className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400"
                 />
+                {addressSuggestionsOpen ? (
+                  <div className="mt-3 space-y-2 rounded-[20px] border border-white/10 bg-[#08111f] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                        Suggested addresses
+                      </p>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={findCurrentLocation}
+                        className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/80"
+                      >
+                        {isLocatingAddress ? "Finding..." : "Use current location"}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {addressSuggestions.length > 0 ? (
+                        addressSuggestions.slice(0, 5).map((suggestion) => (
+                          <button
+                            key={suggestion.id}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyAddressSuggestion(suggestion)}
+                            className="flex w-full items-center justify-between rounded-[16px] bg-white/6 px-3 py-3 text-left"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-white">{suggestion.label}</p>
+                              <p className="mt-1 text-xs text-white/48">{suggestion.value}</p>
+                            </div>
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-cyan-200">
+                              {suggestion.neighborhood}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="rounded-[16px] bg-white/6 px-3 py-3 text-sm text-white/70">
+                          <p className="font-medium text-white">No exact match yet</p>
+                          <p className="mt-1 text-xs text-white/48">
+                            Try Sea Point, Gardens, or Claremont to anchor nearby services.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {[
                     { label: "Home", value: "14 Beach Road, Sea Point" },
@@ -288,13 +697,26 @@ export default function DemoPage() {
                     <button
                       key={item.label}
                       type="button"
-                      onClick={() => setAddress(item.value)}
+                      onClick={() =>
+                        applyAddressSuggestion(
+                          finderSuggestions.find((suggestion) => suggestion.value === item.value) ??
+                            finderSuggestions[0],
+                        )
+                      }
                       className="min-h-11 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/72"
                     >
                       {item.label}
                     </button>
                   ))}
                 </div>
+                <p className="mt-3 text-xs text-white/50">
+                  Auto-matched area: {activeAddressSuggestion.neighborhood}
+                </p>
+                {addressFinderStatus ? (
+                  <p role="status" className="mt-1 text-xs text-cyan-200">
+                    {addressFinderStatus}
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-4 overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#8ef7d6_0%,#ffd27f_52%,#ff9d7d_100%)] p-5 text-slate-950">
@@ -330,11 +752,32 @@ export default function DemoPage() {
                 <div className="mt-3">
                   <Input
                     value={searchText}
-                    onChange={(event) => setSearchText(event.target.value)}
+                    onChange={(event) => {
+                      setSearchText(event.target.value);
+                      if (event.target.value.trim()) {
+                        setServiceGridOpen(true);
+                      }
+                    }}
                     placeholder="Search cleaning, plumbing, electrical..."
                     leftIcon={<Search className="h-4 w-4" />}
                     className="h-12 rounded-full border-white/8 bg-black/20 text-white placeholder:text-white/35"
                   />
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-white/45">
+                  <span>Closest services are sorted around {activeAddressSuggestion.neighborhood}</span>
+                  {showServiceGrid ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchText("");
+                        setServiceGridOpen(false);
+                        setExpandedServiceId(null);
+                      }}
+                      className="text-cyan-200"
+                    >
+                      Clear grid
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -345,20 +788,100 @@ export default function DemoPage() {
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("explore")}
+                    onClick={() => openServiceGrid(filteredServices[0]?.id)}
                     className="text-sm text-cyan-200"
                   >
                     See all
                   </button>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-                  {filteredServices.slice(0, 6).map((service, index) => {
+                {showServiceGrid ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {filteredServices.slice(0, 12).map((service, index) => {
+                      const Icon = serviceIcons[index % serviceIcons.length];
+                      const expanded = expandedServiceId === service.id;
+                      return (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() =>
+                            setExpandedServiceId((current) =>
+                              current === service.id ? null : service.id,
+                            )
+                          }
+                          className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white ${
+                            expanded ? "col-span-2 min-h-[260px]" : "min-h-[212px]"
+                          }`}
+                        >
+                          <div
+                            className="absolute inset-0 bg-cover bg-center opacity-30"
+                            style={{ backgroundImage: `url(${service.imageUrl})` }}
+                          />
+                          <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.96),rgba(8,15,28,0.18))]" />
+                          <div className="relative">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">
+                                {service.badge}
+                              </span>
+                              <Icon className="h-5 w-5 text-white/86" />
+                            </div>
+                            <h4 className="mt-8 text-lg font-semibold">{service.title}</h4>
+                            <p className="mt-1 text-sm text-white/72">{service.subtitle}</p>
+                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-white/75">
+                              <span className="rounded-full bg-black/24 px-2.5 py-1">
+                                {service.dynamicEta}
+                              </span>
+                              <span className="rounded-full bg-black/24 px-2.5 py-1">
+                                {service.neighborhood}
+                              </span>
+                            </div>
+                            {expanded ? (
+                              <div className="mt-4 space-y-3">
+                                <p className="text-sm leading-6 text-white/80">
+                                  {service.description}
+                                </p>
+                                <div className="flex flex-wrap gap-2 text-[11px] text-white/78">
+                                  {service.tags.map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="rounded-full bg-white/12 px-2.5 py-1"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-medium">{service.provider}</p>
+                                    <p className="mt-1 text-xs text-white/55">
+                                      {service.price} - {service.duration}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    className="min-h-10 rounded-full bg-white px-4 text-slate-950 hover:bg-white/92"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setActiveTab("bookings");
+                                    }}
+                                  >
+                                    Book now
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                    {filteredServices.slice(0, 6).map((service, index) => {
                     const Icon = serviceIcons[index % serviceIcons.length];
                     return (
                       <button
                         key={service.id}
                         type="button"
-                        onClick={() => setActiveTab("explore")}
+                        onClick={() => openServiceGrid(service.id)}
                         className={`relative min-w-[260px] overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}
                       >
                         <div
@@ -377,13 +900,15 @@ export default function DemoPage() {
                           <p className="mt-1 text-sm text-white/72">{service.subtitle}</p>
                           <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/24 px-3 py-2 text-sm">
                             <Clock3 className="h-4 w-4" />
-                            {service.eta}
+                            {service.dynamicEta}
                           </div>
+                          <p className="mt-3 text-xs text-white/55">{service.neighborhood}</p>
                         </div>
                       </button>
                     );
-                  })}
-                </div>
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="mt-5 space-y-3">
@@ -891,15 +1416,18 @@ export default function DemoPage() {
                 <div className="flex items-start gap-4">
                   <Avatar
                     src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80"
-                    name="Ano D"
+                    name={profileForm.fullName}
                     size="lg"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="truncate text-xl font-semibold">Ano Dzinotyiwei</h3>
+                      <h3 className="truncate text-xl font-semibold">{profileForm.fullName}</h3>
                       <BadgeCheck className="h-4 w-4 text-cyan-200" />
                     </div>
-                    <p className="mt-1 text-sm text-white/70">ano@example.com</p>
+                    <p className="mt-1 text-sm text-white/70">{profileForm.email}</p>
+                    <p className="mt-2 max-w-[18rem] text-sm leading-6 text-white/68">
+                      {profileForm.tagline}
+                    </p>
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       {profileStats.map((stat) => (
                         <div
@@ -913,8 +1441,131 @@ export default function DemoPage() {
                         </div>
                       ))}
                     </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <div className="h-2 flex-1 rounded-full bg-white/12">
+                        <div
+                          className="h-2 rounded-full bg-[linear-gradient(90deg,#8ef7d6_0%,#7dd3fc_100%)]"
+                          style={{ width: `${profileCompletion}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-cyan-100">
+                        {profileCompletion}% ready
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <PencilLine className="h-4 w-4 text-cyan-200" />
+                    <p className="text-sm font-semibold">Profile details</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (profileEditing) {
+                        setProfileEditing(false);
+                        setProfileSavedStatus("Changes discarded.");
+                      } else {
+                        setProfileEditing(true);
+                      }
+                    }}
+                    className="text-xs font-semibold text-cyan-200"
+                  >
+                    {profileEditing ? "Cancel" : "Edit"}
+                  </button>
+                </div>
+                {profileEditing ? (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                        Full name
+                      </p>
+                      <Input
+                        value={profileForm.fullName}
+                        onChange={(event) => updateProfileField("fullName", event.target.value)}
+                        aria-label="Full name"
+                        autoComplete="name"
+                        className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                        Email
+                      </p>
+                      <Input
+                        value={profileForm.email}
+                        onChange={(event) => updateProfileField("email", event.target.value)}
+                        type="email"
+                        aria-label="Email"
+                        autoComplete="email"
+                        className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                        Phone
+                      </p>
+                      <Input
+                        value={profileForm.phone}
+                        onChange={(event) => updateProfileField("phone", event.target.value)}
+                        type="tel"
+                        aria-label="Phone"
+                        autoComplete="tel"
+                        className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                        Tagline
+                      </p>
+                      <Input
+                        value={profileForm.tagline}
+                        onChange={(event) => updateProfileField("tagline", event.target.value)}
+                        aria-label="Tagline"
+                        className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                      />
+                    </div>
+                    <Button
+                      className="min-h-12 w-full rounded-full bg-white text-slate-950 hover:bg-white/92"
+                      onClick={saveProfile}
+                    >
+                      <Check className="h-4 w-4" />
+                      Save profile
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 rounded-[18px] bg-black/20 px-4 py-3">
+                      <UserRound className="h-4 w-4 text-cyan-200" />
+                      <div>
+                        <p className="text-sm font-medium">Full name</p>
+                        <p className="mt-1 text-xs text-white/52">{profileForm.fullName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-[18px] bg-black/20 px-4 py-3">
+                      <Mail className="h-4 w-4 text-cyan-200" />
+                      <div>
+                        <p className="text-sm font-medium">Email</p>
+                        <p className="mt-1 text-xs text-white/52">{profileForm.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-[18px] bg-black/20 px-4 py-3">
+                      <Phone className="h-4 w-4 text-cyan-200" />
+                      <div>
+                        <p className="text-sm font-medium">Phone</p>
+                        <p className="mt-1 text-xs text-white/52">{profileForm.phone}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {profileSavedStatus ? (
+                  <p role="status" className="mt-3 text-xs text-cyan-200">
+                    {profileSavedStatus}
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
@@ -923,48 +1574,160 @@ export default function DemoPage() {
                   <p className="text-sm font-semibold">Saved addresses</p>
                 </div>
                 <div className="space-y-3">
-                  {profileAddresses.map((addressItem) => (
-                    <div
-                      key={addressItem.id}
-                      className="rounded-[18px] bg-black/20 px-4 py-3"
-                    >
-                      <p className="text-sm font-medium">{addressItem.label}</p>
-                      <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
+                  {demoAddressBook.map((addressItem) => {
+                    const active = address === addressItem.value;
+                    return (
+                      <button
+                        key={addressItem.id}
+                        type="button"
+                        onClick={() =>
+                          applyAddressSuggestion(
+                            finderSuggestions.find(
+                              (suggestion) => suggestion.value === addressItem.value,
+                            ) ?? inferSuggestionFromAddress(addressItem.value),
+                          )
+                        }
+                        className={`w-full rounded-[18px] px-4 py-3 text-left transition-colors ${
+                          active
+                            ? "border border-cyan-300/45 bg-cyan-400/10"
+                            : "bg-black/20 hover:bg-black/28"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium">{addressItem.label}</p>
+                            <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
+                            <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-white/38">
+                              {addressItem.note}
+                            </p>
+                          </div>
+                          {active ? (
+                            <span className="rounded-full bg-cyan-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
+                              Active
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                <div className="mb-3 flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4 text-cyan-200" />
+                  <p className="text-sm font-semibold">Personalize matching</p>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                      Favorite categories
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {serviceCategoryOptions.map((category) => {
+                        const active = favoriteCategories.includes(category);
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            onClick={() => toggleFavoriteCategory(category)}
+                            className={`min-h-11 rounded-full px-3 py-2 text-sm transition-colors ${
+                              active
+                                ? "bg-white text-slate-950"
+                                : "border border-white/10 bg-black/20 text-white/76"
+                            }`}
+                          >
+                            {category}
+                          </button>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                      Preferred arrival window
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {["Early", "After work", "Weekend"].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setPreferredWindow(option)}
+                          className={`min-h-11 rounded-[16px] px-3 py-2 text-sm ${
+                            preferredWindow === option
+                              ? "bg-cyan-300 text-slate-950"
+                              : "bg-black/20 text-white/72"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                      Updates and alerts
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {["Push only", "Push + SMS", "Email digest"].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setNotificationMode(option)}
+                          className={`min-h-11 rounded-full px-3 py-2 text-sm ${
+                            notificationMode === option
+                              ? "bg-emerald-300 text-slate-950"
+                              : "border border-white/10 bg-black/20 text-white/76"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
                 <div className="mb-3 flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-cyan-200" />
-                  <p className="text-sm font-semibold">Preferences</p>
+                  <p className="text-sm font-semibold">Account shortcuts</p>
                 </div>
                 <div className="space-y-3">
                   {profileSettings.map((item) => (
-                    <div
+                    <button
                       key={item.id}
-                      className="flex items-center justify-between rounded-[18px] bg-black/20 px-4 py-3"
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-[18px] bg-black/20 px-4 py-3 text-left"
                     >
                       <div>
                         <p className="text-sm font-medium">{item.label}</p>
                         <p className="mt-1 text-xs text-white/52">{item.value}</p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-white/35" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
 
               <div className="mt-4 flex gap-3">
-                <Button className="min-h-12 flex-1 rounded-full bg-white text-slate-950 hover:bg-white/92">
+                <Button
+                  className="min-h-12 flex-1 rounded-full bg-white text-slate-950 hover:bg-white/92"
+                  onClick={() => {
+                    setProfileEditing(true);
+                    setProfileSavedStatus("Edit mode enabled.");
+                  }}
+                >
                   Edit profile
                 </Button>
                 <Button
                   variant="outline"
                   className="min-h-12 flex-1 rounded-full border-white/12 bg-white/8 text-white hover:bg-white/12"
+                  onClick={() => setActiveTab("home")}
                 >
-                  Help
+                  Back home
                 </Button>
               </div>
             </div>
