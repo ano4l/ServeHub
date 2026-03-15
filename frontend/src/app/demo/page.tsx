@@ -59,10 +59,12 @@ function compactCount(value: number) {
 export default function DemoPage() {
   const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [address, setAddress] = useState("14 Beach Road, Sea Point");
+  const [bookings] = useState(demoBookings);
   const [selectedBookingId, setSelectedBookingId] = useState(demoBookings[0].id);
   const [bookingMessages, setBookingMessages] = useState(
     Object.fromEntries(demoBookings.map((booking) => [booking.id, booking.thread])),
   );
+  const [bookingComposer, setBookingComposer] = useState("");
   const [searchText, setSearchText] = useState("");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
@@ -94,8 +96,8 @@ export default function DemoPage() {
   }, [openCommentsFor]);
 
   const selectedBooking = useMemo(
-    () => demoBookings.find((booking) => booking.id === selectedBookingId) ?? demoBookings[0],
-    [selectedBookingId],
+    () => bookings.find((booking) => booking.id === selectedBookingId) ?? bookings[0],
+    [bookings, selectedBookingId],
   );
   const currentMessages = bookingMessages[selectedBooking.id] ?? selectedBooking.thread;
   const filteredServices = useMemo(
@@ -120,20 +122,59 @@ export default function DemoPage() {
     ? demoFeedPosts.find((post) => post.id === openCommentsFor) ?? null
     : null;
 
-  const sendBookingMessage = (text: string) => {
+  const sendBookingMessage = (inputText?: string) => {
+    const text = (inputText ?? bookingComposer).trim();
+    if (!text) return;
+
+    const bookingId = selectedBooking.id;
+    const providerShortName = selectedBooking.provider.split(" ")[0];
+    const timeLabel = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     setBookingMessages((current) => ({
       ...current,
-      [selectedBooking.id]: [
-        ...(current[selectedBooking.id] ?? selectedBooking.thread),
+      [bookingId]: [
+        ...(current[bookingId] ?? selectedBooking.thread),
         {
-          id: `${selectedBooking.id}-${Date.now()}`,
+          id: `${bookingId}-${Date.now()}`,
           sender: "You",
           text,
-          time: "Now",
+          time: timeLabel,
           own: true,
         },
       ],
     }));
+
+    setBookingComposer("");
+
+    const reply =
+      text.toLowerCase().includes("quote")
+        ? "Got it. I'll send the updated quote in this thread shortly."
+        : text.toLowerCase().includes("arrival") || text.toLowerCase().includes("ring")
+          ? "Noted. I'll message again just before I arrive."
+          : text.toLowerCase().includes("issue")
+            ? "Thanks, I have added that to the job notes."
+            : "Received. I'll keep you updated here as the booking progresses.";
+
+    window.setTimeout(() => {
+      setBookingMessages((current) => ({
+        ...current,
+        [bookingId]: [
+          ...(current[bookingId] ?? []),
+          {
+            id: `${bookingId}-${Date.now()}-reply`,
+            sender: providerShortName,
+            text: reply,
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ],
+      }));
+    }, 650);
   };
 
   const toggleLike = (postId: string) => {
@@ -393,7 +434,7 @@ export default function DemoPage() {
                     Open
                   </button>
                 </div>
-                {demoBookings.map((booking) => (
+                {bookings.map((booking) => (
                   <button
                     key={booking.id}
                     type="button"
@@ -652,36 +693,58 @@ export default function DemoPage() {
               </div>
 
               <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-                {demoBookings.map((booking) => (
+                {bookings.map((booking) => {
+                  const active = selectedBooking.id === booking.id;
+                  return (
                   <button
                     key={booking.id}
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className={`min-w-[220px] rounded-[24px] border p-4 text-left ${
-                      selectedBooking.id === booking.id
-                        ? "border-cyan-300/45 bg-white/12"
-                        : "border-white/10 bg-white/8"
+                    aria-pressed={active}
+                    className={`group relative min-w-[252px] overflow-hidden rounded-[26px] border p-4 text-left transition-all ${
+                      active
+                        ? "border-cyan-300/55 bg-white/14 shadow-[0_0_0_1px_rgba(103,232,249,0.22)]"
+                        : "border-white/10 bg-white/8 hover:border-white/20 hover:bg-white/10"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium">{booking.service}</p>
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/72">
-                        {booking.status}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-white/55">{booking.provider}</p>
-                    <div className="mt-4 h-2 rounded-full bg-white/10">
+                    <div
+                      className="absolute inset-0 bg-cover bg-center opacity-[0.14]"
+                      style={{ backgroundImage: `url(${booking.imageUrl})` }}
+                    />
+                    <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(7,17,31,0.92),rgba(7,17,31,0.52))]" />
+                    <div className="relative">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar src={booking.avatarUrl} name={booking.provider} size="sm" />
+                          <div>
+                            <p className="font-medium leading-5">{booking.service}</p>
+                            <p className="mt-1 text-xs text-white/55">{booking.provider}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/72">
+                            {booking.status}
+                          </span>
+                          <ChevronRight
+                            className={`h-4 w-4 text-white/45 transition-transform ${
+                              active ? "translate-x-0.5" : ""
+                            }`}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 h-2 rounded-full bg-white/10">
                       <div
                         className={`h-2 rounded-full bg-gradient-to-r ${booking.accent}`}
                         style={{ width: `${booking.progress}%` }}
                       />
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-white/45">
-                      <span>{booking.scheduledFor}</span>
-                      <span>{booking.price}</span>
+                      <div className="mt-3 flex items-center justify-between text-xs text-white/55">
+                        <span>{booking.scheduledFor}</span>
+                        <span>{booking.price}</span>
+                      </div>
                     </div>
                   </button>
-                ))}
+                )})}
               </div>
 
               <div className="mt-4 rounded-[28px] bg-[linear-gradient(180deg,#ffffff_0%,#eef5ff_100%)] p-5 text-slate-900">
@@ -780,14 +843,27 @@ export default function DemoPage() {
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => sendBookingMessage("Thanks, see you shortly.")}
-                  className="mt-4 flex min-h-12 w-full items-center justify-between rounded-[20px] border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/80"
-                >
-                  <span>Send quick update</span>
-                  <Send className="h-4 w-4" />
-                </button>
+                <div className="mt-4 flex gap-2">
+                  <Input
+                    value={bookingComposer}
+                    onChange={(event) => setBookingComposer(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        sendBookingMessage();
+                      }
+                    }}
+                    placeholder="Type a message to the provider..."
+                    className="h-12 rounded-[20px] border-white/10 bg-white/8 text-white placeholder:text-white/40"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => sendBookingMessage()}
+                    className="min-h-12 rounded-[20px] bg-white px-4 text-slate-950 hover:bg-white/92"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}
