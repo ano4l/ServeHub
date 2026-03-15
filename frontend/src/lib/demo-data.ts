@@ -1,91 +1,288 @@
+export interface DemoHomeService {
+  id: string;
+  title: string;
+  subtitle: string;
+  eta: string;
+  accent: string;
+  badge: string;
+}
+
+export interface DemoOrderHistory {
+  id: string;
+  title: string;
+  provider: string;
+  date: string;
+  price: string;
+}
+
+export interface DemoBookingMessage {
+  id: string;
+  sender: string;
+  text: string;
+  time: string;
+  own?: boolean;
+}
+
+export interface DemoBooking {
+  id: string;
+  service: string;
+  provider: string;
+  providerRole: string;
+  status: "Arriving" | "In Progress" | "Scheduled";
+  eta: string;
+  scheduledFor: string;
+  price: string;
+  address: string;
+  progress: number;
+  accent: string;
+  checklist: { label: string; complete: boolean }[];
+  thread: DemoBookingMessage[];
+}
+
+export interface DemoFeedComment {
+  id: string;
+  author: string;
+  handle: string;
+  text: string;
+}
+
+export interface DemoFeedPost {
+  id: string;
+  provider: string;
+  category: string;
+  headline: string;
+  caption: string;
+  stats: {
+    likes: string;
+    comments: string;
+    reposts: string;
+  };
+  accent: string;
+  location: string;
+  rating: number;
+  reviews: number;
+  hashtags: string[];
+  comments: DemoFeedComment[];
+  moments: string[];
+}
+
 export interface DemoProvider {
   id: string;
   name: string;
   category: string;
   rating: number;
   reviews: number;
-  eta: string;
-  caption: string;
-  accent: string;
   neighborhood: string;
-  likes: string;
   verified: boolean;
-  price: string;
+  caption: string;
 }
 
-export interface DemoMessage {
+export interface DemoProfileSectionItem {
   id: string;
-  sender: string;
-  text: string;
-  time: string;
-}
-
-export interface DemoOpsItem {
   label: string;
   value: string;
-  detail: string;
-  tone: string;
 }
 
-export const demoProviders: DemoProvider[] = [
+export const homeServices: DemoHomeService[] = [
   {
-    id: "provider-1",
-    name: "Nomvula Plumbing Co.",
+    id: "service-1",
+    title: "Emergency plumbing",
+    subtitle: "Leaks, geysers, blockages",
+    eta: "12 min",
+    accent: "from-cyan-300 via-sky-400 to-blue-700",
+    badge: "Most booked",
+  },
+  {
+    id: "service-2",
+    title: "Deep cleaning",
+    subtitle: "Same-day home refresh",
+    eta: "22 min",
+    accent: "from-amber-200 via-orange-400 to-rose-600",
+    badge: "Top rated",
+  },
+  {
+    id: "service-3",
+    title: "Electrical fixes",
+    subtitle: "Diagnostics and repair",
+    eta: "18 min",
+    accent: "from-emerald-300 via-teal-500 to-cyan-700",
+    badge: "Fast arrival",
+  },
+  {
+    id: "service-4",
+    title: "Garden care",
+    subtitle: "Weekly and urgent jobs",
+    eta: "35 min",
+    accent: "from-lime-300 via-emerald-400 to-teal-700",
+    badge: "Weekend special",
+  },
+];
+
+export const orderHistory: DemoOrderHistory[] = [
+  { id: "history-1", title: "Carpet refresh", provider: "Lindiwe Clean Studio", date: "Tue 4 Mar", price: "R520" },
+  { id: "history-2", title: "Ceiling fan install", provider: "Jason Electrical", date: "Fri 28 Feb", price: "R780" },
+  { id: "history-3", title: "Patio pressure wash", provider: "Coastline Wash", date: "Sun 16 Feb", price: "R690" },
+];
+
+export const demoBookings: DemoBooking[] = [
+  {
+    id: "booking-1",
+    service: "Burst geyser repair",
+    provider: "Nomvula Plumbing Co.",
+    providerRole: "Emergency plumbing",
+    status: "Arriving",
+    eta: "11 min",
+    scheduledFor: "Today, 10:00",
+    price: "R850",
+    address: "14 Beach Road, Sea Point",
+    progress: 74,
+    accent: "from-cyan-300 via-sky-500 to-blue-700",
+    checklist: [
+      { label: "Request submitted", complete: true },
+      { label: "Quote approved", complete: true },
+      { label: "Provider en route", complete: true },
+      { label: "Repair complete", complete: false },
+    ],
+    thread: [
+      { id: "t1", sender: "Nomvula", text: "I can be there in 12 minutes. Please share a gate code if needed.", time: "09:14" },
+      { id: "t2", sender: "You", text: "Gate code is 1946. Please check the geyser pressure valve too.", time: "09:16", own: true },
+      { id: "t3", sender: "Nomvula", text: "Perfect. I have the replacement parts in the van already.", time: "09:17" },
+    ],
+  },
+  {
+    id: "booking-2",
+    service: "Move-out deep clean",
+    provider: "Lindiwe Clean Studio",
+    providerRole: "Cleaning crew",
+    status: "Scheduled",
+    eta: "Tomorrow",
+    scheduledFor: "Tomorrow, 08:30",
+    price: "R1,240",
+    address: "4 Loader Street, De Waterkant",
+    progress: 38,
+    accent: "from-amber-200 via-orange-400 to-rose-600",
+    checklist: [
+      { label: "Request submitted", complete: true },
+      { label: "Provider confirmed", complete: true },
+      { label: "Access details shared", complete: false },
+      { label: "Service complete", complete: false },
+    ],
+    thread: [
+      { id: "t4", sender: "Lindiwe", text: "We are set for 08:30. Do you want oven cleaning added to the package?", time: "08:02" },
+      { id: "t5", sender: "You", text: "Yes please, add that in.", time: "08:06", own: true },
+    ],
+  },
+  {
+    id: "booking-3",
+    service: "Kitchen plug repair",
+    provider: "Jason Electrical",
+    providerRole: "Electrical diagnostics",
+    status: "In Progress",
+    eta: "On-site",
+    scheduledFor: "Today, 07:45",
+    price: "R680",
+    address: "92 Kloof Street, Gardens",
+    progress: 89,
+    accent: "from-emerald-300 via-teal-500 to-cyan-700",
+    checklist: [
+      { label: "Request submitted", complete: true },
+      { label: "Provider accepted", complete: true },
+      { label: "Diagnostics underway", complete: true },
+      { label: "Repair complete", complete: false },
+    ],
+    thread: [
+      { id: "t6", sender: "Jason", text: "The fault is isolated to one outlet. I should be done in 20 minutes.", time: "07:58" },
+    ],
+  },
+];
+
+export const demoFeedPosts: DemoFeedPost[] = [
+  {
+    id: "post-1",
+    provider: "Nomvula Plumbing Co.",
     category: "Emergency plumbing",
+    headline: "From panic call to hot water in one visit",
+    caption: "Same-day geyser swap with parts already in the van. Customers can watch trust signals, response time, and active repair updates before they book.",
+    stats: { likes: "2.4K", comments: "182", reposts: "64" },
+    accent: "from-cyan-400 via-sky-500 to-blue-700",
+    location: "Sea Point",
     rating: 4.9,
     reviews: 231,
-    eta: "12 min",
-    caption: "Burst geyser callout turned into a same-day install. Customers can watch the job progress before booking.",
-    accent: "from-cyan-400 via-sky-500 to-blue-700",
-    neighborhood: "Green Point",
-    likes: "2.4K",
-    verified: true,
-    price: "from R450",
+    hashtags: ["#ServeHub", "#Plumbing", "#CapeTown"],
+    comments: [
+      { id: "c1", author: "A. Daniels", handle: "@adaniels", text: "This is exactly how local services should feel online." },
+      { id: "c2", author: "N. Moyo", handle: "@nmoyo", text: "The before-and-after shots make this so easy to trust." },
+    ],
+    moments: ["Arrival in 12 min", "Live quote approved", "Warranty included"],
   },
   {
-    id: "provider-2",
-    name: "Lindiwe Clean Studio",
+    id: "post-2",
+    provider: "Lindiwe Clean Studio",
     category: "Deep cleaning",
-    rating: 5.0,
-    reviews: 187,
-    eta: "22 min",
-    caption: "Before-and-after content, fast arrival windows, and trust signals all in one mobile flow.",
+    headline: "Move-out clean, staged like a content drop",
+    caption: "A social-first service feed lets providers show process, polish, and proof. Every swipe pushes toward booking, not just browsing.",
+    stats: { likes: "1.8K", comments: "143", reposts: "51" },
     accent: "from-amber-300 via-orange-400 to-rose-600",
-    neighborhood: "Sea Point",
-    likes: "1.8K",
-    verified: true,
-    price: "from R320",
+    location: "De Waterkant",
+    rating: 5,
+    reviews: 187,
+    hashtags: ["#DeepClean", "#HomeReset", "#ServeHub"],
+    comments: [
+      { id: "c3", author: "T. Jacobs", handle: "@tjacobs", text: "The social proof and booking link in one flow is strong." },
+      { id: "c4", author: "M. Khumalo", handle: "@mkhumalo", text: "I would book from this page instantly." },
+    ],
+    moments: ["Before / after", "5-star crew", "Tomorrow slots open"],
   },
   {
-    id: "provider-3",
-    name: "Jason Electrical",
+    id: "post-3",
+    provider: "Jason Electrical",
     category: "Electrical diagnostics",
+    headline: "Real diagnostics, real ETA, real trust",
+    caption: "Instead of static listings, providers show their process in motion. Customers swipe, save, comment, and book without leaving the feed.",
+    stats: { likes: "1.2K", comments: "98", reposts: "39" },
+    accent: "from-emerald-300 via-teal-500 to-cyan-700",
+    location: "Gardens",
     rating: 4.8,
     reviews: 164,
-    eta: "18 min",
-    caption: "The feed helps providers look like real businesses instead of anonymous listings.",
-    accent: "from-emerald-300 via-teal-500 to-cyan-700",
-    neighborhood: "Gardens",
-    likes: "1.2K",
-    verified: true,
-    price: "from R380",
+    hashtags: ["#Electrical", "#RepairTok", "#ServeHub"],
+    comments: [
+      { id: "c5", author: "R. Ndlovu", handle: "@rndlovu", text: "This feels way more modern than a directory listing." },
+      { id: "c6", author: "J. Smith", handle: "@jsmith", text: "Would love this for urgent callouts." },
+    ],
+    moments: ["18 min away", "Verified parts", "Instant chat"],
   },
 ];
 
-export const demoMessages: DemoMessage[] = [
-  { id: "m1", sender: "Nomvula", text: "I can be there in 12 minutes. Please share a gate code if needed.", time: "09:14" },
-  { id: "m2", sender: "You", text: "Gate code is 1946. Please check the geyser pressure valve too.", time: "09:16" },
-  { id: "m3", sender: "Nomvula", text: "Perfect. I have the replacement parts in the van already.", time: "09:17" },
+export const demoProviders: DemoProvider[] = demoFeedPosts.map((post) => ({
+  id: post.id,
+  name: post.provider,
+  category: post.category,
+  rating: post.rating,
+  reviews: post.reviews,
+  neighborhood: post.location,
+  verified: true,
+  caption: post.caption,
+}));
+
+export const profileStats = [
+  { id: "profile-stat-1", label: "Jobs booked", value: "18" },
+  { id: "profile-stat-2", label: "Avg arrival", value: "19 min" },
+  { id: "profile-stat-3", label: "Saved providers", value: "12" },
 ];
 
-export const demoQuickReplies = [
-  "Please ring on arrival",
-  "Can you share a revised quote?",
-  "I also need help with another room",
+export const profileAddresses: DemoProfileSectionItem[] = [
+  { id: "address-1", label: "Home", value: "14 Beach Road, Sea Point" },
+  { id: "address-2", label: "Office", value: "97 Bree Street, Cape Town" },
 ];
 
-export const demoOpsItems: DemoOpsItem[] = [
-  { label: "GMV this month", value: "R1.24M", detail: "+18% vs last month", tone: "text-emerald-700 bg-emerald-100" },
-  { label: "Verified providers", value: "842", detail: "64 added this week", tone: "text-sky-700 bg-sky-100" },
-  { label: "Median arrival time", value: "19 min", detail: "Down from 24 min", tone: "text-amber-700 bg-amber-100" },
+export const profileSettings: DemoProfileSectionItem[] = [
+  { id: "setting-1", label: "Push notifications", value: "Urgent jobs only" },
+  { id: "setting-2", label: "Payment method", value: "Visa ending in 4242" },
+  { id: "setting-3", label: "Support", value: "Priority customer tier" },
+];
+
+export const homeHighlights = [
+  "Trusted providers near your address",
+  "Book in minutes, chat in the same flow",
+  "Live ETA and post-service proof built in",
 ];

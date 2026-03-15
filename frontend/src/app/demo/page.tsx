@@ -1,458 +1,591 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight,
   BadgeCheck,
   Bell,
-  CalendarClock,
-  CheckCircle2,
   ChevronRight,
-  CircleDashed,
   Clock3,
+  Droplets,
   Heart,
   Home,
   MapPin,
   MessageCircle,
+  Repeat2,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Star,
-  TrendingUp,
   UserRound,
-  Wallet,
   Wrench,
+  Zap,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { demoMessages, demoOpsItems, demoProviders, demoQuickReplies } from "@/lib/demo-data";
+import { Input } from "@/components/ui/input";
+import {
+  demoBookings,
+  demoFeedPosts,
+  homeHighlights,
+  homeServices,
+  orderHistory,
+  profileAddresses,
+  profileSettings,
+  profileStats,
+} from "@/lib/demo-data";
 
-type DemoTab = "explore" | "booking" | "messages" | "ops";
+type AppTab = "home" | "explore" | "bookings" | "profile";
+
+const serviceIcons = [Droplets, Sparkles, Zap, Wrench];
 
 export default function DemoPage() {
-  const [activeTab, setActiveTab] = useState<DemoTab>("explore");
-  const [activeProviderId, setActiveProviderId] = useState(demoProviders[0].id);
-  const [bookingStage, setBookingStage] = useState(1);
-  const [messages, setMessages] = useState(demoMessages);
+  const [activeTab, setActiveTab] = useState<AppTab>("home");
+  const [address, setAddress] = useState("14 Beach Road, Sea Point");
+  const [selectedBookingId, setSelectedBookingId] = useState(demoBookings[0].id);
+  const [bookingMessages, setBookingMessages] = useState(
+    Object.fromEntries(demoBookings.map((booking) => [booking.id, booking.thread]))
+  );
+  const [feedIndex, setFeedIndex] = useState(0);
+  const [feedDirection, setFeedDirection] = useState(1);
+  const [exploreProgress, setExploreProgress] = useState(0);
+  const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [repostedPosts, setRepostedPosts] = useState<Record<string, boolean>>({});
+  const touchStartY = useRef<number | null>(null);
+  const wheelLock = useRef(false);
 
-  const activeProvider = useMemo(
-    () => demoProviders.find((provider) => provider.id === activeProviderId) ?? demoProviders[0],
-    [activeProviderId]
+  const selectedBooking = useMemo(
+    () => demoBookings.find((booking) => booking.id === selectedBookingId) ?? demoBookings[0],
+    [selectedBookingId]
+  );
+  const activePost = demoFeedPosts[feedIndex];
+  const currentMessages = bookingMessages[selectedBooking.id] ?? selectedBooking.thread;
+  const filteredServices = homeServices.filter((service) =>
+    `${service.title} ${service.subtitle}`.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const sendReply = (text: string) => {
-    setMessages((current) => [
-      ...current,
-      { id: `m-${current.length + 1}`, sender: "You", text, time: "09:18" },
-    ]);
-  };
-
-  const advanceBooking = () => {
-    const nextStage = bookingStage >= 3 ? 3 : bookingStage + 1;
-    setBookingStage(nextStage);
-    if (nextStage >= 2) {
-      setActiveTab("messages");
+  const selectTab = (tab: AppTab) => {
+    setActiveTab(tab);
+    if (tab !== "explore") {
+      setExploreProgress(0);
     }
   };
 
+  useEffect(() => {
+    if (activeTab !== "explore") return;
+    const timer = window.setInterval(() => {
+      setExploreProgress((current) => {
+        if (current >= 100) {
+          setFeedDirection(1);
+          setFeedIndex((prev) => (prev + 1) % demoFeedPosts.length);
+          return 0;
+        }
+        return current + 2;
+      });
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, [activeTab]);
+
+  const moveFeed = (direction: 1 | -1) => {
+    setFeedDirection(direction);
+    setFeedIndex((current) => {
+      const next = current + direction;
+      if (next < 0) return demoFeedPosts.length - 1;
+      if (next >= demoFeedPosts.length) return 0;
+      return next;
+    });
+    setExploreProgress(0);
+  };
+
+  const sendBookingMessage = (text: string) => {
+    setBookingMessages((current) => ({
+      ...current,
+      [selectedBooking.id]: [
+        ...(current[selectedBooking.id] ?? selectedBooking.thread),
+        { id: `${selectedBooking.id}-${Date.now()}`, sender: "You", text, time: "Now", own: true },
+      ],
+    }));
+  };
+
+  const onExploreWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (wheelLock.current || Math.abs(event.deltaY) < 30) return;
+    wheelLock.current = true;
+    moveFeed(event.deltaY > 0 ? 1 : -1);
+    window.setTimeout(() => {
+      wheelLock.current = false;
+    }, 420);
+  };
+
+  const onExploreTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchStartY.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const onExploreTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartY.current == null) return;
+    const delta = touchStartY.current - (event.changedTouches[0]?.clientY ?? touchStartY.current);
+    if (Math.abs(delta) > 45) moveFeed(delta > 0 ? 1 : -1);
+    touchStartY.current = null;
+  };
+
   return (
-    <div className="min-h-screen overflow-hidden bg-[#07111f] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_22%)]" />
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-8 pt-4 sm:px-6">
-        <header className="liquid-dark mx-auto flex w-full max-w-5xl items-center justify-between rounded-[28px] px-4 py-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/60">Investor demo</p>
-            <h1 className="text-lg font-semibold">Serveify mobile walkthrough</h1>
-          </div>
-          <Link href="/" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white/84 hover:bg-white/16">
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
+      <div className="relative mx-auto flex min-h-screen max-w-[430px] flex-col px-3 py-3 sm:px-4">
+        <div className="mb-2 flex items-center justify-between px-2 text-xs text-white/45">
+          <span>Serveify app demo</span>
+          <Link href="/" className="inline-flex items-center gap-1 text-white/60 hover:text-white">
             Main site
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </Link>
-        </header>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-          <section className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.26em] text-cyan-100/80">
-              <Sparkles className="h-3.5 w-3.5" />
-              Clickable, mobile-first, no backend needed
-            </div>
-            <h2 className="mt-5 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
-              A live-feeling investor demo you can hand over right now.
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
-              This walkthrough simulates the customer journey, provider trust layer, messaging, and marketplace operations in a phone-sized web app.
-            </p>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                <p className="text-2xl font-semibold">4</p>
-                <p className="mt-1 text-sm text-slate-300">Clickable screens</p>
-              </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                <p className="text-2xl font-semibold">19 min</p>
-                <p className="mt-1 text-sm text-slate-300">Median arrival story</p>
-              </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                <p className="text-2xl font-semibold">R1.24M</p>
-                <p className="mt-1 text-sm text-slate-300">Demo GMV snapshot</p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" className="bg-white text-slate-950 hover:bg-white/92" onClick={() => setActiveTab("explore")}>
-                Open demo
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Link
-                href="/browse?demo=1"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/12 bg-white/8 px-6 text-sm font-medium text-white/84 hover:bg-white/14"
-              >
-                View social feed route
-              </Link>
-            </div>
-
-            <div className="mt-8 rounded-[28px] border border-white/10 bg-white/8 p-5">
-              <p className="text-sm font-semibold text-white">Suggested investor script</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                Start in Explore, tap a provider card, move to Booking to show conversion, then Inbox for trust and Ops for marketplace visibility.
-              </p>
-            </div>
-          </section>
-
-          <section className="mx-auto w-full max-w-[380px]">
-            <div className="rounded-[42px] border border-white/12 bg-[#050b14] p-3 shadow-[0_30px_90px_rgba(2,8,23,0.55)]">
-              <div className="relative overflow-hidden rounded-[34px] border border-white/8 bg-[#091321]">
-                <div className="absolute inset-x-0 top-0 z-20 flex justify-center pt-3">
-                  <div className="h-1.5 w-24 rounded-full bg-white/20" />
-                </div>
-
-                <div
-                  className="px-4 pt-7"
-                  style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom, 0px))" }}
-                >
-                  <div className="flex items-center justify-between text-xs text-white/60">
-                    <span>9:41</span>
-                    <div className="flex items-center gap-1">
-                      <CircleDashed className="h-3.5 w-3.5" />
-                      <Bell className="h-3.5 w-3.5" />
-                    </div>
-                  </div>
-
-                  {activeTab === "explore" ? (
-                    <div className="animate-fade-in">
-                      <div className="mt-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Explore</p>
-                          <h3 className="text-2xl font-semibold">For your home</h3>
-                        </div>
-                        <button
-                          type="button"
-                          aria-label="Search providers"
-                          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/80"
-                        >
-                          <Search className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-none">
-                        {["Emergency", "Verified", "Near you", "Top rated"].map((item) => (
-                          <span key={item} className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-xs text-white/80">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="mt-5 space-y-4">
-                        {demoProviders.map((provider) => (
-                          <button
-                            key={provider.id}
-                            type="button"
-                            onClick={() => setActiveProviderId(provider.id)}
-                            className={`relative block w-full overflow-hidden rounded-[28px] border text-left ${activeProvider.id === provider.id ? "border-cyan-300/45" : "border-white/10"}`}
-                          >
-                            <div className={`absolute inset-0 bg-gradient-to-br ${provider.accent}`} />
-                            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.96),rgba(5,11,20,0.1))]" />
-                            <div className="relative p-5">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-base font-semibold">{provider.name}</span>
-                                    {provider.verified ? <BadgeCheck className="h-4 w-4 text-cyan-200" /> : null}
-                                  </div>
-                                  <p className="mt-1 text-xs text-white/70">{provider.category}</p>
-                                </div>
-                                <span className="rounded-full bg-black/25 px-2.5 py-1 text-[11px] font-medium text-white/84">
-                                  {provider.price}
-                                </span>
-                              </div>
-                              <p className="mt-10 max-w-[88%] text-sm leading-6 text-white/86">{provider.caption}</p>
-                              <div className="mt-4 flex items-center justify-between text-xs text-white/70">
-                                <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{provider.eta}</span>
-                                <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5" />{provider.likes}</span>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar name={activeProvider.name} size="lg" />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate font-semibold">{activeProvider.name}</p>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                <ShieldCheck className="h-3 w-3" />
-                                Verified
-                              </span>
-                            </div>
-                            <div className="mt-1 flex items-center gap-3 text-xs text-white/60">
-                              <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-current text-amber-300" />{activeProvider.rating}</span>
-                              <span>{activeProvider.reviews} reviews</span>
-                              <span>{activeProvider.neighborhood}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <Button size="lg" className="mt-4 w-full" onClick={() => setActiveTab("booking")}>
-                          Book this provider
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {activeTab === "booking" ? (
-                    <div className="animate-fade-in">
-                      <div className="mt-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Booking</p>
-                          <h3 className="text-2xl font-semibold">Live job card</h3>
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                          Escrow ready
-                        </span>
-                      </div>
-
-                      <div className="mt-5 rounded-[28px] bg-[linear-gradient(180deg,#ffffff_0%,#eef5ff_100%)] p-5 text-slate-900">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold">{activeProvider.category}</p>
-                            <p className="mt-1 text-xs text-slate-500">Requested for 10:00 today</p>
-                          </div>
-                          <Wallet className="h-5 w-5 text-slate-500" />
-                        </div>
-
-                        <div className="mt-5 space-y-4">
-                          {[
-                            { title: "Request submitted", body: "Customer shared photos and preferred time.", done: true },
-                            { title: "Provider confirmed", body: "Nomvula accepted and locked the quote.", done: bookingStage >= 2 },
-                            { title: "Provider en route", body: "Live ETA and chat open automatically.", done: bookingStage >= 3 },
-                          ].map((step) => (
-                            <div key={step.title} className="flex gap-3">
-                              <div className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full ${step.done ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"}`}>
-                                {step.done ? <CheckCircle2 className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold">{step.title}</p>
-                                <p className="mt-1 text-xs leading-5 text-slate-500">{step.body}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-5 rounded-[22px] bg-slate-950 p-4 text-white">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Locked quote</span>
-                            <span className="font-semibold">R850</span>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between text-xs text-white/65">
-                            <span>Arrival window</span>
-                            <span>{bookingStage >= 3 ? "11 min away" : activeProvider.eta}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button size="lg" className="mt-5 w-full" onClick={advanceBooking}>
-                        {bookingStage >= 3 ? "Provider is en route" : bookingStage === 1 ? "Confirm provider" : "Start live tracking"}
-                      </Button>
-                    </div>
-                  ) : null}
-
-                  {activeTab === "messages" ? (
-                    <div className="animate-fade-in">
-                      <div className="mt-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Inbox</p>
-                          <h3 className="text-2xl font-semibold">Job chat</h3>
-                        </div>
-                        <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] text-white/70">
-                          Trust preserved
-                        </span>
-                      </div>
-
-                      <div className="mt-5 space-y-3">
-                        {messages.map((message) => {
-                          const own = message.sender === "You";
-                          return (
-                            <div key={message.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
-                              <div className={`max-w-[82%] rounded-[22px] px-4 py-3 ${own ? "bg-cyan-400 text-slate-950" : "bg-white/8 text-white"}`}>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">{message.sender}</p>
-                                <p className="mt-1 text-sm leading-6">{message.text}</p>
-                                <p className="mt-2 text-[11px] opacity-60">{message.time}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-5 flex gap-2 overflow-x-auto scrollbar-none">
-                        {demoQuickReplies.map((reply) => (
-                          <button
-                            key={reply}
-                            type="button"
-                            onClick={() => sendReply(reply)}
-                            className="shrink-0 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/80 hover:bg-white/12"
-                          >
-                            {reply}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => sendReply("Thanks, see you shortly.")}
-                        className="mt-5 flex w-full items-center justify-between rounded-[22px] border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/75"
-                      >
-                        <span>Send quick confirmation</span>
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {activeTab === "ops" ? (
-                    <div className="animate-fade-in">
-                      <div className="mt-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Marketplace ops</p>
-                          <h3 className="text-2xl font-semibold">Investor view</h3>
-                        </div>
-                        <TrendingUp className="h-5 w-5 text-cyan-200" />
-                      </div>
-
-                      <div className="mt-5 grid gap-3">
-                        {demoOpsItems.map((item) => (
-                          <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-xs uppercase tracking-[0.18em] text-white/50">{item.label}</p>
-                                <p className="mt-2 text-2xl font-semibold">{item.value}</p>
-                              </div>
-                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.tone}`}>
-                                Live
-                              </span>
-                            </div>
-                            <p className="mt-2 text-sm text-slate-300">{item.detail}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-5 rounded-[24px] border border-white/10 bg-white/8 p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold">Verification queue</p>
-                            <p className="mt-1 text-xs text-white/55">Three providers waiting for review</p>
-                          </div>
-                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                            Needs action
-                          </span>
-                        </div>
-                        <div className="mt-4 space-y-3">
-                          {["Garden route electrician", "Camps Bay cleaner", "24/7 locksmith"].map((entry) => (
-                            <div key={entry} className="flex items-center justify-between rounded-[18px] bg-black/20 px-3 py-3">
-                              <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
-                                  <UserRound className="h-4 w-4 text-white/70" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium">{entry}</p>
-                                  <p className="text-xs text-white/50">Docs uploaded, awaiting approval</p>
-                                </div>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-white/45" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <nav
-                  className="absolute inset-x-0 bottom-0 border-t border-white/8 bg-[#07101d]/95 px-2 pt-3 backdrop-blur-xl"
-                  style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-                >
-                  <div className="grid grid-cols-4 gap-1">
-                    {[
-                      { id: "explore" as const, label: "Explore", icon: Home },
-                      { id: "booking" as const, label: "Booking", icon: CalendarClock },
-                      { id: "messages" as const, label: "Inbox", icon: MessageCircle },
-                      { id: "ops" as const, label: "Ops", icon: TrendingUp },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      const active = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setActiveTab(item.id)}
-                          aria-pressed={active}
-                          className={`flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs ${active ? "bg-white text-slate-950" : "text-white/60"}`}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </nav>
-              </div>
-            </div>
-          </section>
         </div>
 
-        <section className="mt-6 grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[28px] border border-white/10 bg-white/8 p-5">
-            <div className="flex items-center gap-2 text-cyan-100">
-              <MapPin className="h-4 w-4" />
-              <p className="text-sm font-semibold">Local trust loop</p>
+        <div className="rounded-[38px] border border-white/12 bg-[#050b14] p-3 shadow-[0_30px_90px_rgba(2,8,23,0.55)]">
+          <div className="relative overflow-hidden rounded-[32px] border border-white/8 bg-[#091321]">
+            <div className="absolute inset-x-0 top-0 z-20 flex justify-center pt-3">
+              <div className="h-1.5 w-24 rounded-full bg-white/20" />
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Feed discovery, verified badges, ETA promises, and messaging all reinforce conversion on a mobile screen.
-            </p>
-          </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/8 p-5">
-            <div className="flex items-center gap-2 text-cyan-100">
-              <Wrench className="h-4 w-4" />
-              <p className="text-sm font-semibold">Provider growth story</p>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Providers are positioned like branded operators, not commodity cards, which is stronger for retention and referrals.
-            </p>
-          </div>
+            <div
+              className={`px-4 pt-7 ${activeTab === "explore" ? "pb-0" : ""}`}
+              style={{ paddingBottom: activeTab === "explore" ? "calc(5.6rem + env(safe-area-inset-bottom, 0px))" : "calc(6.4rem + env(safe-area-inset-bottom, 0px))" }}
+            >
+              <div className="flex items-center justify-between text-xs text-white/60">
+                <span>9:41</span>
+                <div className="flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <Bell className="h-3.5 w-3.5" />
+                </div>
+              </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/8 p-5">
-            <div className="flex items-center gap-2 text-cyan-100">
-              <TrendingUp className="h-4 w-4" />
-              <p className="text-sm font-semibold">Marketplace visibility</p>
+              {activeTab === "home" && (
+                <div className="animate-fade-in">
+                  <div className="mt-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Homepage</p>
+                      <h1 className="text-[1.85rem] font-semibold tracking-[-0.04em]">Good morning, Ano</h1>
+                    </div>
+                    <Avatar name="Ano" size="md" />
+                  </div>
+
+                  <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-4">
+                    <Input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Enter address" leftIcon={<MapPin className="h-4 w-4" />} rightIcon={<ChevronRight className="h-4 w-4" />} className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400" />
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {["Home", "Office", "Mom's house"].map((label) => (
+                        <button key={label} type="button" onClick={() => setAddress(label === "Home" ? "14 Beach Road, Sea Point" : label === "Office" ? "97 Bree Street, Cape Town" : "40 Main Road, Green Point")} className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/72">
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#8ef7d6_0%,#ffd27f_52%,#ff9d7d_100%)] p-5 text-slate-950">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">Recommended right now</p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">Book a verified pro in under 2 minutes</h2>
+                    <div className="mt-3 space-y-1 text-sm text-slate-700">{homeHighlights.map((item) => <p key={item}>{item}</p>)}</div>
+                    <Button className="mt-4 bg-slate-950 text-white hover:bg-slate-900" onClick={() => selectTab("explore")}>Browse live feed</Button>
+                  </div>
+
+                  <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">Find something fast</p>
+                        <p className="text-xs text-white/45">Search services available near your address</p>
+                      </div>
+                      <Search className="h-4 w-4 text-cyan-200" />
+                    </div>
+                    <div className="mt-3">
+                      <Input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search cleaning, plumbing, electrical..." leftIcon={<Search className="h-4 w-4" />} className="h-12 rounded-full border-white/8 bg-black/20 text-white placeholder:text-white/35" />
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">Recommended services</h3>
+                      <button type="button" onClick={() => selectTab("explore")} className="text-sm text-cyan-200">See all</button>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                      {filteredServices.map((service, index) => {
+                        const Icon = serviceIcons[index % serviceIcons.length];
+                        return (
+                          <button key={service.id} type="button" onClick={() => selectTab("explore")} className={`relative min-w-[260px] overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}>
+                            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.92),rgba(8,15,28,0.08))]" />
+                            <div className="relative">
+                              <div className="flex items-center justify-between">
+                                <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">{service.badge}</span>
+                                <Icon className="h-5 w-5 text-white/86" />
+                              </div>
+                              <h4 className="mt-10 text-xl font-semibold">{service.title}</h4>
+                              <p className="mt-1 text-sm text-white/72">{service.subtitle}</p>
+                              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/24 px-3 py-2 text-sm"><Clock3 className="h-4 w-4" />{service.eta}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">Last services booked</h3>
+                      <span className="text-xs text-white/45">Rebook fast</span>
+                    </div>
+                    {orderHistory.map((item) => (
+                      <div key={item.id} className="rounded-[22px] border border-white/10 bg-white/8 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{item.title}</p>
+                            <p className="mt-1 text-sm text-white/55">{item.provider}</p>
+                          </div>
+                          <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/72">{item.price}</span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-white/45">
+                          <span>{item.date}</span>
+                          <button type="button" onClick={() => selectTab("bookings")} className="text-cyan-200">Rebook</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">Current bookings</h3>
+                      <button type="button" onClick={() => selectTab("bookings")} className="text-sm text-cyan-200">Open</button>
+                    </div>
+                    {demoBookings.map((booking) => (
+                      <button key={booking.id} type="button" onClick={() => { setSelectedBookingId(booking.id); selectTab("bookings"); }} className="w-full rounded-[24px] border border-white/10 bg-white/8 p-4 text-left">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{booking.service}</p>
+                            <p className="mt-1 text-sm text-white/55">{booking.provider}</p>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">{booking.status}</span>
+                        </div>
+                        <div className="mt-4 h-2 rounded-full bg-white/10">
+                          <div className="h-2 rounded-full bg-[linear-gradient(90deg,#8ef7d6_0%,#7dd3fc_100%)]" style={{ width: `${booking.progress}%` }} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-white/50">
+                          <span>{booking.scheduledFor}</span>
+                          <span>{booking.eta}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "explore" && (
+                <div className="animate-fade-in mt-4" onWheel={onExploreWheel} onTouchStart={onExploreTouchStart} onTouchEnd={onExploreTouchEnd}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Explore</p>
+                      <h2 className="text-2xl font-semibold tracking-[-0.04em]">Live service feed</h2>
+                    </div>
+                    <div className="rounded-full bg-white/8 px-3 py-2 text-xs text-white/70">Swipe or scroll</div>
+                  </div>
+
+                  <div className="relative h-[calc(100vh-11.8rem)] min-h-[560px] overflow-hidden rounded-[30px] border border-white/10 bg-black/20">
+                    <AnimatePresence initial={false} custom={feedDirection} mode="wait">
+                      <motion.article
+                        key={activePost.id}
+                        custom={feedDirection}
+                        initial={{ opacity: 0, y: feedDirection > 0 ? 90 : -90 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: feedDirection > 0 ? -90 : 90 }}
+                        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute inset-0 overflow-hidden"
+                      >
+                        <div className={`absolute inset-0 bg-gradient-to-br ${activePost.accent}`} />
+                        <motion.div
+                          animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 0] }}
+                          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute inset-0 opacity-50"
+                        >
+                          <div className="absolute left-8 top-18 h-24 w-24 rounded-full bg-white/14 blur-2xl" />
+                          <div className="absolute right-6 top-32 h-20 w-20 rounded-full bg-black/14 blur-2xl" />
+                          <div className="absolute bottom-24 left-10 h-32 w-32 rounded-full bg-cyan-200/18 blur-3xl" />
+                        </motion.div>
+                        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(5,11,20,0.98),rgba(5,11,20,0.18)_56%,rgba(5,11,20,0.04))]" />
+
+                        <div className="relative flex h-full flex-col justify-between p-5">
+                          <div>
+                            <div className="mb-4 flex gap-1">
+                              {demoFeedPosts.map((post, index) => (
+                                <div key={post.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
+                                  <div
+                                    className="h-full rounded-full bg-white"
+                                    style={{ width: index < feedIndex ? "100%" : index === feedIndex ? `${exploreProgress}%` : "0%" }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <Avatar name={activePost.provider} size="lg" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="truncate text-sm font-semibold">{activePost.provider}</p>
+                                  <BadgeCheck className="h-4 w-4 text-cyan-200" />
+                                </div>
+                                <p className="text-xs text-white/62">{activePost.category} · {activePost.location}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-end gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-3 flex flex-wrap gap-2">
+                                {activePost.moments.map((moment) => (
+                                  <span key={moment} className="rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/88">{moment}</span>
+                                ))}
+                              </div>
+                              <h3 className="max-w-[16rem] text-3xl font-semibold leading-tight tracking-[-0.04em]">{activePost.headline}</h3>
+                              <p className="mt-3 max-w-[17rem] text-sm leading-6 text-white/82">{activePost.caption}</p>
+                              <div className="mt-3 flex flex-wrap gap-2 text-xs text-cyan-100/80">
+                                {activePost.hashtags.map((tag) => <span key={tag}>{tag}</span>)}
+                              </div>
+                              <div className="mt-4 flex items-center gap-3 text-xs text-white/66">
+                                <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-current text-amber-300" />{activePost.rating.toFixed(1)}</span>
+                                <span>{activePost.reviews} reviews</span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-3">
+                              <button type="button" onClick={() => setLikedPosts((current) => ({ ...current, [activePost.id]: !current[activePost.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${likedPosts[activePost.id] ? "bg-rose-500 text-white" : "bg-white/10 text-white"}`}>
+                                <Heart className={`h-5 w-5 ${likedPosts[activePost.id] ? "fill-current" : ""}`} />
+                              </button>
+                              <span className="text-xs text-white/70">{activePost.stats.likes}</span>
+                              <button type="button" onClick={() => setOpenCommentsFor(activePost.id)} className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white">
+                                <MessageCircle className="h-5 w-5" />
+                              </button>
+                              <span className="text-xs text-white/70">{activePost.stats.comments}</span>
+                              <button type="button" onClick={() => setRepostedPosts((current) => ({ ...current, [activePost.id]: !current[activePost.id] }))} className={`flex h-12 w-12 items-center justify-center rounded-full ${repostedPosts[activePost.id] ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-white"}`}>
+                                <Repeat2 className="h-5 w-5" />
+                              </button>
+                              <span className="text-xs text-white/70">{activePost.stats.reposts}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.article>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "bookings" && (
+                <div className="animate-fade-in">
+                  <div className="mt-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Bookings</p>
+                      <h2 className="text-2xl font-semibold tracking-[-0.04em]">Your jobs</h2>
+                    </div>
+                    <button type="button" className="rounded-full bg-white/10 px-3 py-2 text-xs text-white/70">3 active</button>
+                  </div>
+
+                  <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+                    {demoBookings.map((booking) => (
+                      <button key={booking.id} type="button" onClick={() => setSelectedBookingId(booking.id)} className={`min-w-[220px] rounded-[24px] border p-4 text-left ${selectedBooking.id === booking.id ? "border-cyan-300/45 bg-white/12" : "border-white/10 bg-white/8"}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{booking.service}</p>
+                          <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/72">{booking.status}</span>
+                        </div>
+                        <p className="mt-2 text-sm text-white/55">{booking.provider}</p>
+                        <div className="mt-4 h-2 rounded-full bg-white/10">
+                          <div className={`h-2 rounded-full bg-gradient-to-r ${booking.accent}`} style={{ width: `${booking.progress}%` }} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-white/45">
+                          <span>{booking.scheduledFor}</span>
+                          <span>{booking.price}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-[28px] bg-[linear-gradient(180deg,#ffffff_0%,#eef5ff_100%)] p-5 text-slate-900">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Selected booking</p>
+                        <h3 className="mt-2 text-xl font-semibold">{selectedBooking.service}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{selectedBooking.provider} · {selectedBooking.providerRole}</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">{selectedBooking.status}</span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 rounded-[22px] bg-slate-950 p-4 text-white">
+                      <div className="flex items-center justify-between text-sm"><span>ETA</span><span className="font-semibold">{selectedBooking.eta}</span></div>
+                      <div className="flex items-center justify-between text-sm"><span>Scheduled</span><span className="font-semibold">{selectedBooking.scheduledFor}</span></div>
+                      <div className="flex items-center justify-between text-sm"><span>Address</span><span className="max-w-[11rem] text-right font-semibold">{selectedBooking.address}</span></div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      {selectedBooking.checklist.map((item) => (
+                        <div key={item.label} className="flex items-center gap-3">
+                          <div className={`h-3 w-3 rounded-full ${item.complete ? "bg-emerald-500" : "bg-slate-300"}`} />
+                          <p className="text-sm font-medium">{item.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">Booking chat</p>
+                        <p className="text-xs text-white/45">Integrated messaging in the same job flow</p>
+                      </div>
+                      <MessageCircle className="h-4 w-4 text-cyan-200" />
+                    </div>
+
+                    <div className="space-y-3">
+                      {currentMessages.map((message) => (
+                        <div key={message.id} className={`flex ${message.own ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[82%] rounded-[20px] px-4 py-3 ${message.own ? "bg-cyan-400 text-slate-950" : "bg-black/20 text-white"}`}>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">{message.sender}</p>
+                            <p className="mt-1 text-sm leading-6">{message.text}</p>
+                            <p className="mt-2 text-[11px] opacity-60">{message.time}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                      {["Please ring on arrival", "Share updated quote", "I added another issue"].map((text) => (
+                        <button key={text} type="button" onClick={() => sendBookingMessage(text)} className="shrink-0 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/80">
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button type="button" onClick={() => sendBookingMessage("Thanks, see you shortly.")} className="mt-4 flex w-full items-center justify-between rounded-[20px] border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/80">
+                      <span>Send quick update</span>
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "profile" && (
+                <div className="animate-fade-in">
+                  <div className="mt-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">Settings & profile</p>
+                      <h2 className="text-2xl font-semibold tracking-[-0.04em]">Your account</h2>
+                    </div>
+                    <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/80"><Settings className="h-4 w-4" /></button>
+                  </div>
+
+                  <div className="mt-4 rounded-[28px] bg-[linear-gradient(135deg,#132646_0%,#2457a5_100%)] p-5">
+                    <div className="flex items-start gap-4">
+                      <Avatar name="Ano D" size="lg" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-xl font-semibold">Ano Dzinotyiwei</h3>
+                          <BadgeCheck className="h-4 w-4 text-cyan-200" />
+                        </div>
+                        <p className="mt-1 text-sm text-white/70">ano@example.com</p>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          {profileStats.map((stat) => (
+                            <div key={stat.id} className="rounded-[18px] bg-white/10 px-3 py-3 text-center">
+                              <p className="text-lg font-semibold">{stat.value}</p>
+                              <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-white/58">{stat.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4">
+                    <div className="mb-3 flex items-center gap-2"><MapPin className="h-4 w-4 text-cyan-200" /><p className="text-sm font-semibold">Saved addresses</p></div>
+                    <div className="space-y-3">
+                      {profileAddresses.map((addressItem) => (
+                        <div key={addressItem.id} className="rounded-[18px] bg-black/20 px-4 py-3">
+                          <p className="text-sm font-medium">{addressItem.label}</p>
+                          <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4">
+                    <div className="mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-cyan-200" /><p className="text-sm font-semibold">Preferences</p></div>
+                    <div className="space-y-3">
+                      {profileSettings.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between rounded-[18px] bg-black/20 px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium">{item.label}</p>
+                            <p className="mt-1 text-xs text-white/52">{item.value}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-white/35" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <Button className="flex-1 bg-white text-slate-950 hover:bg-white/92">Edit profile</Button>
+                    <Button variant="outline" className="flex-1 border-white/12 bg-white/8 text-white hover:bg-white/12">Help</Button>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              The ops tab gives investors a fast way to connect customer UX to revenue, supply growth, and verification throughput.
-            </p>
+
+            <nav className="absolute inset-x-0 bottom-0 border-t border-white/8 bg-[#07101d]/95 px-2 pt-3 backdrop-blur-xl" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { id: "home" as const, label: "Home", icon: Home },
+                  { id: "explore" as const, label: "Explore", icon: Sparkles },
+                  { id: "bookings" as const, label: "Bookings", icon: MessageCircle },
+                  { id: "profile" as const, label: "Profile", icon: UserRound },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const active = activeTab === item.id;
+                  return (
+                    <button key={item.id} type="button" onClick={() => selectTab(item.id)} aria-pressed={active} className={`flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs ${active ? "bg-white text-slate-950" : "text-white/60"}`}>
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
           </div>
-        </section>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {openCommentsFor && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm" onClick={() => setOpenCommentsFor(null)}>
+            <motion.div initial={{ y: 32 }} animate={{ y: 0 }} exit={{ y: 32 }} className="mx-auto w-full max-w-[430px] rounded-t-[28px] border border-white/10 bg-[#0b1423] p-5" onClick={(event) => event.stopPropagation()}>
+              <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/18" />
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Comments</p>
+                  <h3 className="text-lg font-semibold">{demoFeedPosts.find((post) => post.id === openCommentsFor)?.provider}</h3>
+                </div>
+                <button type="button" onClick={() => setOpenCommentsFor(null)} className="rounded-full bg-white/10 p-2">
+                  <ChevronRight className="h-4 w-4 rotate-90" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {demoFeedPosts.find((post) => post.id === openCommentsFor)?.comments.map((comment) => (
+                  <div key={comment.id} className="rounded-[20px] border border-white/8 bg-white/6 p-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">{comment.author}</span>
+                      <span className="text-white/45">{comment.handle}</span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
