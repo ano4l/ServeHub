@@ -1,5 +1,5 @@
 # Build stage
-FROM maven:3.9-openjdk-21 AS builder
+FROM maven:3.9.9-eclipse-temurin-21 AS builder
 WORKDIR /app
 
 # Copy Maven files
@@ -10,7 +10,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Runtime stage
-FROM openjdk:21-jre-slim
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Install curl for health checks
