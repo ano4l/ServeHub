@@ -133,17 +133,11 @@ export default function DemoPage() {
   return (
     <div className="min-h-screen bg-[#07111f] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-      <div className="relative mx-auto flex min-h-screen max-w-[430px] flex-col px-3 py-3 sm:px-4">
-        <div className="rounded-[38px] border border-white/12 bg-[#050b14] p-3 shadow-[0_30px_90px_rgba(2,8,23,0.55)]">
-          <div className="relative overflow-hidden rounded-[32px] border border-white/8 bg-[#091321]">
-            <div className="absolute inset-x-0 top-0 z-20 flex justify-center pt-3">
-              <div className="h-1.5 w-24 rounded-full bg-white/20" />
-            </div>
-
-            <div
-              className={`px-4 pt-7 ${activeTab === "explore" ? "pb-0" : ""}`}
-              style={{ paddingBottom: activeTab === "explore" ? "calc(5.6rem + env(safe-area-inset-bottom, 0px))" : "calc(6.4rem + env(safe-area-inset-bottom, 0px))" }}
-            >
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col px-4 pt-4">
+        <div
+          className={`min-h-screen ${activeTab === "explore" ? "pb-0" : ""}`}
+          style={{ paddingBottom: activeTab === "explore" ? "calc(5.6rem + env(safe-area-inset-bottom, 0px))" : "calc(6.4rem + env(safe-area-inset-bottom, 0px))" }}
+        >
               <div className="flex items-center justify-between text-xs text-white/60">
                 <span>9:41</span>
                 <div className="flex items-center gap-1">
@@ -525,30 +519,28 @@ export default function DemoPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            <nav className="absolute inset-x-0 bottom-0 border-t border-white/8 bg-[#07101d]/95 px-2 pt-3 backdrop-blur-xl" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
-              <div className="grid grid-cols-4 gap-1">
-                {[
-                  { id: "home" as const, label: "Home", icon: Home },
-                  { id: "explore" as const, label: "Explore", icon: Sparkles },
-                  { id: "bookings" as const, label: "Bookings", icon: MessageCircle },
-                  { id: "profile" as const, label: "Profile", icon: UserRound },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  const active = activeTab === item.id;
-                  return (
-                    <button key={item.id} type="button" onClick={() => selectTab(item.id)} aria-pressed={active} className={`flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs ${active ? "bg-white text-slate-950" : "text-white/60"}`}>
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </nav>
-          </div>
         </div>
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-[#07101d]/95 px-3 pt-3 backdrop-blur-xl" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="mx-auto grid max-w-[480px] grid-cols-4 gap-1">
+          {[
+            { id: "home" as const, label: "Home", icon: Home },
+            { id: "explore" as const, label: "Explore", icon: Sparkles },
+            { id: "bookings" as const, label: "Bookings", icon: MessageCircle },
+            { id: "profile" as const, label: "Profile", icon: UserRound },
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button key={item.id} type="button" onClick={() => selectTab(item.id)} aria-pressed={active} className={`flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs ${active ? "bg-white text-slate-950" : "text-white/60"}`}>
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       <AnimatePresence>
         {openCommentsFor && (
