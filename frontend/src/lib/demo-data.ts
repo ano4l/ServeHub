@@ -5,6 +5,7 @@ export interface DemoHomeService {
   eta: string;
   accent: string;
   badge: string;
+  imageUrl: string;
 }
 
 export interface DemoOrderHistory {
@@ -35,6 +36,8 @@ export interface DemoBooking {
   address: string;
   progress: number;
   accent: string;
+  imageUrl: string;
+  avatarUrl: string;
   checklist: { label: string; complete: boolean }[];
   thread: DemoBookingMessage[];
 }
@@ -61,6 +64,8 @@ export interface DemoFeedPost {
   location: string;
   rating: number;
   reviews: number;
+  avatarUrl: string;
+  imageUrl: string;
   hashtags: string[];
   comments: DemoFeedComment[];
   moments: string[];
@@ -75,6 +80,7 @@ export interface DemoProvider {
   neighborhood: string;
   verified: boolean;
   caption: string;
+  avatarUrl: string;
 }
 
 export interface DemoProfileSectionItem {
@@ -91,6 +97,7 @@ export const homeServices: DemoHomeService[] = [
     eta: "12 min",
     accent: "from-cyan-300 via-sky-400 to-blue-700",
     badge: "Most booked",
+    imageUrl: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "service-2",
@@ -99,6 +106,7 @@ export const homeServices: DemoHomeService[] = [
     eta: "22 min",
     accent: "from-amber-200 via-orange-400 to-rose-600",
     badge: "Top rated",
+    imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "service-3",
@@ -107,6 +115,7 @@ export const homeServices: DemoHomeService[] = [
     eta: "18 min",
     accent: "from-emerald-300 via-teal-500 to-cyan-700",
     badge: "Fast arrival",
+    imageUrl: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "service-4",
@@ -115,6 +124,7 @@ export const homeServices: DemoHomeService[] = [
     eta: "35 min",
     accent: "from-lime-300 via-emerald-400 to-teal-700",
     badge: "Weekend special",
+    imageUrl: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=1200&q=80",
   },
 ];
 
@@ -137,6 +147,8 @@ export const demoBookings: DemoBooking[] = [
     address: "14 Beach Road, Sea Point",
     progress: 74,
     accent: "from-cyan-300 via-sky-500 to-blue-700",
+    imageUrl: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80",
+    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80",
     checklist: [
       { label: "Request submitted", complete: true },
       { label: "Quote approved", complete: true },
@@ -161,6 +173,8 @@ export const demoBookings: DemoBooking[] = [
     address: "4 Loader Street, De Waterkant",
     progress: 38,
     accent: "from-amber-200 via-orange-400 to-rose-600",
+    imageUrl: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
+    avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80",
     checklist: [
       { label: "Request submitted", complete: true },
       { label: "Provider confirmed", complete: true },
@@ -184,6 +198,8 @@ export const demoBookings: DemoBooking[] = [
     address: "92 Kloof Street, Gardens",
     progress: 89,
     accent: "from-emerald-300 via-teal-500 to-cyan-700",
+    imageUrl: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80",
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80",
     checklist: [
       { label: "Request submitted", complete: true },
       { label: "Provider accepted", complete: true },
@@ -208,6 +224,8 @@ export const demoFeedPosts: DemoFeedPost[] = [
     location: "Sea Point",
     rating: 4.9,
     reviews: 231,
+    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80",
     hashtags: ["#ServeHub", "#Plumbing", "#CapeTown"],
     comments: [
       { id: "c1", author: "A. Daniels", handle: "@adaniels", text: "This is exactly how local services should feel online." },
@@ -226,6 +244,8 @@ export const demoFeedPosts: DemoFeedPost[] = [
     location: "De Waterkant",
     rating: 5,
     reviews: 187,
+    avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
     hashtags: ["#DeepClean", "#HomeReset", "#ServeHub"],
     comments: [
       { id: "c3", author: "T. Jacobs", handle: "@tjacobs", text: "The social proof and booking link in one flow is strong." },
@@ -244,6 +264,8 @@ export const demoFeedPosts: DemoFeedPost[] = [
     location: "Gardens",
     rating: 4.8,
     reviews: 164,
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80",
     hashtags: ["#Electrical", "#RepairTok", "#ServeHub"],
     comments: [
       { id: "c5", author: "R. Ndlovu", handle: "@rndlovu", text: "This feels way more modern than a directory listing." },
@@ -262,6 +284,7 @@ export const demoProviders: DemoProvider[] = demoFeedPosts.map((post) => ({
   neighborhood: post.location,
   verified: true,
   caption: post.caption,
+  avatarUrl: post.avatarUrl,
 }));
 
 export const profileStats = [

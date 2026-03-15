@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -136,14 +134,6 @@ export default function DemoPage() {
     <div className="min-h-screen bg-[#07111f] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
       <div className="relative mx-auto flex min-h-screen max-w-[430px] flex-col px-3 py-3 sm:px-4">
-        <div className="mb-2 flex items-center justify-between px-2 text-xs text-white/45">
-          <span>Serveify app demo</span>
-          <Link href="/" className="inline-flex items-center gap-1 text-white/60 hover:text-white">
-            Main site
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
         <div className="rounded-[38px] border border-white/12 bg-[#050b14] p-3 shadow-[0_30px_90px_rgba(2,8,23,0.55)]">
           <div className="relative overflow-hidden rounded-[32px] border border-white/8 bg-[#091321]">
             <div className="absolute inset-x-0 top-0 z-20 flex justify-center pt-3">
@@ -213,7 +203,8 @@ export default function DemoPage() {
                         const Icon = serviceIcons[index % serviceIcons.length];
                         return (
                           <button key={service.id} type="button" onClick={() => selectTab("explore")} className={`relative min-w-[260px] overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}>
-                            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.92),rgba(8,15,28,0.08))]" />
+                            <div className="absolute inset-0 bg-cover bg-center opacity-35" style={{ backgroundImage: `url(${service.imageUrl})` }} />
+                            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.94),rgba(8,15,28,0.18))]" />
                             <div className="relative">
                               <div className="flex items-center justify-between">
                                 <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">{service.badge}</span>
@@ -257,18 +248,19 @@ export default function DemoPage() {
                       <button type="button" onClick={() => selectTab("bookings")} className="text-sm text-cyan-200">Open</button>
                     </div>
                     {demoBookings.map((booking) => (
-                      <button key={booking.id} type="button" onClick={() => { setSelectedBookingId(booking.id); selectTab("bookings"); }} className="w-full rounded-[24px] border border-white/10 bg-white/8 p-4 text-left">
-                        <div className="flex items-center justify-between gap-3">
+                      <button key={booking.id} type="button" onClick={() => { setSelectedBookingId(booking.id); selectTab("bookings"); }} className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-white/8 p-4 text-left">
+                        <div className="absolute inset-0 bg-cover bg-center opacity-[0.12]" style={{ backgroundImage: `url(${booking.imageUrl})` }} />
+                        <div className="relative flex items-center justify-between gap-3">
                           <div>
                             <p className="font-medium">{booking.service}</p>
                             <p className="mt-1 text-sm text-white/55">{booking.provider}</p>
                           </div>
                           <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">{booking.status}</span>
                         </div>
-                        <div className="mt-4 h-2 rounded-full bg-white/10">
+                        <div className="relative mt-4 h-2 rounded-full bg-white/10">
                           <div className="h-2 rounded-full bg-[linear-gradient(90deg,#8ef7d6_0%,#7dd3fc_100%)]" style={{ width: `${booking.progress}%` }} />
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-xs text-white/50">
+                        <div className="relative mt-3 flex items-center justify-between text-xs text-white/50">
                           <span>{booking.scheduledFor}</span>
                           <span>{booking.eta}</span>
                         </div>
@@ -300,6 +292,7 @@ export default function DemoPage() {
                         className="absolute inset-0 overflow-hidden"
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${activePost.accent}`} />
+                        <div className="absolute inset-0 bg-cover bg-center opacity-28 mix-blend-screen" style={{ backgroundImage: `url(${activePost.imageUrl})` }} />
                         <motion.div
                           animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 0] }}
                           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
@@ -325,13 +318,13 @@ export default function DemoPage() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <Avatar name={activePost.provider} size="lg" />
+                                <Avatar src={activePost.avatarUrl} name={activePost.provider} size="lg" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                   <p className="truncate text-sm font-semibold">{activePost.provider}</p>
                                   <BadgeCheck className="h-4 w-4 text-cyan-200" />
                                 </div>
-                                <p className="text-xs text-white/62">{activePost.category} · {activePost.location}</p>
+                                <p className="text-xs text-white/62">{activePost.category} | {activePost.location}</p>
                               </div>
                             </div>
                           </div>
@@ -410,7 +403,7 @@ export default function DemoPage() {
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Selected booking</p>
                         <h3 className="mt-2 text-xl font-semibold">{selectedBooking.service}</h3>
-                        <p className="mt-1 text-sm text-slate-500">{selectedBooking.provider} · {selectedBooking.providerRole}</p>
+                        <p className="mt-1 text-sm text-slate-500">{selectedBooking.provider} | {selectedBooking.providerRole}</p>
                       </div>
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">{selectedBooking.status}</span>
                     </div>
@@ -480,7 +473,7 @@ export default function DemoPage() {
 
                   <div className="mt-4 rounded-[28px] bg-[linear-gradient(135deg,#132646_0%,#2457a5_100%)] p-5">
                     <div className="flex items-start gap-4">
-                      <Avatar name="Ano D" size="lg" />
+                      <Avatar src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80" name="Ano D" size="lg" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-xl font-semibold">Ano Dzinotyiwei</h3>
