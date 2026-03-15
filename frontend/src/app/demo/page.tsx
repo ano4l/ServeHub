@@ -32,6 +32,7 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { customerApi } from "@/lib/api";
 import {
   demoAddressBook,
   demoBookings,
@@ -43,11 +44,15 @@ import {
   profileSettings,
   profileStats,
 } from "@/lib/demo-data";
+import { useAuthStore } from "@/store/auth.store";
 
 type AppTab = "home" | "explore" | "bookings" | "profile";
 type FeedMode = "for-you" | "nearby" | "trending";
+type DemoService = (typeof homeServices)[number];
 type FeedPost = (typeof demoFeedPosts)[number];
 type FeedComment = FeedPost["comments"][number];
+type AddressBookItem = (typeof demoAddressBook)[number];
+type AddressEditorMode = "create" | "edit";
 type FinderSuggestion = {
   id: string;
   label: string;
@@ -55,6 +60,37 @@ type FinderSuggestion = {
   neighborhood: string;
   lat: number;
   lng: number;
+};
+type AddressFormState = {
+  label: string;
+  value: string;
+  note: string;
+};
+type BookingFieldOption = {
+  label: string;
+  value: string;
+  priceDelta?: number;
+};
+type BookingFieldDefinition = {
+  id: string;
+  label: string;
+  kind: "single" | "multi" | "toggle";
+  helper?: string;
+  options?: BookingFieldOption[];
+  toggleLabel?: string;
+  priceDelta?: number;
+};
+type BookingDraftValues = Record<string, string | string[] | boolean>;
+type BookingFlowState = {
+  serviceId: string;
+  step: number;
+  values: BookingDraftValues;
+  scheduledDate: string;
+  arrivalWindow: string;
+  addressValue: string;
+  paymentMethodId: string;
+  notes: string;
+  contactPreference: string;
 };
 
 const serviceIcons = [Droplets, Sparkles, Zap, Wrench];
@@ -201,9 +237,28 @@ function getSuggestionByNeighborhood(neighborhood: string) {
   );
 }
 
-function inferSuggestionFromAddress(address: string) {
+function createFinderSuggestionFromSavedAddress(addressItem: AddressBookItem) {
+  if (
+    typeof addressItem.lat !== "number" ||
+    typeof addressItem.lng !== "number" ||
+    !addressItem.neighborhood
+  ) {
+    return null;
+  }
+
+  return {
+    id: `saved-${addressItem.id}`,
+    label: addressItem.label,
+    value: addressItem.value,
+    neighborhood: addressItem.neighborhood,
+    lat: addressItem.lat,
+    lng: addressItem.lng,
+  } satisfies FinderSuggestion;
+}
+
+function findSuggestionForAddress(address: string, addressBook: AddressBookItem[] = demoAddressBook) {
   const normalized = address.trim().toLowerCase();
-  if (!normalized) return finderSuggestions[0];
+  if (!normalized) return null;
 
   const directMatch = finderSuggestions.find(
     (suggestion) =>
@@ -215,19 +270,26 @@ function inferSuggestionFromAddress(address: string) {
 
   if (directMatch) return directMatch;
 
-  const savedAddressMatch = demoAddressBook.find((saved) =>
+  const savedAddressMatch = addressBook.find((saved) =>
     normalized.includes(saved.value.toLowerCase()) || normalized.includes(saved.label.toLowerCase()),
   );
 
   if (savedAddressMatch) {
+    const savedSuggestion = createFinderSuggestionFromSavedAddress(savedAddressMatch);
+    if (savedSuggestion) return savedSuggestion;
+
     return (
       finderSuggestions.find((suggestion) =>
         suggestion.value.toLowerCase().includes(savedAddressMatch.value.toLowerCase()),
-      ) ?? finderSuggestions[0]
+      ) ?? null
     );
   }
 
-  return finderSuggestions[0];
+  return null;
+}
+
+function inferSuggestionFromAddress(address: string, addressBook: AddressBookItem[] = demoAddressBook) {
+  return findSuggestionForAddress(address, addressBook) ?? finderSuggestions[0];
 }
 
 function distanceBetween(
@@ -289,15 +351,731 @@ function buildOsmOpenUrl(marker?: { lat: number; lng: number } | null) {
   return `https://www.openstreetmap.org/#map=13/${lat}/${lng}`;
 }
 
+const bookingFieldConfigByCategory: Record<string, BookingFieldDefinition[]> = {
+  Plumbing: [
+    {
+      id: "issue",
+      label: "What needs attention?",
+      kind: "single",
+      options: [
+        { label: "Leak or burst pipe", value: "Leak or burst pipe", priceDelta: 0 },
+        { label: "Blocked drain", value: "Blocked drain", priceDelta: 60 },
+        { label: "Geyser problem", value: "Geyser problem", priceDelta: 120 },
+        { label: "Pressure / fittings check", value: "Pressure / fittings check", priceDelta: 40 },
+      ],
+    },
+    {
+      id: "urgency",
+      label: "Urgency",
+      kind: "single",
+      options: [
+        { label: "ASAP", value: "ASAP", priceDelta: 90 },
+        { label: "Today", value: "Today", priceDelta: 35 },
+        { label: "Flexible", value: "Flexible", priceDelta: 0 },
+      ],
+    },
+    {
+      id: "property",
+      label: "Property type",
+      kind: "single",
+      options: [
+        { label: "Apartment", value: "Apartment" },
+        { label: "House", value: "House", priceDelta: 30 },
+        { label: "Office", value: "Office", priceDelta: 55 },
+      ],
+    },
+    {
+      id: "materialsReady",
+      label: "Replacement parts",
+      kind: "toggle",
+      toggleLabel: "Bring common replacement parts",
+      priceDelta: 75,
+    },
+  ],
+  Cleaning: [
+    {
+      id: "scope",
+      label: "Scope",
+      kind: "single",
+      options: [
+        { label: "Studio / 1 bed", value: "Studio / 1 bed" },
+        { label: "2 - 3 bedrooms", value: "2 - 3 bedrooms", priceDelta: 120 },
+        { label: "Move-out clean", value: "Move-out clean", priceDelta: 240 },
+      ],
+    },
+    {
+      id: "extras",
+      label: "Extras",
+      kind: "multi",
+      options: [
+        { label: "Inside oven", value: "Inside oven", priceDelta: 85 },
+        { label: "Inside fridge", value: "Inside fridge", priceDelta: 70 },
+        { label: "Windows", value: "Windows", priceDelta: 110 },
+        { label: "Laundry fold", value: "Laundry fold", priceDelta: 60 },
+      ],
+    },
+    {
+      id: "petFriendly",
+      label: "Home setup",
+      kind: "toggle",
+      toggleLabel: "Pets will be home during the clean",
+    },
+  ],
+  Electrical: [
+    {
+      id: "issue",
+      label: "Electrical issue",
+      kind: "single",
+      options: [
+        { label: "Plug / socket fault", value: "Plug / socket fault" },
+        { label: "Lights tripping", value: "Lights tripping", priceDelta: 70 },
+        { label: "DB board issue", value: "DB board issue", priceDelta: 120 },
+        { label: "Appliance diagnostic", value: "Appliance diagnostic", priceDelta: 90 },
+      ],
+    },
+    {
+      id: "property",
+      label: "Property type",
+      kind: "single",
+      options: [
+        { label: "Apartment", value: "Apartment" },
+        { label: "House", value: "House", priceDelta: 30 },
+        { label: "Office", value: "Office", priceDelta: 50 },
+      ],
+    },
+    {
+      id: "powerOff",
+      label: "Safety",
+      kind: "toggle",
+      toggleLabel: "Whole area is without power",
+      priceDelta: 80,
+    },
+  ],
+  Gardening: [
+    {
+      id: "yardSize",
+      label: "Garden size",
+      kind: "single",
+      options: [
+        { label: "Small patio / compact yard", value: "Small patio / compact yard" },
+        { label: "Standard garden", value: "Standard garden", priceDelta: 80 },
+        { label: "Large yard", value: "Large yard", priceDelta: 170 },
+      ],
+    },
+    {
+      id: "tasks",
+      label: "Tasks",
+      kind: "multi",
+      options: [
+        { label: "Lawn cut", value: "Lawn cut" },
+        { label: "Hedge trim", value: "Hedge trim", priceDelta: 90 },
+        { label: "Green waste removal", value: "Green waste removal", priceDelta: 70 },
+      ],
+    },
+  ],
+  Hair: [
+    {
+      id: "style",
+      label: "Service",
+      kind: "single",
+      options: [
+        { label: "Silk press", value: "Silk press" },
+        { label: "Wash and style", value: "Wash and style", priceDelta: 35 },
+        { label: "Braids install", value: "Braids install", priceDelta: 220 },
+      ],
+    },
+    {
+      id: "length",
+      label: "Hair length",
+      kind: "single",
+      options: [
+        { label: "Short", value: "Short" },
+        { label: "Shoulder length", value: "Shoulder length", priceDelta: 35 },
+        { label: "Long", value: "Long", priceDelta: 80 },
+      ],
+    },
+    {
+      id: "washIncluded",
+      label: "Prep",
+      kind: "toggle",
+      toggleLabel: "Include wash and blow-dry setup",
+      priceDelta: 45,
+    },
+  ],
+  "Dog Washing": [
+    {
+      id: "petSize",
+      label: "Dog size",
+      kind: "single",
+      options: [
+        { label: "Small", value: "Small" },
+        { label: "Medium", value: "Medium", priceDelta: 30 },
+        { label: "Large", value: "Large", priceDelta: 65 },
+      ],
+    },
+    {
+      id: "coat",
+      label: "Coat type",
+      kind: "single",
+      options: [
+        { label: "Short coat", value: "Short coat" },
+        { label: "Long coat", value: "Long coat", priceDelta: 35 },
+        { label: "Double coat", value: "Double coat", priceDelta: 55 },
+      ],
+    },
+    {
+      id: "extras",
+      label: "Extras",
+      kind: "multi",
+      options: [
+        { label: "Nail trim", value: "Nail trim", priceDelta: 30 },
+        { label: "Ear clean", value: "Ear clean", priceDelta: 25 },
+        { label: "De-shed", value: "De-shed", priceDelta: 55 },
+      ],
+    },
+  ],
+  "Pool Cleaning": [
+    {
+      id: "poolSize",
+      label: "Pool size",
+      kind: "single",
+      options: [
+        { label: "Plunge pool", value: "Plunge pool" },
+        { label: "Family pool", value: "Family pool", priceDelta: 90 },
+        { label: "Large pool", value: "Large pool", priceDelta: 160 },
+      ],
+    },
+    {
+      id: "chemicals",
+      label: "Add-on",
+      kind: "toggle",
+      toggleLabel: "Bring balancing chemicals",
+      priceDelta: 85,
+    },
+    {
+      id: "frequency",
+      label: "Visit type",
+      kind: "single",
+      options: [
+        { label: "One-off cleanup", value: "One-off cleanup" },
+        { label: "Weekly maintenance", value: "Weekly maintenance", priceDelta: 40 },
+        { label: "Fortnightly maintenance", value: "Fortnightly maintenance", priceDelta: 20 },
+      ],
+    },
+  ],
+  "Dog Walking": [
+    {
+      id: "duration",
+      label: "Walk duration",
+      kind: "single",
+      options: [
+        { label: "30 minutes", value: "30 minutes" },
+        { label: "45 minutes", value: "45 minutes", priceDelta: 35 },
+        { label: "60 minutes", value: "60 minutes", priceDelta: 60 },
+      ],
+    },
+    {
+      id: "dogs",
+      label: "Number of dogs",
+      kind: "single",
+      options: [
+        { label: "1 dog", value: "1 dog" },
+        { label: "2 dogs", value: "2 dogs", priceDelta: 45 },
+        { label: "3 dogs", value: "3 dogs", priceDelta: 85 },
+      ],
+    },
+    {
+      id: "cadence",
+      label: "Cadence",
+      kind: "single",
+      options: [
+        { label: "Once-off", value: "Once-off" },
+        { label: "Weekdays", value: "Weekdays", priceDelta: 20 },
+        { label: "Custom routine", value: "Custom routine", priceDelta: 30 },
+      ],
+    },
+  ],
+  Makeup: [
+    {
+      id: "look",
+      label: "Look",
+      kind: "single",
+      options: [
+        { label: "Soft glam", value: "Soft glam" },
+        { label: "Full glam", value: "Full glam", priceDelta: 110 },
+        { label: "Bridal", value: "Bridal", priceDelta: 250 },
+      ],
+    },
+    {
+      id: "extras",
+      label: "Extras",
+      kind: "multi",
+      options: [
+        { label: "Lashes", value: "Lashes", priceDelta: 40 },
+        { label: "Touch-up kit", value: "Touch-up kit", priceDelta: 60 },
+        { label: "Preview trial", value: "Preview trial", priceDelta: 180 },
+      ],
+    },
+  ],
+  Nails: [
+    {
+      id: "set",
+      label: "Nail service",
+      kind: "single",
+      options: [
+        { label: "Gel overlay", value: "Gel overlay" },
+        { label: "Gel polish", value: "Gel polish", priceDelta: 20 },
+        { label: "Acrylic full set", value: "Acrylic full set", priceDelta: 120 },
+      ],
+    },
+    {
+      id: "artLevel",
+      label: "Nail art",
+      kind: "single",
+      options: [
+        { label: "None", value: "None" },
+        { label: "Minimal art", value: "Minimal art", priceDelta: 35 },
+        { label: "Detailed art", value: "Detailed art", priceDelta: 80 },
+      ],
+    },
+  ],
+  "Car Wash": [
+    {
+      id: "package",
+      label: "Package",
+      kind: "single",
+      options: [
+        { label: "Exterior wash", value: "Exterior wash" },
+        { label: "Interior + exterior", value: "Interior + exterior", priceDelta: 60 },
+        { label: "Full detail", value: "Full detail", priceDelta: 140 },
+      ],
+    },
+    {
+      id: "vehicle",
+      label: "Vehicle size",
+      kind: "single",
+      options: [
+        { label: "Sedan / hatch", value: "Sedan / hatch" },
+        { label: "SUV", value: "SUV", priceDelta: 40 },
+        { label: "Bakkie / van", value: "Bakkie / van", priceDelta: 55 },
+      ],
+    },
+    {
+      id: "wax",
+      label: "Protection",
+      kind: "toggle",
+      toggleLabel: "Add wax / paint protection",
+      priceDelta: 70,
+    },
+  ],
+  Massage: [
+    {
+      id: "style",
+      label: "Massage type",
+      kind: "single",
+      options: [
+        { label: "Swedish", value: "Swedish" },
+        { label: "Deep tissue", value: "Deep tissue", priceDelta: 60 },
+        { label: "Sports recovery", value: "Sports recovery", priceDelta: 80 },
+      ],
+    },
+    {
+      id: "duration",
+      label: "Session length",
+      kind: "single",
+      options: [
+        { label: "60 minutes", value: "60 minutes" },
+        { label: "90 minutes", value: "90 minutes", priceDelta: 140 },
+      ],
+    },
+    {
+      id: "table",
+      label: "Setup",
+      kind: "toggle",
+      toggleLabel: "Therapist brings a portable table",
+      priceDelta: 45,
+    },
+  ],
+  Appliances: [
+    {
+      id: "appliance",
+      label: "Appliance",
+      kind: "single",
+      options: [
+        { label: "Fridge", value: "Fridge" },
+        { label: "Washing machine", value: "Washing machine", priceDelta: 35 },
+        { label: "Oven / stove", value: "Oven / stove", priceDelta: 60 },
+        { label: "Dishwasher", value: "Dishwasher", priceDelta: 45 },
+      ],
+    },
+    {
+      id: "issue",
+      label: "What is happening?",
+      kind: "single",
+      options: [
+        { label: "Diagnostic only", value: "Diagnostic only" },
+        { label: "Not cooling / heating", value: "Not cooling / heating", priceDelta: 60 },
+        { label: "Leaking", value: "Leaking", priceDelta: 45 },
+        { label: "Not draining / spinning", value: "Not draining / spinning", priceDelta: 55 },
+      ],
+    },
+  ],
+  Moving: [
+    {
+      id: "propertySize",
+      label: "Move size",
+      kind: "single",
+      options: [
+        { label: "Studio / 1 room", value: "Studio / 1 room" },
+        { label: "1 - 2 bedrooms", value: "1 - 2 bedrooms", priceDelta: 180 },
+        { label: "3+ bedrooms", value: "3+ bedrooms", priceDelta: 380 },
+      ],
+    },
+    {
+      id: "crew",
+      label: "Crew",
+      kind: "single",
+      options: [
+        { label: "2 movers", value: "2 movers" },
+        { label: "3 movers", value: "3 movers", priceDelta: 120 },
+        { label: "4 movers", value: "4 movers", priceDelta: 240 },
+      ],
+    },
+    {
+      id: "stairs",
+      label: "Access",
+      kind: "toggle",
+      toggleLabel: "There are stairs involved",
+      priceDelta: 85,
+    },
+  ],
+  Painting: [
+    {
+      id: "rooms",
+      label: "Scope",
+      kind: "single",
+      options: [
+        { label: "1 room", value: "1 room" },
+        { label: "2 rooms", value: "2 rooms", priceDelta: 150 },
+        { label: "3 rooms", value: "3 rooms", priceDelta: 300 },
+      ],
+    },
+    {
+      id: "materials",
+      label: "Materials",
+      kind: "single",
+      options: [
+        { label: "I have paint already", value: "I have paint already" },
+        { label: "Bring paint and materials", value: "Bring paint and materials", priceDelta: 180 },
+      ],
+    },
+    {
+      id: "repairs",
+      label: "Prep work",
+      kind: "toggle",
+      toggleLabel: "Patch and prep walls first",
+      priceDelta: 95,
+    },
+  ],
+  HVAC: [
+    {
+      id: "serviceType",
+      label: "Visit type",
+      kind: "single",
+      options: [
+        { label: "Filter service", value: "Filter service" },
+        { label: "Cooling diagnostic", value: "Cooling diagnostic", priceDelta: 120 },
+        { label: "Full maintenance", value: "Full maintenance", priceDelta: 180 },
+      ],
+    },
+    {
+      id: "units",
+      label: "Units",
+      kind: "single",
+      options: [
+        { label: "1 unit", value: "1 unit" },
+        { label: "2 units", value: "2 units", priceDelta: 90 },
+        { label: "3+ units", value: "3+ units", priceDelta: 160 },
+      ],
+    },
+    {
+      id: "urgentCooling",
+      label: "Urgency",
+      kind: "toggle",
+      toggleLabel: "No cooling right now",
+      priceDelta: 70,
+    },
+  ],
+  Security: [
+    {
+      id: "package",
+      label: "Security request",
+      kind: "single",
+      options: [
+        { label: "Site assessment", value: "Site assessment" },
+        { label: "Camera install", value: "Camera install", priceDelta: 350 },
+        { label: "Alarm upgrade", value: "Alarm upgrade", priceDelta: 240 },
+      ],
+    },
+    {
+      id: "property",
+      label: "Property type",
+      kind: "single",
+      options: [
+        { label: "Apartment", value: "Apartment" },
+        { label: "House", value: "House", priceDelta: 40 },
+        { label: "Business", value: "Business", priceDelta: 90 },
+      ],
+    },
+    {
+      id: "monitoring",
+      label: "Support",
+      kind: "toggle",
+      toggleLabel: "Discuss monitoring options on-site",
+      priceDelta: 120,
+    },
+  ],
+  Carpentry: [
+    {
+      id: "task",
+      label: "Task",
+      kind: "single",
+      options: [
+        { label: "Door repair", value: "Door repair" },
+        { label: "Shelving install", value: "Shelving install", priceDelta: 80 },
+        { label: "Cupboard fix", value: "Cupboard fix", priceDelta: 60 },
+        { label: "Custom fitting", value: "Custom fitting", priceDelta: 180 },
+      ],
+    },
+    {
+      id: "visitType",
+      label: "Visit type",
+      kind: "single",
+      options: [
+        { label: "Repair only", value: "Repair only" },
+        { label: "Measure and quote", value: "Measure and quote", priceDelta: 40 },
+        { label: "Supply and fit", value: "Supply and fit", priceDelta: 140 },
+      ],
+    },
+    {
+      id: "materialsReady",
+      label: "Materials",
+      kind: "toggle",
+      toggleLabel: "I already have the materials on-site",
+    },
+  ],
+};
+
+const bookingArrivalWindows = ["ASAP", "Morning", "Midday", "After work", "Weekend"];
+const bookingContactPreferences = ["In-app chat", "Call on arrival", "SMS updates"];
+
+function getBookingFieldsForService(service: DemoService) {
+  return bookingFieldConfigByCategory[service.category] ?? [];
+}
+
+function buildBookingFieldDefaults(fields: BookingFieldDefinition[]) {
+  return Object.fromEntries(
+    fields.map((field) => {
+      if (field.kind === "single") return [field.id, field.options?.[0]?.value ?? ""];
+      if (field.kind === "multi") return [field.id, []];
+      return [field.id, false];
+    }),
+  ) as BookingDraftValues;
+}
+
+function parseRandPriceValue(priceLabel: string) {
+  const numeric = Number(priceLabel.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function formatRand(value: number) {
+  return `R${Math.round(value).toLocaleString("en-ZA")}`;
+}
+
+function computeBookingEstimate(service: DemoService, fields: BookingFieldDefinition[], values: BookingDraftValues) {
+  return fields.reduce((total, field) => {
+    const currentValue = values[field.id];
+    if (field.kind === "single") {
+      const match = field.options?.find((option) => option.value === currentValue);
+      return total + (match?.priceDelta ?? 0);
+    }
+    if (field.kind === "multi") {
+      const selected = Array.isArray(currentValue) ? currentValue : [];
+      return (
+        total +
+        (field.options ?? [])
+          .filter((option) => selected.includes(option.value))
+          .reduce((sum, option) => sum + (option.priceDelta ?? 0), 0)
+      );
+    }
+
+    return total + (currentValue ? field.priceDelta ?? 0 : 0);
+  }, parseRandPriceValue(service.price));
+}
+
+function formatScheduledFor(dateValue: string, arrivalWindow: string) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const scheduledDate = new Date(year, (month || 1) - 1, day || 1);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const sameDay = (first: Date, second: Date) =>
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate();
+
+  const dayLabel = sameDay(scheduledDate, today)
+    ? "Today"
+    : sameDay(scheduledDate, tomorrow)
+      ? "Tomorrow"
+      : scheduledDate.toLocaleDateString("en-ZA", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        });
+
+  return `${dayLabel}, ${arrivalWindow}`;
+}
+
+function getInitialEtaForWindow(arrivalWindow: string) {
+  if (arrivalWindow === "ASAP") return "Awaiting fastest pro";
+  if (arrivalWindow === "Weekend") return "Weekend slot pending";
+  return `${arrivalWindow} slot pending`;
+}
+
+function getChecklistForService(service: DemoService) {
+  return [
+    { label: "Request submitted", complete: true },
+    { label: `${service.provider.split(" ")[0]} reviewing details`, complete: false },
+    { label: "Arrival window confirmed", complete: false },
+    { label: "Service completed", complete: false },
+  ];
+}
+
+function findProviderAvatar(service: DemoService) {
+  const matchingBooking = demoBookings.find((booking) => booking.provider === service.provider);
+  if (matchingBooking) return matchingBooking.avatarUrl;
+  const matchingPost = demoFeedPosts.find((post) => post.provider === service.provider);
+  return matchingPost?.avatarUrl ?? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80";
+}
+
+function getFieldSummary(field: BookingFieldDefinition, value: string | string[] | boolean) {
+  if (field.kind === "multi") {
+    const selected = Array.isArray(value) ? value : [];
+    if (selected.length === 0) return "No add-ons selected";
+    return (
+      field.options
+        ?.filter((option) => selected.includes(option.value))
+        .map((option) => option.label)
+        .join(", ") ?? "No add-ons selected"
+    );
+  }
+
+  if (field.kind === "toggle") {
+    return value ? field.toggleLabel ?? "Included" : "Not included";
+  }
+
+  return field.options?.find((option) => option.value === value)?.label ?? String(value ?? "");
+}
+
+function getMapCategoryTone(category: string) {
+  const tones: Record<
+    string,
+    { dot: string; activePin: string; activeChip: string; activeCard: string; badge: string }
+  > = {
+    Plumbing: {
+      dot: "bg-cyan-300",
+      activePin: "border-cyan-200 bg-cyan-400 text-slate-950",
+      activeChip: "border-cyan-300/35 bg-cyan-300/18 text-cyan-100",
+      activeCard: "border-cyan-300/45 bg-cyan-400/10",
+      badge: "bg-cyan-400/14 text-cyan-100",
+    },
+    Cleaning: {
+      dot: "bg-emerald-300",
+      activePin: "border-emerald-200 bg-emerald-400 text-slate-950",
+      activeChip: "border-emerald-300/35 bg-emerald-300/18 text-emerald-100",
+      activeCard: "border-emerald-300/45 bg-emerald-400/10",
+      badge: "bg-emerald-400/14 text-emerald-100",
+    },
+    Electrical: {
+      dot: "bg-amber-300",
+      activePin: "border-amber-200 bg-amber-300 text-slate-950",
+      activeChip: "border-amber-300/35 bg-amber-300/18 text-amber-100",
+      activeCard: "border-amber-300/45 bg-amber-300/10",
+      badge: "bg-amber-300/14 text-amber-100",
+    },
+    Gardening: {
+      dot: "bg-lime-300",
+      activePin: "border-lime-200 bg-lime-300 text-slate-950",
+      activeChip: "border-lime-300/35 bg-lime-300/18 text-lime-100",
+      activeCard: "border-lime-300/45 bg-lime-300/10",
+      badge: "bg-lime-300/14 text-lime-100",
+    },
+    Hair: {
+      dot: "bg-fuchsia-300",
+      activePin: "border-fuchsia-200 bg-fuchsia-300 text-slate-950",
+      activeChip: "border-fuchsia-300/35 bg-fuchsia-300/18 text-fuchsia-100",
+      activeCard: "border-fuchsia-300/45 bg-fuchsia-300/10",
+      badge: "bg-fuchsia-300/14 text-fuchsia-100",
+    },
+    Makeup: {
+      dot: "bg-rose-300",
+      activePin: "border-rose-200 bg-rose-300 text-slate-950",
+      activeChip: "border-rose-300/35 bg-rose-300/18 text-rose-100",
+      activeCard: "border-rose-300/45 bg-rose-300/10",
+      badge: "bg-rose-300/14 text-rose-100",
+    },
+    "Pool Cleaning": {
+      dot: "bg-sky-300",
+      activePin: "border-sky-200 bg-sky-300 text-slate-950",
+      activeChip: "border-sky-300/35 bg-sky-300/18 text-sky-100",
+      activeCard: "border-sky-300/45 bg-sky-300/10",
+      badge: "bg-sky-300/14 text-sky-100",
+    },
+    "Dog Washing": {
+      dot: "bg-orange-300",
+      activePin: "border-orange-200 bg-orange-300 text-slate-950",
+      activeChip: "border-orange-300/35 bg-orange-300/18 text-orange-100",
+      activeCard: "border-orange-300/45 bg-orange-300/10",
+      badge: "bg-orange-300/14 text-orange-100",
+    },
+    "Dog Walking": {
+      dot: "bg-violet-300",
+      activePin: "border-violet-200 bg-violet-300 text-slate-950",
+      activeChip: "border-violet-300/35 bg-violet-300/18 text-violet-100",
+      activeCard: "border-violet-300/45 bg-violet-300/10",
+      badge: "bg-violet-300/14 text-violet-100",
+    },
+  };
+
+  return (
+    tones[category] ?? {
+      dot: "bg-cyan-300",
+      activePin: "border-cyan-200 bg-cyan-400 text-slate-950",
+      activeChip: "border-cyan-300/35 bg-cyan-300/18 text-cyan-100",
+      activeCard: "border-cyan-300/45 bg-cyan-400/10",
+      badge: "bg-cyan-400/14 text-cyan-100",
+    }
+  );
+}
+
 export default function DemoPage() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const activeRole = useAuthStore((state) => state.user?.activeRole);
   const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [address, setAddress] = useState("Sandton City, 83 Rivonia Road, Sandhurst, Sandton");
+  const [addressBook, setAddressBook] = useState(demoAddressBook);
+  const [selectedAddressSuggestion, setSelectedAddressSuggestion] = useState<FinderSuggestion>(
+    inferSuggestionFromAddress("Sandton City, 83 Rivonia Road, Sandhurst, Sandton", demoAddressBook),
+  );
   const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
   const [addressFinderStatus, setAddressFinderStatus] = useState<string | null>(null);
+  const [savedAddressStatus, setSavedAddressStatus] = useState<string | null>(null);
   const [addressSearchResults, setAddressSearchResults] = useState<FinderSuggestion[]>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isLocatingAddress, setIsLocatingAddress] = useState(false);
-  const [bookings] = useState(demoBookings);
+  const [bookings, setBookings] = useState(demoBookings);
   const [selectedBookingId, setSelectedBookingId] = useState(demoBookings[0].id);
   const [bookingMessages, setBookingMessages] = useState(
     Object.fromEntries(demoBookings.map((booking) => [booking.id, booking.thread])),
@@ -310,6 +1088,17 @@ export default function DemoPage() {
   const [mapFilterOpen, setMapFilterOpen] = useState(false);
   const [mapCategoryFilter, setMapCategoryFilter] = useState("All");
   const [selectedMapServiceId, setSelectedMapServiceId] = useState<string | null>(null);
+  const [bookingFlow, setBookingFlow] = useState<BookingFlowState | null>(null);
+  const [bookingFlowStatus, setBookingFlowStatus] = useState<string | null>(null);
+  const [addressEditorOpen, setAddressEditorOpen] = useState(false);
+  const [addressEditorMode, setAddressEditorMode] = useState<AddressEditorMode>("create");
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [addressForm, setAddressForm] = useState<AddressFormState>({
+    label: "",
+    value: "",
+    note: "",
+  });
+  const [addressFormSuggestion, setAddressFormSuggestion] = useState<FinderSuggestion | null>(null);
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSavedStatus, setProfileSavedStatus] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
@@ -367,12 +1156,92 @@ export default function DemoPage() {
     return () => window.clearTimeout(timeout);
   }, [profileSavedStatus]);
 
+  useEffect(() => {
+    if (!savedAddressStatus) return;
+    const timeout = window.setTimeout(() => setSavedAddressStatus(null), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [savedAddressStatus]);
+
+  useEffect(() => {
+    if (!bookingFlowStatus) return;
+    const timeout = window.setTimeout(() => setBookingFlowStatus(null), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [bookingFlowStatus]);
+
+  useEffect(() => {
+    if (!addressEditorOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAddressEditorOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [addressEditorOpen]);
+
+  useEffect(() => {
+    if (!bookingFlow) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setBookingFlow(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [bookingFlow]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isAuthenticated || activeRole !== "CUSTOMER") return;
+
+    void (async () => {
+      try {
+        const { data } = await customerApi.getAddresses();
+        if (cancelled || data.length === 0) return;
+
+        const mapped = data.map((addressItem) => {
+          const suggestion = findSuggestionForAddress(addressItem.value, demoAddressBook);
+          return {
+            id: addressItem.id,
+            label: addressItem.label,
+            value: addressItem.value,
+            note: addressItem.note ?? "",
+            neighborhood: suggestion?.neighborhood,
+            lat: suggestion?.lat,
+            lng: suggestion?.lng,
+          } satisfies AddressBookItem;
+        });
+        const defaultAddress = data.find((addressItem) => addressItem.defaultAddress) ?? data[0];
+        const defaultSuggestion = inferSuggestionFromAddress(defaultAddress.value, mapped);
+
+        setAddressBook(mapped);
+        setAddress(defaultAddress.value);
+        setSelectedAddressSuggestion(defaultSuggestion);
+      } catch {
+        // Demo stays usable with seeded address shortcuts if the backend account has no saved data yet.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRole, isAuthenticated]);
+
   const activeAddressSuggestion = useMemo(
-    () => inferSuggestionFromAddress(address),
-    [address],
+    () =>
+      address.trim().toLowerCase() === selectedAddressSuggestion.value.trim().toLowerCase()
+        ? selectedAddressSuggestion
+        : inferSuggestionFromAddress(address, addressBook),
+    [address, addressBook, selectedAddressSuggestion],
   );
   const addressSuggestions = useMemo(() => {
     const query = address.trim().toLowerCase();
+    const savedMatches = addressBook
+      .map((saved) => createFinderSuggestionFromSavedAddress(saved))
+      .filter((suggestion): suggestion is FinderSuggestion => Boolean(suggestion))
+      .filter(
+        (suggestion) =>
+          suggestion.value.toLowerCase().includes(query) ||
+          suggestion.neighborhood.toLowerCase().includes(query) ||
+          suggestion.label.toLowerCase().includes(query),
+      );
     const localMatches = finderSuggestions.filter(
       (suggestion) =>
         suggestion.value.toLowerCase().includes(query) ||
@@ -380,22 +1249,22 @@ export default function DemoPage() {
         suggestion.label.toLowerCase().includes(query),
     );
 
-    if (!query) return [...localMatches, ...addressSearchResults];
+    if (!query) return [...savedMatches, ...localMatches, ...addressSearchResults];
 
-    const merged = [...addressSearchResults, ...localMatches];
+    const merged = [...addressSearchResults, ...savedMatches, ...localMatches];
     return merged.filter(
       (suggestion, index, allSuggestions) =>
         allSuggestions.findIndex((candidate) => candidate.value === suggestion.value) === index,
     );
-  }, [address, addressSearchResults]);
+  }, [address, addressBook, addressSearchResults]);
   const serviceCategoryOptions = useMemo(
     () => Array.from(new Set(homeServices.map((service) => service.category))),
     [],
   );
   const mapCategoryOptions = useMemo(() => ["All", ...serviceCategoryOptions], [serviceCategoryOptions]);
   const activeSavedAddress = useMemo(
-    () => demoAddressBook.find((item) => item.value === address) ?? null,
-    [address],
+    () => addressBook.find((item) => item.value === address) ?? null,
+    [address, addressBook],
   );
   const profileCompletion = useMemo(() => {
     const completedFields = [
@@ -414,6 +1283,10 @@ export default function DemoPage() {
     [bookings, selectedBookingId],
   );
   const currentMessages = bookingMessages[selectedBooking.id] ?? selectedBooking.thread;
+  const activeBookingCount = useMemo(
+    () => bookings.filter((booking) => booking.status !== "COMPLETED").length,
+    [bookings],
+  );
   const filteredServices = useMemo(
     () =>
       homeServices.filter((service) =>
@@ -447,8 +1320,14 @@ export default function DemoPage() {
       ),
     [filteredServices, mapCategoryFilter],
   );
+  const selectedMapService = useMemo(
+    () => mapVisibleServices.find((service) => service.id === selectedMapServiceId) ?? null,
+    [mapVisibleServices, selectedMapServiceId],
+  );
   const mapPins = useMemo(() => {
-    return mapVisibleServices.slice(0, 10).map((service, index) => {
+    if (!selectedMapService) return [];
+
+    return [selectedMapService].map((service, index) => {
       const suggestion = getSuggestionByNeighborhood(service.neighborhood);
       const normalizedX =
         (suggestion.lng - SANDTON_BOUNDS.lngMin) /
@@ -463,23 +1342,15 @@ export default function DemoPage() {
         top: 12 + normalizedY * 68 + (index % 2 === 0 ? -2.4 : 2.1),
       };
     });
-  }, [mapVisibleServices]);
-  const selectedMapService = useMemo(
-    () => mapVisibleServices.find((service) => service.id === selectedMapServiceId) ?? mapVisibleServices[0] ?? null,
-    [mapVisibleServices, selectedMapServiceId],
-  );
+  }, [selectedMapService]);
   const selectedMapMarker = useMemo(() => {
     if (selectedMapService) {
       const suggestion = getSuggestionByNeighborhood(selectedMapService.neighborhood);
       return { lat: suggestion.lat, lng: suggestion.lng };
     }
 
-    if (isWithinBounds(activeAddressSuggestion, SANDTON_BOUNDS)) {
-      return { lat: activeAddressSuggestion.lat, lng: activeAddressSuggestion.lng };
-    }
-
     return null;
-  }, [activeAddressSuggestion, selectedMapService]);
+  }, [selectedMapService]);
   const sandtonMapUrl = useMemo(
     () => buildOsmEmbedUrl(SANDTON_BOUNDS, selectedMapMarker),
     [selectedMapMarker],
@@ -487,6 +1358,33 @@ export default function DemoPage() {
   const sandtonMapExternalUrl = useMemo(
     () => buildOsmOpenUrl(selectedMapMarker),
     [selectedMapMarker],
+  );
+  const bookingFlowService = useMemo(
+    () => (bookingFlow ? homeServices.find((service) => service.id === bookingFlow.serviceId) ?? null : null),
+    [bookingFlow],
+  );
+  const bookingFields = useMemo(
+    () => (bookingFlowService ? getBookingFieldsForService(bookingFlowService) : []),
+    [bookingFlowService],
+  );
+  const bookingEstimate = useMemo(
+    () =>
+      bookingFlow && bookingFlowService
+        ? computeBookingEstimate(bookingFlowService, bookingFields, bookingFlow.values)
+        : 0,
+    [bookingFields, bookingFlow, bookingFlowService],
+  );
+  const selectedBookingAddress = useMemo(
+    () =>
+      bookingFlow ? addressBook.find((addressItem) => addressItem.value === bookingFlow.addressValue) ?? null : null,
+    [addressBook, bookingFlow],
+  );
+  const selectedPaymentMethod = useMemo(
+    () =>
+      bookingFlow
+        ? demoPaymentMethods.find((method) => method.id === bookingFlow.paymentMethodId) ?? null
+        : null,
+    [bookingFlow],
   );
   const filteredFeedPosts = useMemo(
     () => {
@@ -536,14 +1434,370 @@ export default function DemoPage() {
     if (serviceId) setSelectedMapServiceId(serviceId);
   };
 
+  const openBookingWorkflow = (serviceId: string) => {
+    const service = homeServices.find((item) => item.id === serviceId);
+    if (!service) return;
+
+    const today = new Date();
+    const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+    const isUrgentService = ["Plumbing", "Electrical"].includes(service.category);
+    const defaultPayment = demoPaymentMethods.find((method) => method.default)?.id ?? demoPaymentMethods[0]?.id ?? "";
+
+    setBookingFlow({
+      serviceId: service.id,
+      step: 1,
+      values: buildBookingFieldDefaults(getBookingFieldsForService(service)),
+      scheduledDate: localDate,
+      arrivalWindow: isUrgentService ? "ASAP" : preferredWindow === "After work" ? "After work" : "Morning",
+      addressValue: activeSavedAddress?.value ?? address,
+      paymentMethodId: defaultPayment,
+      notes: "",
+      contactPreference: notificationMode === "Push + SMS" ? "SMS updates" : "In-app chat",
+    });
+    setBookingFlowStatus(null);
+  };
+
+  const updateBookingFieldValue = (field: BookingFieldDefinition, nextValue: string) => {
+    if (!bookingFlow) return;
+
+    setBookingFlow((current) => {
+      if (!current) return current;
+
+      const previousValue = current.values[field.id];
+      let value: string | string[] | boolean = nextValue;
+
+      if (field.kind === "multi") {
+        const selected = Array.isArray(previousValue) ? previousValue : [];
+        value = selected.includes(nextValue)
+          ? selected.filter((item) => item !== nextValue)
+          : [...selected, nextValue];
+      } else if (field.kind === "toggle") {
+        value = !(previousValue === true);
+      }
+
+      return {
+        ...current,
+        values: {
+          ...current.values,
+          [field.id]: value,
+        },
+      };
+    });
+  };
+
+  const setBookingFlowField = <K extends keyof BookingFlowState>(field: K, value: BookingFlowState[K]) => {
+    setBookingFlow((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const continueBookingFlow = () => {
+    if (!bookingFlow) return;
+
+    if (bookingFlow.step === 2 && !bookingFlow.addressValue.trim()) {
+      setBookingFlowStatus("Choose an address for this booking before continuing.");
+      return;
+    }
+
+    if (bookingFlow.step === 2 && !bookingFlow.scheduledDate) {
+      setBookingFlowStatus("Choose a service date before continuing.");
+      return;
+    }
+
+    if (bookingFlow.step === 3 && !bookingFlow.paymentMethodId) {
+      setBookingFlowStatus("Select a payment method to keep going.");
+      return;
+    }
+
+    setBookingFlow((current) => (current ? { ...current, step: Math.min(4, current.step + 1) } : current));
+    setBookingFlowStatus(null);
+  };
+
+  const confirmBookingWorkflow = () => {
+    if (!bookingFlow || !bookingFlowService) return;
+
+    const bookingId = `booking-${Date.now()}`;
+    const providerShortName = bookingFlowService.provider.split(" ")[0];
+    const timeLabel = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const summaryLines = bookingFields
+      .map((field) => ({
+        label: field.label,
+        value: getFieldSummary(field, bookingFlow.values[field.id]),
+      }))
+      .filter((item) => item.value && item.value !== "No add-ons selected" && item.value !== "Not included");
+
+    const newBooking = {
+      id: bookingId,
+      service: bookingFlowService.title,
+      provider: bookingFlowService.provider,
+      providerRole: bookingFlowService.category,
+      status: "REQUESTED" as const,
+      eta: getInitialEtaForWindow(bookingFlow.arrivalWindow),
+      scheduledFor: formatScheduledFor(bookingFlow.scheduledDate, bookingFlow.arrivalWindow),
+      price: formatRand(bookingEstimate),
+      address: bookingFlow.addressValue,
+      progress: 18,
+      accent: bookingFlowService.accent,
+      imageUrl: bookingFlowService.imageUrl,
+      avatarUrl: findProviderAvatar(bookingFlowService),
+      checklist: getChecklistForService(bookingFlowService),
+      thread: [
+        {
+          id: `${bookingId}-provider`,
+          sender: providerShortName,
+          text: `Thanks for the booking request for ${bookingFlowService.title}. I'm reviewing your details now and will confirm the arrival window shortly.`,
+          time: timeLabel,
+        },
+        {
+          id: `${bookingId}-summary`,
+          sender: "You",
+          text: `Request summary: ${summaryLines
+            .slice(0, 3)
+            .map((item) => `${item.label}: ${item.value}`)
+            .join(" | ") || "Standard service setup"}`,
+          time: timeLabel,
+          own: true,
+        },
+        ...(bookingFlow.notes.trim()
+          ? [
+              {
+                id: `${bookingId}-notes`,
+                sender: "You",
+                text: bookingFlow.notes.trim(),
+                time: timeLabel,
+                own: true,
+              },
+            ]
+          : []),
+      ],
+    };
+
+    setBookings((current) => [newBooking, ...current]);
+    setBookingMessages((current) => ({
+      ...current,
+      [bookingId]: newBooking.thread,
+    }));
+    setSelectedBookingId(bookingId);
+    setBookingComposer("");
+    setBookingFlow(null);
+    setServiceGridOpen(false);
+    setExpandedServiceId(null);
+    setActiveTab("bookings");
+    setBookingFlowStatus(`${bookingFlowService.title} requested. You can now track and message the provider.`);
+  };
+
+  const resolveAddressCandidate = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const exactSearchMatch = addressSearchResults.find(
+      (suggestion) =>
+        suggestion.value.toLowerCase() === normalized ||
+        suggestion.label.toLowerCase() === normalized,
+    );
+    if (exactSearchMatch) return exactSearchMatch;
+
+    if (selectedAddressSuggestion.value.trim().toLowerCase() === normalized) {
+      return selectedAddressSuggestion;
+    }
+
+    return findSuggestionForAddress(value, addressBook);
+  };
+
   const applyAddressSuggestion = (suggestion: FinderSuggestion) => {
     setAddress(suggestion.value);
+    setSelectedAddressSuggestion(suggestion);
     setAddressSuggestionsOpen(false);
     setAddressFinderStatus(`Showing services closest to ${suggestion.neighborhood}`);
   };
 
   const updateProfileField = (field: keyof typeof profileForm, value: string) => {
     setProfileForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateAddressFormField = (field: keyof AddressFormState, value: string) => {
+    setAddressForm((current) => ({ ...current, [field]: value }));
+    if (field === "value") {
+      setAddressFormSuggestion(resolveAddressCandidate(value));
+    }
+  };
+
+  const closeAddressEditor = () => {
+    setAddressEditorOpen(false);
+    setEditingAddressId(null);
+    setAddressFormSuggestion(null);
+  };
+
+  const openCreateAddressEditor = (prefill?: {
+    label?: string;
+    value?: string;
+    note?: string;
+    suggestion?: FinderSuggestion | null;
+  }) => {
+    setAddressEditorMode("create");
+    setEditingAddressId(null);
+    setAddressForm({
+      label: prefill?.label ?? `Saved ${activeAddressSuggestion.neighborhood}`,
+      value: prefill?.value ?? address,
+      note: prefill?.note ?? "",
+    });
+    setAddressFormSuggestion(prefill?.suggestion ?? resolveAddressCandidate(prefill?.value ?? address));
+    setAddressEditorOpen(true);
+  };
+
+  const openEditAddressEditor = (addressItem: AddressBookItem) => {
+    setAddressEditorMode("edit");
+    setEditingAddressId(addressItem.id);
+    setAddressForm({
+      label: addressItem.label,
+      value: addressItem.value,
+      note: addressItem.note,
+    });
+    setAddressFormSuggestion(
+      createFinderSuggestionFromSavedAddress(addressItem) ?? resolveAddressCandidate(addressItem.value),
+    );
+    setAddressEditorOpen(true);
+  };
+
+  const saveCurrentLocationToAddressBook = () => {
+    const suggestion = resolveAddressCandidate(address);
+    if (!suggestion) {
+      setAddressSuggestionsOpen(true);
+      setAddressFinderStatus("Choose or search an address first, then save it.");
+      return;
+    }
+
+    const existing = addressBook.find(
+      (addressItem) => addressItem.value.trim().toLowerCase() === suggestion.value.trim().toLowerCase(),
+    );
+
+    if (existing) {
+      openEditAddressEditor(existing);
+      setSavedAddressStatus(`Editing saved location for ${existing.label}.`);
+      return;
+    }
+
+    openCreateAddressEditor({
+      label: `Saved ${suggestion.neighborhood}`,
+      value: suggestion.value,
+      note: "",
+      suggestion,
+    });
+  };
+
+  const saveAddressEntry = async () => {
+    const suggestion = addressFormSuggestion ?? resolveAddressCandidate(addressForm.value);
+    const trimmedLabel = addressForm.label.trim();
+    const trimmedValue = addressForm.value.trim();
+    const trimmedNote = addressForm.note.trim();
+
+    if (!trimmedLabel || !trimmedValue) {
+      setSavedAddressStatus("Add a label and address before saving.");
+      return;
+    }
+
+    if (!suggestion) {
+      setSavedAddressStatus("Search or choose a real location before saving this address.");
+      return;
+    }
+
+    const defaultAddress =
+      activeSavedAddress?.value.trim().toLowerCase() === address.trim().toLowerCase() ||
+      address.trim().toLowerCase() === trimmedValue.toLowerCase() ||
+      addressBook.length === 0;
+
+    const nextEntry: AddressBookItem = {
+      id: editingAddressId ?? `address-${Date.now()}`,
+      label: trimmedLabel,
+      value: trimmedValue,
+      note: trimmedNote || `Best matched around ${suggestion.neighborhood}.`,
+      neighborhood: suggestion.neighborhood,
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+    };
+
+    try {
+      if (isAuthenticated && activeRole === "CUSTOMER") {
+        if (addressEditorMode === "edit" && editingAddressId) {
+          const response = await customerApi.updateAddress(editingAddressId, {
+            label: trimmedLabel,
+            value: trimmedValue,
+            note: trimmedNote || undefined,
+            defaultAddress,
+          });
+          nextEntry.id = response.data.id;
+        } else {
+          const response = await customerApi.createAddress({
+            label: trimmedLabel,
+            value: trimmedValue,
+            note: trimmedNote || undefined,
+            defaultAddress,
+          });
+          nextEntry.id = response.data.id;
+        }
+      }
+
+      const previousActiveValue =
+        addressEditorMode === "edit"
+          ? addressBook.find((addressItem) => addressItem.id === editingAddressId)?.value ?? null
+          : null;
+
+      setAddressBook((current) => {
+        if (addressEditorMode === "edit") {
+          const updated = current.map((addressItem) =>
+            addressItem.id === editingAddressId ? nextEntry : addressItem,
+          );
+          return defaultAddress
+            ? [nextEntry, ...updated.filter((addressItem) => addressItem.id !== nextEntry.id)]
+            : updated;
+        }
+
+        return defaultAddress ? [nextEntry, ...current] : [...current, nextEntry];
+      });
+
+      if (
+        address.trim().toLowerCase() === trimmedValue.toLowerCase() ||
+        (previousActiveValue &&
+          address.trim().toLowerCase() === previousActiveValue.trim().toLowerCase()) ||
+        defaultAddress
+      ) {
+        setAddress(trimmedValue);
+        setSelectedAddressSuggestion(suggestion);
+      }
+
+      setSavedAddressStatus(
+        addressEditorMode === "edit"
+          ? `${trimmedLabel} updated in saved locations.`
+          : `${trimmedLabel} added to saved locations.`,
+      );
+      closeAddressEditor();
+    } catch {
+      setSavedAddressStatus("We couldn't save that address right now. Please try again.");
+    }
+  };
+
+  const deleteSavedAddress = async (addressId: string) => {
+    const addressItem = addressBook.find((entry) => entry.id === addressId);
+    if (!addressItem) return;
+
+    try {
+      if (isAuthenticated && activeRole === "CUSTOMER") {
+        await customerApi.deleteAddress(addressId);
+      }
+
+      setAddressBook((current) => current.filter((entry) => entry.id !== addressId));
+
+      if (editingAddressId === addressId) {
+        closeAddressEditor();
+      }
+
+      setSavedAddressStatus(`${addressItem.label} removed from saved locations.`);
+    } catch {
+      setSavedAddressStatus("We couldn't delete that address right now. Please try again.");
+    }
   };
 
   const saveProfile = () => {
@@ -915,6 +2169,14 @@ export default function DemoPage() {
                         >
                           {isLocatingAddress ? "Finding..." : "Use current location"}
                         </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={saveCurrentLocationToAddressBook}
+                          className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/80"
+                        >
+                          Save location
+                        </button>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -948,18 +2210,15 @@ export default function DemoPage() {
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    { label: "Home", value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton" },
-                    { label: "Office", value: "The Marc, 129 Rivonia Road, Sandown, Sandton" },
-                    { label: "Mom's house", value: "3 Benmore Road, Benmore Gardens, Sandton" },
-                  ].map((item) => (
+                  {addressBook.slice(0, 3).map((item) => (
                     <button
-                      key={item.label}
+                      key={item.id}
                       type="button"
                       onClick={() =>
                         applyAddressSuggestion(
-                          finderSuggestions.find((suggestion) => suggestion.value === item.value) ??
-                            finderSuggestions[0],
+                          createFinderSuggestionFromSavedAddress(item) ??
+                            finderSuggestions.find((suggestion) => suggestion.value === item.value) ??
+                            inferSuggestionFromAddress(item.value, addressBook),
                         )
                       }
                       className="min-h-11 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/72"
@@ -967,6 +2226,13 @@ export default function DemoPage() {
                       {item.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={saveCurrentLocationToAddressBook}
+                    className="min-h-11 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100"
+                  >
+                    Save location
+                  </button>
                 </div>
                 <p className="mt-3 text-xs text-white/50">
                   Auto-matched area: {activeAddressSuggestion.neighborhood}
@@ -974,6 +2240,16 @@ export default function DemoPage() {
                 {addressFinderStatus ? (
                   <p role="status" className="mt-1 text-xs text-cyan-200">
                     {addressFinderStatus}
+                  </p>
+                ) : null}
+                {savedAddressStatus ? (
+                  <p role="status" className="mt-1 text-xs text-cyan-200">
+                    {savedAddressStatus}
+                  </p>
+                ) : null}
+                {activeSavedAddress ? (
+                  <p className="mt-1 text-xs text-white/42">
+                    Saved as {activeSavedAddress.label}. Tap `Save location` to rename or update it.
                   </p>
                 ) : null}
               </div>
@@ -1103,31 +2379,41 @@ export default function DemoPage() {
                         : `Current address: ${activeAddressSuggestion.neighborhood}`}
                     </div>
 
-                    {mapPins.map((service) => (
-                      <button
-                        key={service.id}
-                        type="button"
-                        onClick={() => setSelectedMapServiceId(service.id)}
-                        className="absolute -translate-x-1/2 -translate-y-1/2"
-                        style={{ left: `${service.left}%`, top: `${service.top}%` }}
-                      >
-                        <span
-                          className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-[0_12px_24px_rgba(5,11,20,0.45)] ${
-                            selectedMapService?.id === service.id
-                              ? "border-cyan-200 bg-cyan-400 text-slate-950"
-                              : "border-white/14 bg-black/45"
-                          }`}
+                    {mapPins.map((service) => {
+                      const tone = getMapCategoryTone(service.category);
+                      return (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() => setSelectedMapServiceId(service.id)}
+                          className="absolute -translate-x-1/2 -translate-y-1/2"
+                          style={{ left: `${service.left}%`, top: `${service.top}%` }}
                         >
-                          <MapPin className="h-4 w-4" />
-                        </span>
-                      </button>
-                    ))}
+                          <span
+                            className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-[0_12px_24px_rgba(5,11,20,0.45)] ${
+                              selectedMapService?.id === service.id
+                                ? tone.activePin
+                                : "border-white/14 bg-black/45"
+                            }`}
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </span>
+                        </button>
+                      );
+                    })}
 
-                    {mapPins.length === 0 ? (
+                    {mapVisibleServices.length === 0 ? (
                       <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 rounded-[20px] border border-dashed border-white/10 bg-black/35 p-4 text-center">
                         <p className="text-sm font-semibold">No pins for this filter yet</p>
                         <p className="mt-1 text-xs text-white/52">
                           Try another category or clear your search to repopulate the map.
+                        </p>
+                      </div>
+                    ) : !selectedMapService ? (
+                      <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 rounded-[20px] border border-dashed border-white/10 bg-black/35 p-4 text-center">
+                        <p className="text-sm font-semibold">Tap a service to drop its pin</p>
+                        <p className="mt-1 text-xs text-white/52">
+                          The map stays clean until a service is selected below.
                         </p>
                       </div>
                     ) : null}
@@ -1141,9 +2427,16 @@ export default function DemoPage() {
                               {selectedMapService.provider} | {selectedMapService.neighborhood}
                             </p>
                           </div>
-                          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/72">
-                            {selectedMapService.dynamicEta}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] ${getMapCategoryTone(selectedMapService.category).badge}`}
+                            >
+                              {selectedMapService.category}
+                            </span>
+                            <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/72">
+                              {selectedMapService.dynamicEta}
+                            </span>
+                          </div>
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <p className="text-xs text-white/48">{selectedMapService.price}</p>
@@ -1169,12 +2462,35 @@ export default function DemoPage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/48">
-                  <span>
-                    {isWithinBounds(activeAddressSuggestion, SANDTON_BOUNDS)
-                      ? "Distances and pins are anchored to your real resolved location."
-                      : "Real address lookup works nationwide; the live map widget is centered on Sandton for this demo."}
-                  </span>
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {mapVisibleServices.slice(0, 8).map((service) => {
+                    const active = selectedMapService?.id === service.id;
+                    const tone = getMapCategoryTone(service.category);
+                    return (
+                      <button
+                        key={`map-service-${service.id}`}
+                        type="button"
+                        onClick={() => setSelectedMapServiceId(service.id)}
+                        className={`shrink-0 rounded-full px-3 py-2 text-xs ${
+                          active ? tone.activeChip : "border border-white/10 bg-black/20 text-white/72"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
+                          <span>{service.title}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {selectedMapService ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMapServiceId(null)}
+                      className="shrink-0 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/72"
+                    >
+                      Clear pin
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -1258,7 +2574,7 @@ export default function DemoPage() {
                                     className="min-h-10 rounded-full bg-white px-4 text-slate-950 hover:bg-white/92"
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      setActiveTab("bookings");
+                                      openBookingWorkflow(service.id);
                                     }}
                                   >
                                     Book now
@@ -1342,7 +2658,15 @@ export default function DemoPage() {
                       <span>{item.date}</span>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("bookings")}
+                        onClick={() => {
+                          const matchedService =
+                            homeServices.find((service) => service.provider === item.provider) ?? null;
+                          if (matchedService) {
+                            openBookingWorkflow(matchedService.id);
+                          } else {
+                            setActiveTab("bookings");
+                          }
+                        }}
                         className="text-cyan-200"
                       >
                         Rebook
@@ -1587,7 +2911,15 @@ export default function DemoPage() {
                               ) : null}
                               <Button
                                 className="mt-4 min-h-11 rounded-full bg-white px-5 text-slate-950 hover:bg-white/92"
-                                onClick={() => setActiveTab("bookings")}
+                                onClick={() => {
+                                  const matchingService =
+                                    homeServices.find((service) => service.provider === post.provider) ??
+                                    filteredServices.find((service) => service.provider === post.provider) ??
+                                    null;
+                                  if (matchingService) {
+                                    openBookingWorkflow(matchingService.id);
+                                  }
+                                }}
                               >
                                 Book now
                               </Button>
@@ -1668,9 +3000,14 @@ export default function DemoPage() {
                   type="button"
                   className="rounded-full bg-white/10 px-3 py-2 text-xs text-white/70"
                 >
-                  3 active
+                  {activeBookingCount} active
                 </button>
               </div>
+              {bookingFlowStatus ? (
+                <p role="status" className="mt-3 text-sm text-cyan-200">
+                  {bookingFlowStatus}
+                </p>
+              ) : null}
 
               <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-none">
                 {bookings.map((booking) => {
@@ -2024,48 +3361,89 @@ export default function DemoPage() {
               </div>
 
               <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-                <div className="mb-3 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-cyan-200" />
-                  <p className="text-sm font-semibold">Saved addresses</p>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-cyan-200" />
+                    <p className="text-sm font-semibold">Saved addresses</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openCreateAddressEditor()}
+                    className="rounded-full border border-cyan-300/18 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100"
+                  >
+                    Add new
+                  </button>
                 </div>
                 <div className="space-y-3">
-                  {demoAddressBook.map((addressItem) => {
+                  {addressBook.map((addressItem) => {
                     const active = address === addressItem.value;
                     return (
-                      <button
+                      <div
                         key={addressItem.id}
-                        type="button"
-                        onClick={() =>
-                          applyAddressSuggestion(
-                            finderSuggestions.find(
-                              (suggestion) => suggestion.value === addressItem.value,
-                            ) ?? inferSuggestionFromAddress(addressItem.value),
-                          )
-                        }
-                        className={`w-full rounded-[18px] px-4 py-3 text-left transition-colors ${
-                          active
-                            ? "border border-cyan-300/45 bg-cyan-400/10"
-                            : "bg-black/20 hover:bg-black/28"
+                        className={`rounded-[18px] px-4 py-3 transition-colors ${
+                          active ? "border border-cyan-300/45 bg-cyan-400/10" : "bg-black/20"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium">{addressItem.label}</p>
-                            <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
-                            <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-white/38">
-                              {addressItem.note}
-                            </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            applyAddressSuggestion(
+                              createFinderSuggestionFromSavedAddress(addressItem) ??
+                                finderSuggestions.find(
+                                  (suggestion) => suggestion.value === addressItem.value,
+                                ) ??
+                                inferSuggestionFromAddress(addressItem.value, addressBook),
+                            )
+                          }
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">{addressItem.label}</p>
+                                {addressItem.neighborhood ? (
+                                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/55">
+                                    {addressItem.neighborhood}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
+                              <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-white/38">
+                                {addressItem.note}
+                              </p>
+                            </div>
+                            {active ? (
+                              <span className="rounded-full bg-cyan-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
+                                Active
+                              </span>
+                            ) : null}
                           </div>
-                          {active ? (
-                            <span className="rounded-full bg-cyan-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
-                              Active
-                            </span>
-                          ) : null}
+                        </button>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditAddressEditor(addressItem)}
+                            className="min-h-10 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/78"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void deleteSavedAddress(addressItem.id)}
+                            className="min-h-10 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/62"
+                          >
+                            Delete
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
+                {savedAddressStatus ? (
+                  <p role="status" className="mt-3 text-xs text-cyan-200">
+                    {savedAddressStatus}
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-4 rounded-[24px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
@@ -2255,6 +3633,544 @@ export default function DemoPage() {
       </nav>
 
       <AnimatePresence>
+        {bookingFlow && bookingFlowService ? (
+          <motion.div
+            className="fixed inset-0 z-50 bg-black/78 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setBookingFlow(null)}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Book ${bookingFlowService.title}`}
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 28, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 230, damping: 26 }}
+              className="mx-auto mt-5 w-[calc(100%-1.25rem)] max-w-[470px] overflow-hidden rounded-[30px] border border-white/10 bg-[#07111f] text-white shadow-[0_28px_72px_rgba(0,0,0,0.48)]"
+              style={{
+                paddingTop: "env(safe-area-inset-top, 0px)",
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div
+                className={`relative overflow-hidden bg-gradient-to-br ${bookingFlowService.accent} p-5 text-slate-950`}
+              >
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-25"
+                  style={{ backgroundImage: `url(${bookingFlowService.imageUrl})` }}
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.22),rgba(255,255,255,0.04))]" />
+                <div className="relative">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-700">Book now</p>
+                      <h3 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">
+                        {bookingFlowService.title}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-700">
+                        {bookingFlowService.provider} | {bookingFlowService.category}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBookingFlow(null)}
+                      className="rounded-full bg-slate-950/10 px-3 py-2 text-xs font-semibold text-slate-800"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-800">
+                    <span className="rounded-full bg-slate-950/10 px-3 py-1.5">
+                      {serviceTravelMinutes(bookingFlowService.id, activeAddressSuggestion)} min away
+                    </span>
+                    <span className="rounded-full bg-slate-950/10 px-3 py-1.5">
+                      {formatRand(bookingEstimate)} est.
+                    </span>
+                    <span className="rounded-full bg-slate-950/10 px-3 py-1.5">
+                      {bookingFlow.step}/4
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 pb-5 pt-4">
+                <div className="mb-5 grid grid-cols-4 gap-2">
+                  {[
+                    { step: 1, label: "Details" },
+                    { step: 2, label: "Schedule" },
+                    { step: 3, label: "Checkout" },
+                    { step: 4, label: "Review" },
+                  ].map((item) => {
+                    const active = bookingFlow.step === item.step;
+                    const complete = bookingFlow.step > item.step;
+                    return (
+                      <div key={item.step} className="text-center">
+                        <div
+                          className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
+                            complete
+                              ? "bg-emerald-300 text-slate-950"
+                              : active
+                                ? "bg-cyan-300 text-slate-950"
+                                : "bg-white/10 text-white/55"
+                          }`}
+                        >
+                          {item.step}
+                        </div>
+                        <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-white/44">
+                          {item.label}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {bookingFlow.step === 1 ? (
+                  <div className="space-y-5">
+                    {bookingFields.length > 0 ? (
+                      bookingFields.map((field) => {
+                        const currentValue = bookingFlow.values[field.id];
+                        return (
+                          <div key={field.id}>
+                            <p className="text-sm font-semibold">{field.label}</p>
+                            {field.helper ? (
+                              <p className="mt-1 text-xs text-white/45">{field.helper}</p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {field.kind === "toggle" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => updateBookingFieldValue(field, "toggle")}
+                                  className={`min-h-11 rounded-[18px] px-4 py-3 text-sm ${
+                                    currentValue
+                                      ? "bg-cyan-300 text-slate-950"
+                                      : "border border-white/10 bg-white/8 text-white/76"
+                                  }`}
+                                >
+                                  {field.toggleLabel}
+                                </button>
+                              ) : (
+                                field.options?.map((option) => {
+                                  const active =
+                                    field.kind === "multi"
+                                      ? Array.isArray(currentValue) && currentValue.includes(option.value)
+                                      : currentValue === option.value;
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => updateBookingFieldValue(field, option.value)}
+                                      className={`min-h-11 rounded-[18px] px-4 py-3 text-sm ${
+                                        active
+                                          ? "bg-cyan-300 text-slate-950"
+                                          : "border border-white/10 bg-white/8 text-white/76"
+                                      }`}
+                                    >
+                                      <span>{option.label}</span>
+                                      {option.priceDelta ? (
+                                        <span className="ml-2 text-xs opacity-70">
+                                          +{formatRand(option.priceDelta)}
+                                        </span>
+                                      ) : null}
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-[22px] border border-white/10 bg-white/8 p-4 text-sm text-white/74">
+                        This service uses the standard request flow. Continue to choose the schedule and confirm the job.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {bookingFlow.step === 2 ? (
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-sm font-semibold">Choose a date</p>
+                      <Input
+                        type="date"
+                        value={bookingFlow.scheduledDate}
+                        onChange={(event) => setBookingFlowField("scheduledDate", event.target.value)}
+                        className="mt-3 h-12 rounded-[18px] border-white/10 bg-white/8 text-white"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Arrival window</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {bookingArrivalWindows.map((windowLabel) => (
+                          <button
+                            key={windowLabel}
+                            type="button"
+                            onClick={() => setBookingFlowField("arrivalWindow", windowLabel)}
+                            className={`min-h-11 rounded-full px-4 py-2 text-sm ${
+                              bookingFlow.arrivalWindow === windowLabel
+                                ? "bg-cyan-300 text-slate-950"
+                                : "border border-white/10 bg-white/8 text-white/76"
+                            }`}
+                          >
+                            {windowLabel}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold">Service address</p>
+                        <button
+                          type="button"
+                          onClick={saveCurrentLocationToAddressBook}
+                          className="text-xs font-semibold text-cyan-200"
+                        >
+                          Save current
+                        </button>
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {[...addressBook, { id: "current-home", label: "Current home", value: address, note: "Using the live address from Home" }].filter(
+                          (item, index, array) =>
+                            array.findIndex((candidate) => candidate.value === item.value) === index,
+                        ).map((addressItem) => {
+                          const active = bookingFlow.addressValue === addressItem.value;
+                          return (
+                            <button
+                              key={addressItem.id}
+                              type="button"
+                              onClick={() => setBookingFlowField("addressValue", addressItem.value)}
+                              className={`w-full rounded-[20px] px-4 py-3 text-left ${
+                                active
+                                  ? "border border-cyan-300/45 bg-cyan-400/10"
+                                  : "border border-white/10 bg-white/8"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">{addressItem.label}</p>
+                                  <p className="mt-1 text-xs text-white/52">{addressItem.value}</p>
+                                </div>
+                                {active ? (
+                                  <span className="rounded-full bg-cyan-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
+                                    Selected
+                                  </span>
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {bookingFlow.step === 3 ? (
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-sm font-semibold">Payment method</p>
+                      <div className="mt-3 space-y-3">
+                        {demoPaymentMethods.map((method) => {
+                          const active = bookingFlow.paymentMethodId === method.id;
+                          return (
+                            <button
+                              key={method.id}
+                              type="button"
+                              onClick={() => setBookingFlowField("paymentMethodId", method.id)}
+                              className={`flex w-full items-center justify-between rounded-[20px] px-4 py-3 text-left ${
+                                active
+                                  ? "border border-cyan-300/45 bg-cyan-400/10"
+                                  : "border border-white/10 bg-white/8"
+                              }`}
+                            >
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {method.brand} ending in {method.last4}
+                                </p>
+                                <p className="mt-1 text-xs text-white/52">
+                                  {method.holder} | expires {method.expiry}
+                                </p>
+                              </div>
+                              {active ? (
+                                <span className="rounded-full bg-cyan-300 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-950">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Updates</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {bookingContactPreferences.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setBookingFlowField("contactPreference", option)}
+                            className={`min-h-11 rounded-full px-4 py-2 text-sm ${
+                              bookingFlow.contactPreference === option
+                                ? "bg-emerald-300 text-slate-950"
+                                : "border border-white/10 bg-white/8 text-white/76"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Notes for the provider</p>
+                      <textarea
+                        value={bookingFlow.notes}
+                        onChange={(event) => setBookingFlowField("notes", event.target.value)}
+                        placeholder="Add gate codes, pet notes, parking info, inspiration references, or anything else helpful."
+                        className="mt-3 min-h-[120px] w-full rounded-[20px] border border-white/10 bg-white/8 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {bookingFlow.step === 4 ? (
+                  <div className="space-y-4">
+                    <div className="rounded-[22px] border border-white/10 bg-white/8 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/44">Service summary</p>
+                      <div className="mt-3 space-y-3">
+                        {bookingFields.map((field) => (
+                          <div key={field.id} className="flex items-start justify-between gap-4 text-sm">
+                            <span className="text-white/56">{field.label}</span>
+                            <span className="max-w-[12rem] text-right font-medium">
+                              {getFieldSummary(field, bookingFlow.values[field.id])}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="text-white/56">Scheduled</span>
+                          <span className="max-w-[12rem] text-right font-medium">
+                            {formatScheduledFor(bookingFlow.scheduledDate, bookingFlow.arrivalWindow)}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="text-white/56">Address</span>
+                          <span className="max-w-[12rem] text-right font-medium">
+                            {selectedBookingAddress?.label ?? "Selected address"} | {bookingFlow.addressValue}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="text-white/56">Payment</span>
+                          <span className="font-medium">
+                            {selectedPaymentMethod
+                              ? `${selectedPaymentMethod.brand} ${selectedPaymentMethod.last4}`
+                              : "Select payment"}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="text-white/56">Updates</span>
+                          <span className="font-medium">{bookingFlow.contactPreference}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {bookingFlow.notes.trim() ? (
+                      <div className="rounded-[22px] border border-white/10 bg-white/8 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-white/44">Notes</p>
+                        <p className="mt-2 text-sm leading-6 text-white/78">{bookingFlow.notes}</p>
+                      </div>
+                    ) : null}
+
+                    <div className="rounded-[22px] bg-[linear-gradient(135deg,rgba(142,247,214,0.16),rgba(125,211,252,0.14),rgba(251,191,36,0.12))] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-white/48">
+                            Estimated total
+                          </p>
+                          <p className="mt-2 text-2xl font-semibold">{formatRand(bookingEstimate)}</p>
+                        </div>
+                        <div className="text-right text-xs text-white/58">
+                          <p>{serviceTravelMinutes(bookingFlowService.id, activeAddressSuggestion)} min average arrival</p>
+                          <p className="mt-1">Final quote can adjust if the provider adds parts or labor.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {bookingFlowStatus ? (
+                  <p role="status" className="mt-4 text-sm text-cyan-200">
+                    {bookingFlowStatus}
+                  </p>
+                ) : null}
+
+                <div className="mt-5 flex gap-3">
+                  {bookingFlow.step > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBookingFlow((current) =>
+                          current ? { ...current, step: Math.max(1, current.step - 1) } : current,
+                        )
+                      }
+                      className="min-h-12 rounded-full border border-white/10 px-4 text-sm text-white/78"
+                    >
+                      Back
+                    </button>
+                  ) : null}
+                  <Button
+                    className="min-h-12 flex-1 rounded-full bg-white text-slate-950 hover:bg-white/92"
+                    onClick={() => {
+                      if (bookingFlow.step === 4) {
+                        confirmBookingWorkflow();
+                      } else {
+                        continueBookingFlow();
+                      }
+                    }}
+                  >
+                    {bookingFlow.step === 4 ? "Confirm booking" : "Continue"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {addressEditorOpen ? (
+          <motion.div
+            className="fixed inset-0 z-50 bg-black/78 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeAddressEditor}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label={addressEditorMode === "edit" ? "Edit saved address" : "Save location"}
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 28, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 230, damping: 26 }}
+              className="mx-auto mt-8 w-[calc(100%-2rem)] max-w-[460px] rounded-[28px] border border-white/10 bg-[#07111f] p-5 text-white shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
+              style={{
+                paddingTop: "calc(1.25rem + env(safe-area-inset-top, 0px))",
+                paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))",
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/42">
+                    {addressEditorMode === "edit" ? "Edit saved address" : "Save location"}
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold">
+                    {addressEditorMode === "edit"
+                      ? "Update this saved place"
+                      : "Add this location to your shortcuts"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAddressEditor}
+                  className="rounded-full bg-white/10 px-3 py-2 text-xs text-white/78"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                    Label
+                  </p>
+                  <Input
+                    value={addressForm.label}
+                    onChange={(event) => updateAddressFormField("label", event.target.value)}
+                    placeholder="Home, Office, Mom..."
+                    className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                    Address
+                  </p>
+                  <Input
+                    value={addressForm.value}
+                    onChange={(event) => updateAddressFormField("value", event.target.value)}
+                    placeholder="Paste or confirm the full address"
+                    className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                  />
+                  <p className="mt-2 text-xs text-white/42">
+                    Tip: search or confirm the address on the home tab first for the most accurate saved location.
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/46">
+                    Note for the pro
+                  </p>
+                  <Input
+                    value={addressForm.note}
+                    onChange={(event) => updateAddressFormField("note", event.target.value)}
+                    placeholder="Gate code, entrance, parking, concierge..."
+                    className="border-white/10 bg-black/20 text-white placeholder:text-white/35"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddressForm((current) => ({ ...current, value: address }));
+                    setAddressFormSuggestion(selectedAddressSuggestion);
+                  }}
+                  className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/78"
+                >
+                  Use current home location
+                </button>
+                {addressFormSuggestion ? (
+                  <span className="rounded-full bg-cyan-400/12 px-3 py-2 text-xs text-cyan-100">
+                    Matched near {addressFormSuggestion.neighborhood}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-white/8 px-3 py-2 text-xs text-white/52">
+                    Not matched yet
+                  </span>
+                )}
+              </div>
+
+              {savedAddressStatus ? (
+                <p role="status" className="mt-4 text-xs text-cyan-200">
+                  {savedAddressStatus}
+                </p>
+              ) : null}
+
+              <div className="mt-5 flex gap-3">
+                <Button
+                  className="min-h-12 flex-1 rounded-full bg-white text-slate-950 hover:bg-white/92"
+                  onClick={() => void saveAddressEntry()}
+                >
+                  <Check className="h-4 w-4" />
+                  {addressEditorMode === "edit" ? "Save changes" : "Save location"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={closeAddressEditor}
+                  className="min-h-12 rounded-full border border-white/10 px-4 text-sm text-white/78"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {mapExpanded ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2302,56 +4218,91 @@ export default function DemoPage() {
                     className="absolute inset-0 h-full w-full"
                   />
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,31,0.12),rgba(7,17,31,0.42))] pointer-events-none" />
-                  {mapPins.map((service) => (
-                    <button
-                      key={`expanded-${service.id}`}
-                      type="button"
-                      onClick={() => setSelectedMapServiceId(service.id)}
-                      className="absolute -translate-x-1/2 -translate-y-1/2"
-                      style={{ left: `${service.left}%`, top: `${service.top}%` }}
-                    >
-                      <span
-                        className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[0_14px_28px_rgba(5,11,20,0.5)] ${
-                          selectedMapService?.id === service.id
-                            ? "border-cyan-200 bg-cyan-400 text-slate-950"
-                            : "border-white/18 bg-black/52"
-                        }`}
+                  {mapPins.map((service) => {
+                    const tone = getMapCategoryTone(service.category);
+                    return (
+                      <button
+                        key={`expanded-${service.id}`}
+                        type="button"
+                        onClick={() => setSelectedMapServiceId(service.id)}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${service.left}%`, top: `${service.top}%` }}
                       >
-                        <MapPin className="h-4 w-4" />
-                      </span>
-                    </button>
-                  ))}
+                        <span
+                          className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[0_14px_28px_rgba(5,11,20,0.5)] ${
+                            selectedMapService?.id === service.id
+                              ? tone.activePin
+                              : "border-white/18 bg-black/52"
+                          }`}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {!selectedMapService ? (
+                    <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 rounded-[22px] border border-dashed border-white/10 bg-black/38 p-4 text-center">
+                      <p className="text-sm font-semibold">Tap a service below to place its pin</p>
+                      <p className="mt-1 text-xs text-white/52">
+                        The map stays uncluttered until you select one of the services in the list.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/52">
-                <span>
-                  Real address resolution is live. The demo map stays centered on Sandton for investor walkthroughs.
-                </span>
-                <a
-                  href={sandtonMapExternalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="shrink-0 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-white/80"
-                >
-                  Open in OSM
-                </a>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="text-xs text-white/52">
+                  {selectedMapService ? (
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2.5 w-2.5 rounded-full ${getMapCategoryTone(selectedMapService.category).dot}`} />
+                      <span>
+                        {selectedMapService.title} pinned in {selectedMapService.neighborhood}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>Choose a service below to preview exactly where it would appear on the map.</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {selectedMapService ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMapServiceId(null)}
+                      className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/80"
+                    >
+                      Clear pin
+                    </button>
+                  ) : null}
+                  <a
+                    href={sandtonMapExternalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/80"
+                  >
+                    Open in OSM
+                  </a>
+                </div>
               </div>
 
               <div className="mt-4 space-y-3 overflow-y-auto pb-2">
                 {mapVisibleServices.slice(0, 8).map((service) => {
                   const active = selectedMapService?.id === service.id;
+                  const tone = getMapCategoryTone(service.category);
                   return (
                     <button
                       key={`expanded-card-${service.id}`}
                       type="button"
                       onClick={() => setSelectedMapServiceId(service.id)}
                       className={`flex w-full items-center justify-between rounded-[22px] px-4 py-4 text-left ${
-                        active ? "border border-cyan-300/45 bg-cyan-400/10" : "bg-white/8"
+                        active ? `border ${tone.activeCard}` : "border border-white/8 bg-white/8"
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-semibold">{service.title}</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
+                          <p className="text-sm font-semibold">{service.title}</p>
+                        </div>
                         <p className="mt-1 text-xs text-white/52">
                           {service.provider} | {service.neighborhood}
                         </p>

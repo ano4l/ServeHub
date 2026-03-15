@@ -102,6 +102,9 @@ export interface DemoAddressBookItem {
   label: string;
   value: string;
   note: string;
+  neighborhood?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface DemoPaymentMethod {
@@ -719,10 +722,42 @@ export const demoUserProfile: DemoProfile = {
 };
 
 export const demoAddressBook: DemoAddressBookItem[] = [
-  { id: "address-1", label: "Home", value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton", note: "Meet at the main Rivonia Road entrance." },
-  { id: "address-2", label: "Office", value: "The Marc, 129 Rivonia Road, Sandown, Sandton", note: "Reception closes at 18:00." },
-  { id: "address-3", label: "Mom", value: "3 Benmore Road, Benmore Gardens, Sandton", note: "Use the back driveway closest to the guard house." },
-  { id: "address-4", label: "Weekend", value: "10 Rivonia Road, Morningside, Sandton", note: "Guest parking is easiest from the lower gate." },
+  {
+    id: "address-1",
+    label: "Home",
+    value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton",
+    note: "Meet at the main Rivonia Road entrance.",
+    neighborhood: "Sandhurst",
+    lat: -26.1073,
+    lng: 28.0539,
+  },
+  {
+    id: "address-2",
+    label: "Office",
+    value: "The Marc, 129 Rivonia Road, Sandown, Sandton",
+    note: "Reception closes at 18:00.",
+    neighborhood: "Sandown",
+    lat: -26.1052,
+    lng: 28.0581,
+  },
+  {
+    id: "address-3",
+    label: "Mom",
+    value: "3 Benmore Road, Benmore Gardens, Sandton",
+    note: "Use the back driveway closest to the guard house.",
+    neighborhood: "Benmore",
+    lat: -26.1024,
+    lng: 28.0605,
+  },
+  {
+    id: "address-4",
+    label: "Weekend",
+    value: "10 Rivonia Road, Morningside, Sandton",
+    note: "Guest parking is easiest from the lower gate.",
+    neighborhood: "Morningside",
+    lat: -26.0827,
+    lng: 28.0608,
+  },
 ];
 
 export const demoPaymentMethods: DemoPaymentMethod[] = [
