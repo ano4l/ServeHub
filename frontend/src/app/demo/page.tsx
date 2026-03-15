@@ -116,8 +116,9 @@ export default function DemoPage() {
       ),
     [searchText],
   );
-  const openCommentPost =
-    demoFeedPosts.find((post) => post.id === openCommentsFor) ?? filteredFeedPosts[0] ?? null;
+  const openCommentPost = openCommentsFor
+    ? demoFeedPosts.find((post) => post.id === openCommentsFor) ?? null
+    : null;
 
   const sendBookingMessage = (text: string) => {
     setBookingMessages((current) => ({
