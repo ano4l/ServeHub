@@ -1,0 +1,46 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Java / Maven
+target/
+.mvn/
+
+# Frontend / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+frontend/*.tsbuildinfo
+
+# Mobile / Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+
+# General dependencies / caches
+node_modules/
+coverage/
+dist/
+build/
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+frontend/.env
+frontend/.env.*
+
+# Vercel
+.vercel/
