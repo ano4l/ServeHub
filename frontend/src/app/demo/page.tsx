@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  BadgeCheck,
   Bell,
   CalendarDays,
   CheckCircle2,
@@ -18,6 +19,7 @@ import {
   MessageCircle,
   PaintBucket,
   Pencil,
+  Play,
   Plus,
   Repeat2,
   Search,
@@ -232,6 +234,12 @@ function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const remaining = minutes % 60;
   return remaining > 0 ? `${hours} hr ${remaining} min` : `${hours} hr`;
+}
+
+function compactCount(value: number) {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1).replace(".0", "")}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1).replace(".0", "")}K`;
+  return `${value}`;
 }
 
 function buildChecklist(status: BookingStatus) {
@@ -1758,169 +1766,261 @@ export default function DemoPage() {
         ) : null}
 
         {activeTab === "explore" ? (
-          <section className="pb-8">
-            <h1 className="pt-2 text-[2rem] font-bold tracking-[-0.04em]">
-              Explore
-            </h1>
-            <div className="mt-4 rounded-[20px] bg-white p-2 shadow-sm">
-              <Input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Search services, providers, neighborhoods..."
-                leftIcon={<Search className="h-5 w-5" />}
-                className="h-12 rounded-2xl border-0 bg-transparent px-3 text-[15px] placeholder:text-[#ADB5BD]"
-              />
-            </div>
-
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setExploreCategory(category)}
-                  className="shrink-0 rounded-[14px] px-4 py-2.5 text-[13px] font-semibold"
-                  style={{
-                    backgroundColor:
-                      exploreCategory === category ? COLORS.primary : COLORS.surface,
-                    color:
-                      exploreCategory === category ? "white" : COLORS.textSecondary,
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {filteredServices.length === 0 ? (
-                <EmptyState
-                  title="No services match your search"
-                  copy="Try another category, service, or provider name."
+          <section className="-mx-4 bg-[#080808] px-4 pb-8 pt-2 text-white">
+            <div className="sticky top-0 z-20 rounded-[2rem] border border-white/10 bg-black/70 px-4 py-4 backdrop-blur-xl">
+              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/50">
+                <Sparkles className="h-3.5 w-3.5" />
+                Explore feed
+              </p>
+              <h1 className="mt-2 text-[2rem] font-bold tracking-[-0.04em]">
+                Swipe local services like content
+              </h1>
+              <div className="mt-4 rounded-[20px] border border-white/10 bg-white/6 p-2">
+                <Input
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  placeholder="Search services, providers, neighborhoods..."
+                  leftIcon={<Search className="h-5 w-5 text-white/45" />}
+                  className="h-12 rounded-2xl border-0 bg-transparent px-3 text-[15px] text-white placeholder:text-white/35"
                 />
-              ) : (
-                filteredServices.slice(0, 6).map((service) => {
-                  const reaction = reactions[service.id] ?? {
-                    likes: Math.max(18, Math.round(service.reviews * 3.2)),
-                    comments: Math.max(3, Math.round(service.reviews / 18)),
-                    reposts: Math.max(1, Math.round(service.reviews / 25)),
-                  };
-                  const previewComments = (serviceComments[service.id] ?? []).slice(0, 2);
-                  return (
-                    <article
-                      key={service.id}
-                      className="overflow-hidden rounded-[24px] bg-white shadow-sm"
-                    >
-                      <div className="relative h-[220px]">
+              </div>
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setExploreCategory(category)}
+                    className="shrink-0 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition"
+                    style={{
+                      borderColor:
+                        exploreCategory === category ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
+                      backgroundColor:
+                        exploreCategory === category ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.06)",
+                      color: "white",
+                    }}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 h-[calc(100vh-12.5rem)] snap-y snap-mandatory overflow-y-auto scroll-smooth">
+              <div className="space-y-5 pb-24">
+                {filteredServices.length === 0 ? (
+                  <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center rounded-[2rem] border border-dashed border-white/15 bg-white/6 px-8 text-center">
+                    <Search className="mb-4 h-6 w-6 text-white/60" />
+                    <h2 className="text-xl font-semibold">
+                      No services match this feed
+                    </h2>
+                    <p className="mt-2 text-sm text-white/60">
+                      Try a broader search or switch categories.
+                    </p>
+                  </div>
+                ) : (
+                  filteredServices.slice(0, 8).map((service, index) => {
+                    const reaction = reactions[service.id] ?? {
+                      likes: Math.max(18, Math.round(service.reviews * 3.2)),
+                      comments: Math.max(3, Math.round(service.reviews / 18)),
+                      reposts: Math.max(1, Math.round(service.reviews / 25)),
+                    };
+                    const previewComments = (serviceComments[service.id] ?? []).slice(0, 2);
+                    const heroTag =
+                      service.tags[index % service.tags.length] ?? service.badge;
+                    return (
+                      <article
+                        key={service.id}
+                        className="relative mx-auto flex min-h-[calc(100vh-13rem)] w-full max-w-md snap-start items-end overflow-hidden rounded-[2rem] border border-white/10 bg-stone-950 shadow-[0_24px_80px_rgba(15,23,42,0.48)]"
+                      >
                         <div
                           aria-label={service.title}
                           role="img"
-                          className="h-full w-full bg-cover bg-center"
+                          className="absolute inset-0 bg-cover bg-center"
                           style={{ backgroundImage: `url(${service.imageUrl})` }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                        <div className="absolute right-4 top-4 rounded-2xl bg-white/95 px-4 py-2 text-base font-extrabold">
-                          {service.price}
+                        <div className={`absolute inset-0 bg-gradient-to-br ${service.accent} opacity-55`} />
+                        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,8,8,0.98),rgba(8,8,8,0.35)_52%,rgba(8,8,8,0.08))]" />
+                        <div className="absolute left-4 right-4 top-4 z-10 flex items-center gap-2">
+                          {Array.from({ length: 3 }).map((_, barIndex) => (
+                            <span
+                              key={barIndex}
+                              className="h-1 flex-1 rounded-full bg-white/25"
+                            />
+                          ))}
                         </div>
-                      </div>
-                      <div className="p-5">
-                        <p className="text-[15px] font-bold">{service.provider}</p>
-                        <h2 className="mt-3 text-lg font-extrabold">
-                          {service.title}
-                        </h2>
-                        <p
-                          className="mt-2 text-sm leading-6"
-                          style={{ color: COLORS.textSecondary }}
-                        >
-                          {service.description}
-                        </p>
-                        <div className="mt-5 flex items-center gap-5">
-                          <button
-                            type="button"
-                            onClick={() => void toggleLike(service.id)}
-                            aria-label={`Like ${service.title}`}
-                          >
-                            <SmallAction
-                              icon={Heart}
-                              label={String(reaction.likes)}
-                              active={likedIds.includes(service.id)}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void openComments(service.id)}
-                            aria-label={`Open comments for ${service.title}`}
-                          >
-                            <SmallAction
-                              icon={MessageCircle}
-                              label={String(reaction.comments)}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void toggleRepost(service.id)}
-                            aria-label={`Repost ${service.title}`}
-                          >
-                            <SmallAction
-                              icon={Repeat2}
-                              label={String(reaction.reposts)}
-                              active={repostedIds.includes(service.id)}
-                            />
-                          </button>
-                          <div className="ml-auto">
+                        <div className="absolute left-4 right-4 top-8 z-10 flex items-center justify-between">
+                          <div className="rounded-full bg-black/45 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 backdrop-blur-md">
+                            {service.category}
+                          </div>
+                          <div className="rounded-full bg-white/92 px-4 py-2 text-sm font-extrabold text-black">
+                            {service.price}
+                          </div>
+                        </div>
+
+                        <div className="relative z-10 flex w-full items-end gap-4 p-5">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/10 text-sm font-bold text-white backdrop-blur-md">
+                                {service.provider
+                                  .split(" ")
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .slice(0, 2)}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="truncate text-sm font-semibold">
+                                    {service.provider}
+                                  </p>
+                                  <BadgeCheck className="h-4 w-4 text-sky-300" />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-white/72">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Play className="h-3 w-3 fill-current" />
+                                    Service reel
+                                  </span>
+                                  <span>&middot;</span>
+                                  <span>{service.eta} away</span>
+                                  <span>&middot;</span>
+                                  <span>{service.duration}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <h2 className="mt-4 max-w-sm text-[2rem] font-semibold leading-tight tracking-[-0.04em]">
+                              {service.title}
+                            </h2>
+                            <p className="mt-3 max-w-sm text-sm leading-6 text-white/84">
+                              {service.description}
+                            </p>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <span className="rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold text-white">
+                                {heroTag}
+                              </span>
+                              <span className="rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold text-white">
+                                {service.badge}
+                              </span>
+                              <span className="rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold text-white">
+                                {service.subtitle}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/78">
+                              {service.tags.map((tag) => (
+                                <span key={tag}>#{tag.replace(/\s+/g, "")}</span>
+                              ))}
+                            </div>
+
+                            {previewComments.length > 0 ? (
+                              <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-black/28 p-4 backdrop-blur-md">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                                  Community
+                                </p>
+                                <div className="mt-3 space-y-3">
+                                  {previewComments.map((comment) => (
+                                    <div key={comment.id} className="text-sm text-white/82">
+                                      <div className="flex items-center gap-2 text-xs text-white/56">
+                                        <span className="font-semibold text-white/90">
+                                          {comment.author}
+                                        </span>
+                                        <span>{comment.handle}</span>
+                                        <span>{comment.timeAgo}</span>
+                                      </div>
+                                      <p className="mt-1 leading-6">{comment.text}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
                             <Button
-                              className="rounded-[14px] px-6"
-                              style={{ backgroundColor: COLORS.primary }}
+                              className="mt-5 h-12 rounded-full px-6 text-sm font-semibold"
+                              style={{ backgroundColor: "white", color: "#080808" }}
                               onClick={() => startBookingFlow(service.id)}
                             >
-                              Book Now
+                              Book this service
                             </Button>
                           </div>
-                        </div>
-                        <div
-                          className="mt-4 rounded-[18px] p-4"
-                          style={{ backgroundColor: COLORS.surfaceAlt }}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: COLORS.textMuted }}>
-                              Community
-                            </p>
+
+                          <div className="flex shrink-0 flex-col items-center gap-4 pb-1">
                             <button
                               type="button"
-                              className="text-xs font-semibold"
-                              style={{ color: COLORS.accent }}
-                              onClick={() => void openComments(service.id)}
+                              onClick={() => void toggleLike(service.id)}
+                              aria-label={`Like ${service.title}`}
+                              className="flex flex-col items-center gap-1.5 text-white"
                             >
-                              {reaction.comments > previewComments.length
-                                ? `View all ${reaction.comments}`
-                                : "Open thread"}
+                              <span
+                                className={`flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-md transition ${
+                                  likedIds.includes(service.id)
+                                    ? "border-rose-400 bg-rose-500 text-white"
+                                    : "border-white/15 bg-black/28 text-white"
+                                }`}
+                              >
+                                <Heart
+                                  className={`h-6 w-6 ${likedIds.includes(service.id) ? "fill-current" : ""}`}
+                                />
+                              </span>
+                              <span className="text-xs font-semibold">
+                                {compactCount(reaction.likes)}
+                              </span>
                             </button>
-                          </div>
-                          <div className="mt-3 space-y-3">
-                            {previewComments.length > 0 ? (
-                              previewComments.map((comment) => (
-                                <div key={comment.id} className="text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold">{comment.author}</span>
-                                    <span style={{ color: COLORS.textMuted }}>{comment.handle}</span>
-                                    <span style={{ color: COLORS.textMuted }}>{comment.timeAgo}</span>
-                                  </div>
-                                  <p className="mt-1 leading-6" style={{ color: COLORS.textSecondary }}>
-                                    {comment.text}
-                                  </p>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-sm leading-6" style={{ color: COLORS.textSecondary }}>
-                                Be the first customer to ask a question or share feedback on this service.
+
+                            <button
+                              type="button"
+                              onClick={() => void openComments(service.id)}
+                              aria-label={`Open comments for ${service.title}`}
+                              className="flex flex-col items-center gap-1.5 text-white"
+                            >
+                              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-black/28 text-white backdrop-blur-md">
+                                <MessageCircle className="h-6 w-6" />
+                              </span>
+                              <span className="text-xs font-semibold">
+                                {compactCount(reaction.comments)}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => void toggleRepost(service.id)}
+                              aria-label={`Repost ${service.title}`}
+                              className="flex flex-col items-center gap-1.5 text-white"
+                            >
+                              <span
+                                className={`flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-md transition ${
+                                  repostedIds.includes(service.id)
+                                    ? "border-emerald-300 bg-emerald-400 text-emerald-950"
+                                    : "border-white/15 bg-black/28 text-white"
+                                }`}
+                              >
+                                <Repeat2 className="h-6 w-6" />
+                              </span>
+                              <span className="text-xs font-semibold">
+                                {compactCount(reaction.reposts)}
+                              </span>
+                            </button>
+
+                            <div className="rounded-[1.2rem] border border-white/12 bg-black/28 px-3 py-2 text-center backdrop-blur-md">
+                              <div className="flex items-center justify-center gap-1 text-xs font-semibold text-white/90">
+                                <Star className="h-3.5 w-3.5 fill-current text-amber-300" />
+                                {service.rating.toFixed(1)}
+                              </div>
+                              <p className="mt-1 text-[11px] text-white/56">
+                                {compactCount(service.reviews)} reviews
                               </p>
-                            )}
+                            </div>
+
+                            <div className="rounded-[1.2rem] border border-white/12 bg-black/28 px-3 py-2 text-center text-[11px] text-white/72 backdrop-blur-md">
+                              <p className="font-semibold text-white/92">Live now</p>
+                              <p className="mt-1">{service.eta}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </article>
-                  );
-                })
-              )}
+                      </article>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </section>
         ) : null}
@@ -2812,26 +2912,6 @@ function SectionHeader({
       >
         {action}
       </button>
-    </div>
-  );
-}
-
-function SmallAction({
-  icon: Icon,
-  label,
-  active = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <div
-      className="flex items-center gap-1.5 text-xs font-medium"
-      style={{ color: active ? COLORS.accent : COLORS.textSecondary }}
-    >
-      <Icon className="h-5 w-5" />
-      <span>{label}</span>
     </div>
   );
 }
