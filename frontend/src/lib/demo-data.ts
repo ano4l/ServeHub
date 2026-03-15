@@ -719,10 +719,10 @@ export const demoUserProfile: DemoProfile = {
 };
 
 export const demoAddressBook: DemoAddressBookItem[] = [
-  { id: "address-1", label: "Home", value: "14 Beach Road, Sea Point", note: "Ring intercom 14, blue gate." },
-  { id: "address-2", label: "Office", value: "97 Bree Street, Cape Town", note: "Reception closes at 18:00." },
-  { id: "address-3", label: "Mom", value: "40 Main Road, Green Point", note: "Back driveway is easiest for parking." },
-  { id: "address-4", label: "Weekend", value: "17 Victoria Road, Camps Bay", note: "Buzz unit 5 at the gate." },
+  { id: "address-1", label: "Home", value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton", note: "Meet at the main Rivonia Road entrance." },
+  { id: "address-2", label: "Office", value: "The Marc, 129 Rivonia Road, Sandown, Sandton", note: "Reception closes at 18:00." },
+  { id: "address-3", label: "Mom", value: "3 Benmore Road, Benmore Gardens, Sandton", note: "Use the back driveway closest to the guard house." },
+  { id: "address-4", label: "Weekend", value: "10 Rivonia Road, Morningside, Sandton", note: "Guest parking is easiest from the lower gate." },
 ];
 
 export const demoPaymentMethods: DemoPaymentMethod[] = [

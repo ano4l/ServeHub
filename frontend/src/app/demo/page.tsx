@@ -58,139 +58,140 @@ type FinderSuggestion = {
 };
 
 const serviceIcons = [Droplets, Sparkles, Zap, Wrench];
+const SANDTON_BOUNDS = {
+  latMin: -26.16,
+  latMax: -26.06,
+  lngMin: 28.015,
+  lngMax: 28.095,
+};
+const SOUTH_AFRICA_REGION = "za";
+const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
+const NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse";
 const finderSuggestions: FinderSuggestion[] = [
   {
     id: "finder-home",
     label: "Home",
-    value: "14 Beach Road, Sea Point",
-    neighborhood: "Sea Point",
-    lat: -33.9105,
-    lng: 18.3903,
+    value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton",
+    neighborhood: "Sandhurst",
+    lat: -26.1073,
+    lng: 28.0539,
   },
   {
     id: "finder-office",
     label: "Office",
-    value: "97 Bree Street, Cape Town",
-    neighborhood: "Cape Town",
-    lat: -33.9226,
-    lng: 18.4174,
+    value: "The Marc, 129 Rivonia Road, Sandown, Sandton",
+    neighborhood: "Sandown",
+    lat: -26.1052,
+    lng: 28.0581,
   },
   {
     id: "finder-mom",
     label: "Mom's house",
-    value: "40 Main Road, Green Point",
-    neighborhood: "Green Point",
-    lat: -33.9042,
-    lng: 18.409,
+    value: "3 Benmore Road, Benmore Gardens, Sandton",
+    neighborhood: "Benmore",
+    lat: -26.1024,
+    lng: 28.0605,
   },
   {
-    id: "finder-de-waterkant",
-    label: "De Waterkant",
-    value: "4 Loader Street, De Waterkant",
-    neighborhood: "De Waterkant",
-    lat: -33.9147,
-    lng: 18.4152,
+    id: "finder-nelson-mandela-square",
+    label: "Nelson Mandela Square",
+    value: "5 Maude Street, Sandown, Sandton",
+    neighborhood: "Sandown",
+    lat: -26.1075,
+    lng: 28.0541,
   },
   {
-    id: "finder-gardens",
-    label: "Gardens",
-    value: "92 Kloof Street, Gardens",
-    neighborhood: "Gardens",
-    lat: -33.9287,
-    lng: 18.4086,
+    id: "finder-morningside",
+    label: "Morningside",
+    value: "10 Rivonia Road, Morningside, Sandton",
+    neighborhood: "Morningside",
+    lat: -26.0827,
+    lng: 28.0608,
   },
   {
-    id: "finder-camps-bay",
-    label: "Camps Bay",
-    value: "17 Victoria Road, Camps Bay",
-    neighborhood: "Camps Bay",
-    lat: -33.9501,
-    lng: 18.3774,
+    id: "finder-rivonia",
+    label: "Rivonia",
+    value: "9 Wessel Road, Rivonia, Sandton",
+    neighborhood: "Rivonia",
+    lat: -26.0585,
+    lng: 28.0608,
   },
   {
-    id: "finder-bantry-bay",
-    label: "Bantry Bay",
-    value: "8 Alexander Road, Bantry Bay",
-    neighborhood: "Bantry Bay",
-    lat: -33.9254,
-    lng: 18.3773,
+    id: "finder-bryanston",
+    label: "Bryanston",
+    value: "21 Ballyclare Drive, Bryanston, Sandton",
+    neighborhood: "Bryanston",
+    lat: -26.0583,
+    lng: 28.0288,
   },
   {
-    id: "finder-city-bowl",
-    label: "City Bowl",
-    value: "44 Loop Street, City Bowl",
-    neighborhood: "City Bowl",
-    lat: -33.9239,
-    lng: 18.4197,
+    id: "finder-illovo",
+    label: "Illovo",
+    value: "204 Oxford Road, Illovo, Sandton",
+    neighborhood: "Illovo",
+    lat: -26.1284,
+    lng: 28.0522,
   },
   {
-    id: "finder-woodstock",
-    label: "Woodstock",
-    value: "63 Albert Road, Woodstock",
-    neighborhood: "Woodstock",
-    lat: -33.9285,
-    lng: 18.4473,
+    id: "finder-hyde-park",
+    label: "Hyde Park",
+    value: "Jan Smuts Avenue, Hyde Park, Sandton",
+    neighborhood: "Hyde Park",
+    lat: -26.1256,
+    lng: 28.0369,
   },
   {
-    id: "finder-oranjezicht",
-    label: "Oranjezicht",
-    value: "31 Upper Orange Street, Oranjezicht",
-    neighborhood: "Oranjezicht",
-    lat: -33.9347,
-    lng: 18.4125,
+    id: "finder-parkmore",
+    label: "Parkmore",
+    value: "11 9th Street, Parkmore, Sandton",
+    neighborhood: "Parkmore",
+    lat: -26.0994,
+    lng: 28.0388,
   },
   {
-    id: "finder-observatory",
-    label: "Observatory",
-    value: "39 Lower Main Road, Observatory",
-    neighborhood: "Observatory",
-    lat: -33.9362,
-    lng: 18.4662,
+    id: "finder-sandown",
+    label: "Sandown",
+    value: "Alice Lane, Sandown, Sandton",
+    neighborhood: "Sandown",
+    lat: -26.1056,
+    lng: 28.0568,
   },
   {
-    id: "finder-claremont",
-    label: "Claremont",
-    value: "11 Cavendish Avenue, Claremont",
-    neighborhood: "Claremont",
-    lat: -33.9793,
-    lng: 18.4654,
+    id: "finder-rosebank",
+    label: "Rosebank",
+    value: "15 Tyrwhitt Avenue, Rosebank, Johannesburg",
+    neighborhood: "Rosebank",
+    lat: -26.1457,
+    lng: 28.0413,
   },
   {
-    id: "finder-tamboerskloof",
-    label: "Tamboerskloof",
-    value: "5 Warren Street, Tamboerskloof",
-    neighborhood: "Tamboerskloof",
-    lat: -33.928,
-    lng: 18.402,
-  },
-  {
-    id: "finder-rondebosch",
-    label: "Rondebosch",
-    value: "18 Belmont Road, Rondebosch",
-    neighborhood: "Rondebosch",
-    lat: -33.9595,
-    lng: 18.4712,
+    id: "finder-lonehill",
+    label: "Lonehill",
+    value: "Lonehill Boulevard, Lone Hill, Sandton",
+    neighborhood: "Lone Hill",
+    lat: -26.0116,
+    lng: 28.0154,
   },
 ];
 const serviceNeighborhoodById: Record<string, string> = {
-  "service-1": "Sea Point",
-  "service-2": "De Waterkant",
-  "service-3": "Gardens",
-  "service-4": "Camps Bay",
-  "service-5": "Green Point",
-  "service-6": "Bantry Bay",
-  "service-7": "Camps Bay",
-  "service-8": "Sea Point",
-  "service-9": "City Bowl",
-  "service-10": "Green Point",
-  "service-11": "Woodstock",
-  "service-12": "Oranjezicht",
-  "service-13": "Observatory",
-  "service-14": "Claremont",
-  "service-15": "Tamboerskloof",
-  "service-16": "Rondebosch",
-  "service-17": "Claremont",
-  "service-18": "Woodstock",
+  "service-1": "Sandown",
+  "service-2": "Benmore",
+  "service-3": "Morningside",
+  "service-4": "Bryanston",
+  "service-5": "Sandhurst",
+  "service-6": "Illovo",
+  "service-7": "Parkmore",
+  "service-8": "Rivonia",
+  "service-9": "Sandown",
+  "service-10": "Benmore",
+  "service-11": "Morningside",
+  "service-12": "Bryanston",
+  "service-13": "Rivonia",
+  "service-14": "Rosebank",
+  "service-15": "Hyde Park",
+  "service-16": "Lone Hill",
+  "service-17": "Parkmore",
+  "service-18": "Sandhurst",
 };
 
 function getSuggestionByNeighborhood(neighborhood: string) {
@@ -239,9 +240,9 @@ function distanceBetween(
 }
 
 function serviceTravelMinutes(serviceId: string, activeSuggestion: FinderSuggestion) {
-  const serviceSuggestion = getSuggestionByNeighborhood(serviceNeighborhoodById[serviceId] ?? "Sea Point");
+  const serviceSuggestion = getSuggestionByNeighborhood(serviceNeighborhoodById[serviceId] ?? "Sandown");
   const distance = distanceBetween(activeSuggestion, serviceSuggestion);
-  return Math.max(9, Math.round(9 + distance * 180));
+  return Math.max(9, Math.min(68, Math.round(9 + distance * 180)));
 }
 
 function parseCompactCount(value: string) {
@@ -257,11 +258,44 @@ function compactCount(value: number) {
   return `${value}`;
 }
 
+function isWithinBounds(
+  point: { lat: number; lng: number },
+  bounds: { latMin: number; latMax: number; lngMin: number; lngMax: number },
+) {
+  return (
+    point.lat >= bounds.latMin &&
+    point.lat <= bounds.latMax &&
+    point.lng >= bounds.lngMin &&
+    point.lng <= bounds.lngMax
+  );
+}
+
+function buildOsmEmbedUrl(
+  bounds: { latMin: number; latMax: number; lngMin: number; lngMax: number },
+  marker?: { lat: number; lng: number } | null,
+) {
+  const bbox = `${bounds.lngMin},${bounds.latMin},${bounds.lngMax},${bounds.latMax}`;
+  const markerPart = marker ? `&marker=${marker.lat},${marker.lng}` : "";
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik${markerPart}`;
+}
+
+function buildOsmOpenUrl(marker?: { lat: number; lng: number } | null) {
+  if (marker) {
+    return `https://www.openstreetmap.org/?mlat=${marker.lat}&mlon=${marker.lng}#map=14/${marker.lat}/${marker.lng}`;
+  }
+
+  const lat = (SANDTON_BOUNDS.latMin + SANDTON_BOUNDS.latMax) / 2;
+  const lng = (SANDTON_BOUNDS.lngMin + SANDTON_BOUNDS.lngMax) / 2;
+  return `https://www.openstreetmap.org/#map=13/${lat}/${lng}`;
+}
+
 export default function DemoPage() {
   const [activeTab, setActiveTab] = useState<AppTab>("home");
-  const [address, setAddress] = useState("14 Beach Road, Sea Point");
+  const [address, setAddress] = useState("Sandton City, 83 Rivonia Road, Sandhurst, Sandton");
   const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
   const [addressFinderStatus, setAddressFinderStatus] = useState<string | null>(null);
+  const [addressSearchResults, setAddressSearchResults] = useState<FinderSuggestion[]>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isLocatingAddress, setIsLocatingAddress] = useState(false);
   const [bookings] = useState(demoBookings);
   const [selectedBookingId, setSelectedBookingId] = useState(demoBookings[0].id);
@@ -272,6 +306,7 @@ export default function DemoPage() {
   const [searchText, setSearchText] = useState("");
   const [serviceGridOpen, setServiceGridOpen] = useState(false);
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [mapExpanded, setMapExpanded] = useState(false);
   const [mapFilterOpen, setMapFilterOpen] = useState(false);
   const [mapCategoryFilter, setMapCategoryFilter] = useState("All");
   const [selectedMapServiceId, setSelectedMapServiceId] = useState<string | null>(null);
@@ -338,15 +373,21 @@ export default function DemoPage() {
   );
   const addressSuggestions = useMemo(() => {
     const query = address.trim().toLowerCase();
-    if (!query) return finderSuggestions;
-
-    return finderSuggestions.filter(
+    const localMatches = finderSuggestions.filter(
       (suggestion) =>
         suggestion.value.toLowerCase().includes(query) ||
         suggestion.neighborhood.toLowerCase().includes(query) ||
         suggestion.label.toLowerCase().includes(query),
     );
-  }, [address]);
+
+    if (!query) return [...localMatches, ...addressSearchResults];
+
+    const merged = [...addressSearchResults, ...localMatches];
+    return merged.filter(
+      (suggestion, index, allSuggestions) =>
+        allSuggestions.findIndex((candidate) => candidate.value === suggestion.value) === index,
+    );
+  }, [address, addressSearchResults]);
   const serviceCategoryOptions = useMemo(
     () => Array.from(new Set(homeServices.map((service) => service.category))),
     [],
@@ -407,17 +448,14 @@ export default function DemoPage() {
     [filteredServices, mapCategoryFilter],
   );
   const mapPins = useMemo(() => {
-    const latitudes = finderSuggestions.map((suggestion) => suggestion.lat);
-    const longitudes = finderSuggestions.map((suggestion) => suggestion.lng);
-    const latMin = Math.min(...latitudes);
-    const latMax = Math.max(...latitudes);
-    const lngMin = Math.min(...longitudes);
-    const lngMax = Math.max(...longitudes);
-
     return mapVisibleServices.slice(0, 10).map((service, index) => {
       const suggestion = getSuggestionByNeighborhood(service.neighborhood);
-      const normalizedX = (suggestion.lng - lngMin) / (lngMax - lngMin || 1);
-      const normalizedY = (latMax - suggestion.lat) / (latMax - latMin || 1);
+      const normalizedX =
+        (suggestion.lng - SANDTON_BOUNDS.lngMin) /
+        (SANDTON_BOUNDS.lngMax - SANDTON_BOUNDS.lngMin || 1);
+      const normalizedY =
+        (SANDTON_BOUNDS.latMax - suggestion.lat) /
+        (SANDTON_BOUNDS.latMax - SANDTON_BOUNDS.latMin || 1);
 
       return {
         ...service,
@@ -429,6 +467,26 @@ export default function DemoPage() {
   const selectedMapService = useMemo(
     () => mapVisibleServices.find((service) => service.id === selectedMapServiceId) ?? mapVisibleServices[0] ?? null,
     [mapVisibleServices, selectedMapServiceId],
+  );
+  const selectedMapMarker = useMemo(() => {
+    if (selectedMapService) {
+      const suggestion = getSuggestionByNeighborhood(selectedMapService.neighborhood);
+      return { lat: suggestion.lat, lng: suggestion.lng };
+    }
+
+    if (isWithinBounds(activeAddressSuggestion, SANDTON_BOUNDS)) {
+      return { lat: activeAddressSuggestion.lat, lng: activeAddressSuggestion.lng };
+    }
+
+    return null;
+  }, [activeAddressSuggestion, selectedMapService]);
+  const sandtonMapUrl = useMemo(
+    () => buildOsmEmbedUrl(SANDTON_BOUNDS, selectedMapMarker),
+    [selectedMapMarker],
+  );
+  const sandtonMapExternalUrl = useMemo(
+    () => buildOsmOpenUrl(selectedMapMarker),
+    [selectedMapMarker],
   );
   const filteredFeedPosts = useMemo(
     () => {
@@ -501,6 +559,83 @@ export default function DemoPage() {
     );
   };
 
+  const searchActualAddress = async (query = address) => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 6) {
+      setAddressFinderStatus("Type a fuller South African address to search.");
+      return;
+    }
+
+    setIsSearchingAddress(true);
+
+    try {
+      const params = new URLSearchParams({
+        q: trimmedQuery,
+        format: "jsonv2",
+        addressdetails: "1",
+        countrycodes: SOUTH_AFRICA_REGION,
+        limit: "5",
+        dedupe: "1",
+      });
+      const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params.toString()}`, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Address lookup failed with ${response.status}`);
+      }
+
+      const results = (await response.json()) as Array<{
+        place_id: number;
+        display_name: string;
+        lat: string;
+        lon: string;
+        address?: Record<string, string>;
+      }>;
+
+      const suggestions = results.map((result) => {
+        const neighborhood =
+          result.address?.suburb ||
+          result.address?.city_district ||
+          result.address?.town ||
+          result.address?.city ||
+          result.address?.county ||
+          "Johannesburg";
+        const label =
+          result.address?.road ||
+          result.address?.building ||
+          result.address?.house_number ||
+          neighborhood;
+
+        return {
+          id: `real-${result.place_id}`,
+          label,
+          value: result.display_name,
+          neighborhood,
+          lat: Number(result.lat),
+          lng: Number(result.lon),
+        } satisfies FinderSuggestion;
+      });
+
+      setAddressSearchResults(suggestions);
+      setAddressSuggestionsOpen(true);
+
+      if (suggestions.length > 0) {
+        applyAddressSuggestion(suggestions[0]);
+        setAddressSearchResults(suggestions);
+        setAddressFinderStatus(`Resolved real address near ${suggestions[0].neighborhood}`);
+      } else {
+        setAddressFinderStatus("No South African address match found yet.");
+      }
+    } catch {
+      setAddressFinderStatus("Real address lookup is unavailable right now. Try again shortly.");
+    } finally {
+      setIsSearchingAddress(false);
+    }
+  };
+
   const findCurrentLocation = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setAddressFinderStatus("Current location isn't supported here yet.");
@@ -509,22 +644,70 @@ export default function DemoPage() {
 
     setIsLocatingAddress(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const current = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
 
-        const nearest = finderSuggestions.reduce((closest, suggestion) => {
-          const closestDistance = distanceBetween(closest, current);
-          const suggestionDistance = distanceBetween(suggestion, current);
-          return suggestionDistance < closestDistance ? suggestion : closest;
-        }, finderSuggestions[0]);
+        try {
+          const params = new URLSearchParams({
+            lat: `${current.lat}`,
+            lon: `${current.lng}`,
+            format: "jsonv2",
+            zoom: "18",
+            addressdetails: "1",
+          });
+          const response = await fetch(`${NOMINATIM_REVERSE_URL}?${params.toString()}`, {
+            headers: {
+              Accept: "application/json",
+            },
+          });
 
-        setAddress(nearest.value);
-        setAddressSuggestionsOpen(false);
-        setAddressFinderStatus(`Using current area near ${nearest.neighborhood}`);
-        setIsLocatingAddress(false);
+          if (!response.ok) {
+            throw new Error(`Reverse geocoding failed with ${response.status}`);
+          }
+
+          const result = (await response.json()) as {
+            place_id?: number;
+            display_name?: string;
+            lat?: string;
+            lon?: string;
+            address?: Record<string, string>;
+          };
+
+          const neighborhood =
+            result.address?.suburb ||
+            result.address?.city_district ||
+            result.address?.town ||
+            result.address?.city ||
+            result.address?.county ||
+            "Current area";
+
+          const resolvedSuggestion: FinderSuggestion = {
+            id: `current-${result.place_id ?? Date.now()}`,
+            label: "Current location",
+            value: result.display_name ?? `${current.lat.toFixed(5)}, ${current.lng.toFixed(5)}`,
+            neighborhood,
+            lat: Number(result.lat ?? current.lat),
+            lng: Number(result.lon ?? current.lng),
+          };
+
+          setAddressSearchResults([resolvedSuggestion]);
+          applyAddressSuggestion(resolvedSuggestion);
+          setAddressFinderStatus(`Using current location near ${resolvedSuggestion.neighborhood}`);
+        } catch {
+          const nearest = finderSuggestions.reduce((closest, suggestion) => {
+            const closestDistance = distanceBetween(closest, current);
+            const suggestionDistance = distanceBetween(suggestion, current);
+            return suggestionDistance < closestDistance ? suggestion : closest;
+          }, finderSuggestions[0]);
+
+          applyAddressSuggestion(nearest);
+          setAddressFinderStatus(`Using closest known area near ${nearest.neighborhood}`);
+        } finally {
+          setIsLocatingAddress(false);
+        }
       },
       () => {
         setAddressFinderStatus("Couldn't access your location. Choose a nearby area below.");
@@ -691,6 +874,7 @@ export default function DemoPage() {
                   value={address}
                   onChange={(event) => {
                     setAddress(event.target.value);
+                    setAddressSearchResults([]);
                     setAddressSuggestionsOpen(true);
                   }}
                   onFocus={() => setAddressSuggestionsOpen(true)}
@@ -698,9 +882,9 @@ export default function DemoPage() {
                     window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
                   }}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && addressSuggestions[0]) {
+                    if (event.key === "Enter") {
                       event.preventDefault();
-                      applyAddressSuggestion(addressSuggestions[0]);
+                      void searchActualAddress();
                     }
                   }}
                   placeholder="Enter address"
@@ -714,14 +898,24 @@ export default function DemoPage() {
                       <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                         Suggested addresses
                       </p>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={findCurrentLocation}
-                        className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/80"
-                      >
-                        {isLocatingAddress ? "Finding..." : "Use current location"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => void searchActualAddress()}
+                          className="rounded-full bg-cyan-400/14 px-3 py-1.5 text-[11px] font-medium text-cyan-100"
+                        >
+                          {isSearchingAddress ? "Searching..." : "Search real address"}
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={findCurrentLocation}
+                          className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/80"
+                        >
+                          {isLocatingAddress ? "Finding..." : "Use current location"}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {addressSuggestions.length > 0 ? (
@@ -746,7 +940,7 @@ export default function DemoPage() {
                         <div className="rounded-[16px] bg-white/6 px-3 py-3 text-sm text-white/70">
                           <p className="font-medium text-white">No exact match yet</p>
                           <p className="mt-1 text-xs text-white/48">
-                            Try Sea Point, Gardens, or Claremont to anchor nearby services.
+                            Search a full South African address or use one of the Sandton shortcuts below.
                           </p>
                         </div>
                       )}
@@ -755,9 +949,9 @@ export default function DemoPage() {
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {[
-                    { label: "Home", value: "14 Beach Road, Sea Point" },
-                    { label: "Office", value: "97 Bree Street, Cape Town" },
-                    { label: "Mom's house", value: "40 Main Road, Green Point" },
+                    { label: "Home", value: "Sandton City, 83 Rivonia Road, Sandhurst, Sandton" },
+                    { label: "Office", value: "The Marc, 129 Rivonia Road, Sandown, Sandton" },
+                    { label: "Mom's house", value: "3 Benmore Road, Benmore Gardens, Sandton" },
                   ].map((item) => (
                     <button
                       key={item.label}
@@ -851,17 +1045,26 @@ export default function DemoPage() {
                   <div>
                     <p className="text-sm font-semibold">Service map</p>
                     <p className="text-xs text-white/45">
-                      Pins around {activeAddressSuggestion.neighborhood}
+                      Expandable Sandton widget with live service pins
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setMapFilterOpen((current) => !current)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/76"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMapFilterOpen((current) => !current)}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/76"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapExpanded(true)}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-cyan-300/18 bg-cyan-400/12 px-3 py-2 text-xs text-cyan-100"
+                    >
+                      Expand
+                    </button>
+                  </div>
                 </div>
                 {mapFilterOpen ? (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -883,16 +1086,21 @@ export default function DemoPage() {
                 ) : null}
                 <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-[#091220]">
                   <div className="relative h-[250px]">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.16),transparent_28%),radial-gradient(circle_at_80%_80%,rgba(251,191,36,0.14),transparent_28%),linear-gradient(180deg,rgba(9,18,32,0.98),rgba(5,12,22,0.96))]" />
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:44px_44px]" />
-                    <div className="absolute left-[14%] top-[18%] h-24 w-24 rounded-full border border-cyan-300/12 bg-cyan-300/10 blur-2xl" />
-                    <div className="absolute right-[10%] top-[22%] h-28 w-28 rounded-full border border-amber-300/12 bg-amber-300/10 blur-2xl" />
+                    <iframe
+                      title="Sandton service map"
+                      src={sandtonMapUrl}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full"
+                    />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,31,0.24),rgba(7,17,31,0.55))] pointer-events-none" />
 
-                    <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-white/72">
-                      Live near {activeAddressSuggestion.neighborhood}
+                    <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/45 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-white/78">
+                      Sandton live coverage
                     </div>
                     <div className="absolute bottom-4 left-4 rounded-full border border-cyan-300/18 bg-cyan-400/12 px-3 py-2 text-xs text-cyan-100">
-                      You are here
+                      {isWithinBounds(activeAddressSuggestion, SANDTON_BOUNDS)
+                        ? "Your address is inside the current map"
+                        : `Current address: ${activeAddressSuggestion.neighborhood}`}
                     </div>
 
                     {mapPins.map((service) => (
@@ -939,17 +1147,34 @@ export default function DemoPage() {
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <p className="text-xs text-white/48">{selectedMapService.price}</p>
-                          <button
-                            type="button"
-                            onClick={() => openServiceGrid(selectedMapService.id)}
-                            className="text-xs font-semibold text-cyan-200"
-                          >
-                            Open service
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={sandtonMapExternalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-semibold text-white/58"
+                            >
+                              Open OSM
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => openServiceGrid(selectedMapService.id)}
+                              className="text-xs font-semibold text-cyan-200"
+                            >
+                              Open service
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : null}
                   </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/48">
+                  <span>
+                    {isWithinBounds(activeAddressSuggestion, SANDTON_BOUNDS)
+                      ? "Distances and pins are anchored to your real resolved location."
+                      : "Real address lookup works nationwide; the live map widget is centered on Sandton for this demo."}
+                  </span>
                 </div>
               </div>
 
@@ -2028,6 +2253,121 @@ export default function DemoPage() {
           })}
         </div>
       </nav>
+
+      <AnimatePresence>
+        {mapExpanded ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMapExpanded(false)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Expanded Sandton service map"
+              className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col bg-[#07111f] px-4"
+              style={{
+                paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
+                paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/46">
+                    Expanded map
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold">Sandton service coverage</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMapExpanded(false)}
+                  className="rounded-full bg-white/10 p-3 text-white/78"
+                >
+                  <ChevronRight className="h-4 w-4 rotate-90" />
+                </button>
+              </div>
+
+              <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#091220]">
+                <div className="relative h-[58vh]">
+                  <iframe
+                    title="Expanded Sandton service map"
+                    src={sandtonMapUrl}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,31,0.12),rgba(7,17,31,0.42))] pointer-events-none" />
+                  {mapPins.map((service) => (
+                    <button
+                      key={`expanded-${service.id}`}
+                      type="button"
+                      onClick={() => setSelectedMapServiceId(service.id)}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: `${service.left}%`, top: `${service.top}%` }}
+                    >
+                      <span
+                        className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[0_14px_28px_rgba(5,11,20,0.5)] ${
+                          selectedMapService?.id === service.id
+                            ? "border-cyan-200 bg-cyan-400 text-slate-950"
+                            : "border-white/18 bg-black/52"
+                        }`}
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/52">
+                <span>
+                  Real address resolution is live. The demo map stays centered on Sandton for investor walkthroughs.
+                </span>
+                <a
+                  href={sandtonMapExternalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 rounded-full border border-white/10 bg-white/8 px-3 py-2 text-white/80"
+                >
+                  Open in OSM
+                </a>
+              </div>
+
+              <div className="mt-4 space-y-3 overflow-y-auto pb-2">
+                {mapVisibleServices.slice(0, 8).map((service) => {
+                  const active = selectedMapService?.id === service.id;
+                  return (
+                    <button
+                      key={`expanded-card-${service.id}`}
+                      type="button"
+                      onClick={() => setSelectedMapServiceId(service.id)}
+                      className={`flex w-full items-center justify-between rounded-[22px] px-4 py-4 text-left ${
+                        active ? "border border-cyan-300/45 bg-cyan-400/10" : "bg-white/8"
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-semibold">{service.title}</p>
+                        <p className="mt-1 text-xs text-white/52">
+                          {service.provider} | {service.neighborhood}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{service.dynamicEta}</p>
+                        <p className="mt-1 text-xs text-white/52">{service.price}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {openCommentPost ? (
