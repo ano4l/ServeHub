@@ -22,12 +22,35 @@ import {
   providersApi,
   reviewsApi,
   type CustomerAddressItem,
-  type ProviderProfileItem,
   type ServiceOfferingItem,
 } from "@/lib/api";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
+
+interface ProviderProfileRecord {
+  fullName?: string | null;
+  city?: string | null;
+  bio?: string | null;
+  serviceRadiusKm?: number | null;
+  verificationStatus?: string | null;
+  averageRating?: number | null;
+  reviewCount?: number | null;
+  responseTimeMinutes?: number | null;
+  profileImageUrl?: string | null;
+}
+
+interface ProviderProfileView {
+  fullName: string;
+  city: string;
+  bio: string;
+  serviceRadiusKm: number;
+  verificationStatus: string;
+  averageRating: number;
+  reviewCount: number;
+  responseTimeMinutes?: number;
+  profileImageUrl?: string;
+}
 
 interface ReviewItem {
   id: number;
@@ -50,6 +73,25 @@ function getDefaultBookingDate() {
   return nextDay.toISOString().slice(0, 10);
 }
 
+function normalizeProviderProfile(
+  profile: ProviderProfileRecord,
+): ProviderProfileView {
+  return {
+    fullName: profile.fullName ?? "Provider",
+    city: profile.city ?? "",
+    bio: profile.bio ?? "",
+    serviceRadiusKm: Number(profile.serviceRadiusKm ?? 0),
+    verificationStatus: profile.verificationStatus ?? "UNVERIFIED",
+    averageRating: Number(profile.averageRating ?? 0),
+    reviewCount: Number(profile.reviewCount ?? 0),
+    responseTimeMinutes:
+      profile.responseTimeMinutes === null || profile.responseTimeMinutes === undefined
+        ? undefined
+        : Number(profile.responseTimeMinutes),
+    profileImageUrl: profile.profileImageUrl ?? undefined,
+  };
+}
+
 export default function ProviderProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -59,7 +101,7 @@ export default function ProviderProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [provider, setProvider] = useState<ProviderProfileItem | null>(null);
+  const [provider, setProvider] = useState<ProviderProfileView | null>(null);
   const [offerings, setOfferings] = useState<ServiceOfferingItem[]>([]);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddressItem[]>([]);
@@ -79,7 +121,9 @@ export default function ProviderProfilePage() {
           reviewsApi.getForProvider(providerId),
         ]);
 
-        const providerData = providerRes.data;
+        const providerData = normalizeProviderProfile(
+          providerRes.data as ProviderProfileRecord,
+        );
         const offeringsData = offeringsRes.data ?? [];
 
         setProvider(providerData);
