@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, CalendarCheck, TrendingUp, AlertTriangle, ShieldCheck, Star, MessageSquare, BarChart3, FileText } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertTriangle, ShieldCheck, Star, MessageSquare, ArrowRight, BarChart3, FileText } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuthStore } from "@/store/auth.store";
 import { adminApi } from "@/lib/api";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
@@ -29,8 +30,10 @@ interface RecentActivity {
 }
 
 export default function AdminDashboard() {
+  const { user } = useAuthStore();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +46,8 @@ export default function AdminDashboard() {
         setActivities(activityRes.data.content ?? []);
       } catch {
         // silently handle errors
+      } finally {
+        setLoading(false);
       }
     };
     load();

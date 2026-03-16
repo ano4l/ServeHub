@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import { useUIStore } from "@/store/ui.store";

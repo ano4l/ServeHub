@@ -1,5 +1,5 @@
 "use client";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BookingStatus } from "@/lib/constants";
 import { BOOKING_STATUS_CONFIG } from "@/lib/constants";
@@ -38,6 +38,7 @@ export function BookingStatusStepper({ status, className }: BookingStatusStepper
     <div className={cn("w-full", className)}>
       <div className="flex items-center">
         {STEPS.map((step, idx) => {
+          const stepConfig = BOOKING_STATUS_CONFIG[step.status];
           const done = idx < currentStep;
           const active = idx === currentStep;
           const upcoming = idx > currentStep;

@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, TrendingUp, Clock, Star, Wallet, MessageSquare, Users, AlertCircle } from "lucide-react";
+import { CalendarCheck, TrendingUp, Clock, Star, Wallet, MessageSquare, Users, ArrowRight, AlertCircle } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/booking/BookingStatusStepper";
-import type { BookingStatus } from "@/lib/constants";
+import { useAuthStore } from "@/store/auth.store";
 import { bookingsApi, walletApi } from "@/lib/api";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
@@ -29,8 +30,10 @@ interface WalletStats {
 }
 
 export default function ProviderDashboard() {
+  const { user } = useAuthStore();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [wallet, setWallet] = useState<WalletStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +46,8 @@ export default function ProviderDashboard() {
         setWallet(walletRes.data);
       } catch {
         // silently handle errors
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -177,7 +182,7 @@ export default function ProviderDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-stone-900 truncate">{b.customer.name}</span>
-                        <BookingStatusBadge status={b.status as BookingStatus} />
+                        <BookingStatusBadge status={b.status as any} />
                       </div>
                       <p className="text-xs text-stone-500">{b.service} • {formatRelativeTime(b.scheduledAt)}</p>
                     </div>

@@ -1,48 +1,30 @@
 "use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
 import { Bell, ChevronDown, Search, SwitchCamera } from "lucide-react";
-import type { UserRole } from "@/lib/constants";
-import { Avatar } from "@/components/ui/avatar";
-import { notificationsApi } from "@/lib/api";
-import { formatRelativeTime } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatRelativeTime } from "@/lib/utils";
+import type { UserRole } from "@/lib/constants";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const rolePaths: Record<UserRole, string> = {
   CUSTOMER: "/dashboard",
   PROVIDER: "/provider",
-  ADMIN: "/admin",
-  SUPPORT: "/admin",
+  ADMIN:    "/admin",
+  SUPPORT:  "/admin",
 };
 
 export function TopBar() {
   const { user, setActiveRole, clearAuth } = useAuthStore();
-  const {
-    notifications,
-    unreadCount,
-    markAllRead,
-    markNotificationRead,
-    setNotifications,
-  } = useUIStore();
+  const { notifications, unreadCount, markNotificationRead, markAllRead } = useUIStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const router = useRouter();
-  const settingsPath =
-    user?.activeRole === "PROVIDER"
-      ? "/provider/settings"
-      : user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT"
-        ? "/admin"
-        : "/dashboard/settings";
-  const notificationsPath =
-    user?.activeRole === "PROVIDER"
-      ? "/provider/messages"
-      : user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT"
-        ? "/admin"
-        : "/dashboard/messages";
 
   const handleRoleSwitch = (role: UserRole) => {
     setActiveRole(role);
@@ -50,91 +32,30 @@ export function TopBar() {
     setProfileOpen(false);
   };
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!user) {
-        return;
-      }
-
-      try {
-        const response = await notificationsApi.getAll({ page: 0, size: 8 });
-        const items = (response.data.content ?? []).map(
-          (notification: {
-            id: number;
-            title: string;
-            message: string;
-            read: boolean;
-            createdAt: string;
-            link?: string;
-          }) => ({
-            id: String(notification.id),
-            title: notification.title,
-            message: notification.message,
-            type: "info" as const,
-            read: notification.read,
-            createdAt: notification.createdAt,
-            link: notification.link,
-          }),
-        );
-        setNotifications(items);
-      } catch {
-        // The workspace should remain usable even when notifications fail to load.
-      }
-    };
-
-    void loadNotifications();
-  }, [setNotifications, user]);
-
-  const handleMarkAllRead = async () => {
-    try {
-      await notificationsApi.markAllRead();
-    } catch {
-      // Fall back to the local optimistic state.
-    } finally {
-      markAllRead();
-    }
-  };
-
-  const handleNotificationOpen = async (notificationId: string) => {
-    try {
-      await notificationsApi.markRead(notificationId);
-    } catch {
-      // Fall back to the local optimistic state.
-    } finally {
-      markNotificationRead(notificationId);
-      setNotifOpen(false);
-    }
-  };
-
   return (
-    <header className="liquid-panel-strong glass-hairline surface-ring sticky top-0 z-40 flex h-18 items-center gap-4 rounded-[30px] border border-white/70 px-4 py-3 md:px-5">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="hidden rounded-full border border-sky-200/60 bg-sky-100/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-900 md:inline-flex">
-          Live workspace
-        </div>
-        <div className="relative min-w-0 flex-1 max-w-xl">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+    <header className="h-16 border-b border-stone-200 bg-white/80 backdrop-blur-md flex items-center px-6 gap-4 sticky top-0 z-40">
+      {/* Search */}
+      <div className="flex-1 max-w-md">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <input
             type="search"
             placeholder="Search bookings, providers, services..."
-            className="w-full rounded-full border border-white/70 bg-white/68 py-3 pl-10 pr-4 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] focus:bg-white/92 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900/20 focus:border-stone-400 focus:bg-white transition-all"
           />
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex items-center gap-2 ml-auto">
+        {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => {
-              setNotifOpen((open) => !open);
-              setProfileOpen(false);
-            }}
-            className="relative rounded-2xl border border-white/65 bg-white/56 p-2.5 text-slate-600 hover:bg-white/82 hover:text-slate-900"
-            aria-label="Open notifications"
+            onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
+            className="relative p-2 rounded-xl text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff8a7a_0%,#ff5876_100%)] px-1 text-[10px] font-bold text-white">
+              <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -143,44 +64,50 @@ export function TopBar() {
           <AnimatePresence>
             {notifOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.97 }}
-                transition={{ duration: 0.16 }}
-                className="liquid-panel-strong absolute right-0 top-14 z-50 w-84 overflow-hidden rounded-[28px] border border-white/70"
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-12 w-80 rounded-2xl bg-white border border-stone-200 shadow-xl shadow-stone-900/10 overflow-hidden z-50"
               >
-                <div className="flex items-center justify-between border-b border-slate-200/35 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-stone-100">
+                  <h3 className="font-semibold text-sm text-stone-900">Notifications</h3>
                   {unreadCount > 0 && (
-                    <button onClick={() => void handleMarkAllRead()} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                    <button onClick={markAllRead} className="text-xs text-stone-500 hover:text-stone-900">
                       Mark all read
                     </button>
                   )}
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto divide-y divide-stone-50">
                   {notifications.length === 0 ? (
-                    <div className="px-4 py-10 text-center text-sm text-slate-500">No notifications yet</div>
+                    <div className="px-4 py-8 text-center text-sm text-stone-400">
+                      No notifications yet
+                    </div>
                   ) : (
-                    notifications.slice(0, 8).map((notification) => (
+                    notifications.slice(0, 8).map((n) => (
                       <button
-                        key={notification.id}
-                        onClick={() => void handleNotificationOpen(notification.id)}
-                        className="w-full border-b border-white/50 px-4 py-3 text-left last:border-b-0 hover:bg-white/40"
+                        key={n.id}
+                        onClick={() => { markNotificationRead(n.id); setNotifOpen(false); }}
+                        className={`w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors ${!n.read ? "bg-blue-50/40" : ""}`}
                       >
                         <div className="flex gap-3">
-                          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.read ? "bg-slate-300" : "bg-sky-500"}`} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-900">{notification.title}</p>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">{notification.message}</p>
-                            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">{formatRelativeTime(notification.createdAt)}</p>
+                          {!n.read && <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />}
+                          <div className={!n.read ? "" : "pl-4"}>
+                            <p className="text-sm font-medium text-stone-900">{n.title}</p>
+                            <p className="text-xs text-stone-500 mt-0.5">{n.message}</p>
+                            <p className="text-[10px] text-stone-400 mt-1">{formatRelativeTime(n.createdAt)}</p>
                           </div>
                         </div>
                       </button>
                     ))
                   )}
                 </div>
-                <div className="border-t border-slate-200/35 px-4 py-3">
-                  <Link href={notificationsPath} onClick={() => setNotifOpen(false)} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                <div className="px-4 py-2 border-t border-stone-100">
+                  <Link
+                    href="/dashboard/notifications"
+                    onClick={() => setNotifOpen(false)}
+                    className="text-xs text-stone-500 hover:text-stone-900"
+                  >
                     View all notifications
                   </Link>
                 </div>
@@ -189,46 +116,49 @@ export function TopBar() {
           </AnimatePresence>
         </div>
 
+        {/* Profile */}
         <div className="relative">
           <button
-            onClick={() => {
-              setProfileOpen((open) => !open);
-              setNotifOpen(false);
-            }}
-            className="flex items-center gap-3 rounded-[22px] border border-white/65 bg-white/56 p-1.5 pr-3 hover:bg-white/82"
+            onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
+            className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <Avatar src={user?.avatar} name={`${user?.firstName} ${user?.lastName}`} size="sm" />
-            <div className="hidden text-left md:block">
-              <p className="text-sm font-semibold leading-none text-slate-900">{user?.firstName}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-slate-400">{user?.activeRole}</p>
+            <div className="text-left hidden md:block">
+              <p className="text-sm font-medium text-stone-900 leading-none">
+                {user?.firstName}
+              </p>
+              <p className="text-[11px] text-stone-400 mt-0.5">{user?.activeRole}</p>
             </div>
-            <ChevronDown className="hidden h-3.5 w-3.5 text-slate-400 md:block" />
+            <ChevronDown className="h-3.5 w-3.5 text-stone-400 hidden md:block" />
           </button>
 
           <AnimatePresence>
             {profileOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.97 }}
-                transition={{ duration: 0.16 }}
-                className="liquid-panel-strong absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-[28px] border border-white/70"
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-12 w-56 rounded-2xl bg-white border border-stone-200 shadow-xl shadow-stone-900/10 overflow-hidden z-50"
               >
-                <div className="border-b border-slate-200/35 px-4 py-4">
-                  <p className="text-sm font-semibold text-slate-900">{user?.fullName ?? `${user?.firstName} ${user?.lastName}`}</p>
-                  <p className="mt-1 text-xs text-slate-500">{user?.email}</p>
+                <div className="px-4 py-3 border-b border-stone-100">
+                  <p className="font-semibold text-sm text-stone-900">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-stone-400">{user?.email}</p>
                 </div>
 
+                {/* Role switch */}
                 {user && user.roles.length > 1 && (
-                  <div className="border-b border-slate-200/35 px-4 py-3">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Switch role</p>
-                    <div className="space-y-1">
+                  <div className="px-4 py-2 border-b border-stone-100">
+                    <p className="text-[11px] font-medium text-stone-400 uppercase tracking-wider mb-1">Switch Role</p>
+                    <div className="space-y-0.5">
                       {user.roles.map((role) => (
                         <button
                           key={role}
                           onClick={() => handleRoleSwitch(role)}
-                          className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm ${
-                            role === user.activeRole ? "bg-slate-900 text-white" : "bg-white/42 text-slate-700 hover:bg-white/72"
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                            role === user.activeRole
+                              ? "bg-stone-900 text-white"
+                              : "text-stone-600 hover:bg-stone-50"
                           }`}
                         >
                           <SwitchCamera className="h-3.5 w-3.5" />
@@ -241,15 +171,15 @@ export function TopBar() {
 
                 <div className="p-2">
                   <Link
-                    href={settingsPath}
+                    href="/dashboard/settings"
                     onClick={() => setProfileOpen(false)}
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm text-slate-700 hover:bg-white/56"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stone-700 rounded-lg hover:bg-stone-50 transition-colors"
                   >
                     Settings
                   </Link>
                   <button
                     onClick={clearAuth}
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm text-rose-600 hover:bg-rose-50/70"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     Sign Out
                   </button>

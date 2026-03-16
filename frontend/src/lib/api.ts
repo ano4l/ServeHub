@@ -19,13 +19,16 @@ api.interceptors.request.use(
     }
     return config;
   },
-  async (error) => Promise.reject(error)
+  async (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error) => {
-    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const original = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
       try {
@@ -33,7 +36,11 @@ api.interceptors.response.use(
         if (!refreshToken) {
           throw new Error("Missing refresh token");
         }
-        const { data } = await axios.post<AuthApiResponse>(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+
+        const { data } = await axios.post<AuthApiResponse>(
+          `${API_BASE_URL}/auth/refresh`,
+          { refreshToken },
+        );
         const normalized = normalizeAuthPayload(data);
         localStorage.setItem("access_token", normalized.accessToken);
         localStorage.setItem("refresh_token", normalized.refreshToken);
@@ -47,8 +54,9 @@ api.interceptors.response.use(
         }
       }
     }
+
     return Promise.reject(error);
-  }
+  },
 );
 
 type ApiResult<T> = Promise<{ data: T }>;
@@ -81,6 +89,9 @@ interface BackendProvider {
   profileImageUrl: string | null;
   latitude: number | null;
   longitude: number | null;
+  category?: string | null;
+  distanceKm?: number | null;
+  startingPrice?: number | string | null;
 }
 
 interface BackendBooking {
@@ -217,14 +228,36 @@ export interface ProviderListItem {
   avatar?: string;
   rating: number;
   reviewCount: number;
+  distanceKm?: number;
+  startingPrice?: number;
   verified: boolean;
   category: string;
+  responseTime?: string;
+  completionRate?: number;
   bio?: string;
   tags: string[];
   availableNow: boolean;
   city: string;
   serviceRadiusKm: number;
   verificationStatus: ProviderStatus;
+}
+
+export interface ProviderProfileItem {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  city: string;
+  bio: string;
+  serviceRadiusKm: number;
+  verificationStatus: ProviderStatus;
+  averageRating: number;
+  reviewCount: number;
+  completionRate: number;
+  responseTimeMinutes?: number;
+  profileImageUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface BookingListItem {
@@ -365,14 +398,39 @@ function toProviderListItem(provider: BackendProvider): ProviderListItem {
     avatar: provider.profileImageUrl ?? undefined,
     rating: Number(provider.averageRating ?? 0),
     reviewCount: provider.reviewCount,
+    distanceKm: provider.distanceKm == null ? undefined : Number(provider.distanceKm),
+    startingPrice: provider.startingPrice == null ? undefined : Number(provider.startingPrice),
     verified: provider.verificationStatus === "VERIFIED",
-    category: "General services",
+    category: provider.category ?? "General services",
+    responseTime:
+      provider.responseTimeMinutes == null ? undefined : `${provider.responseTimeMinutes} min`,
+    completionRate: provider.completionRate == null ? undefined : Number(provider.completionRate),
     bio: provider.bio,
     tags: [provider.city, "ServeHub"].filter(Boolean),
     availableNow: provider.verificationStatus === "VERIFIED",
     city: provider.city,
     serviceRadiusKm: provider.serviceRadiusKm,
     verificationStatus: provider.verificationStatus,
+  };
+}
+
+function toProviderProfileItem(provider: BackendProvider): ProviderProfileItem {
+  return {
+    id: String(provider.id),
+    userId: String(provider.userId),
+    fullName: provider.fullName,
+    email: provider.email,
+    city: provider.city,
+    bio: provider.bio,
+    serviceRadiusKm: provider.serviceRadiusKm,
+    verificationStatus: provider.verificationStatus,
+    averageRating: Number(provider.averageRating ?? 0),
+    reviewCount: provider.reviewCount,
+    completionRate: Number(provider.completionRate ?? 0),
+    responseTimeMinutes: provider.responseTimeMinutes ?? undefined,
+    profileImageUrl: provider.profileImageUrl ?? undefined,
+    latitude: provider.latitude ?? undefined,
+    longitude: provider.longitude ?? undefined,
   };
 }
 
@@ -497,11 +555,16 @@ function toSocialReactionToggleItem(item: BackendSocialReaction): SocialReaction
 export default api;
 
 export const authApi = {
-  async login(email: string, password: string): ApiResult<ReturnType<typeof normalizeAuthPayload>> {
+  async login(
+    email: string,
+    password: string,
+  ): ApiResult<ReturnType<typeof normalizeAuthPayload>> {
     const { data } = await api.post<AuthApiResponse>("/auth/login", { email, password });
     return { data: normalizeAuthPayload(data) };
   },
-  async register(data: RegisterPayload): ApiResult<ReturnType<typeof normalizeAuthPayload>> {
+  async register(
+    data: RegisterPayload,
+  ): ApiResult<ReturnType<typeof normalizeAuthPayload>> {
     const { firstName, lastName, phone, ...rest } = data;
     const payload = {
       ...rest,
@@ -528,12 +591,26 @@ export const providersApi = {
     const { data } = await api.get<{ content?: BackendProvider[] }>("/providers", { params });
     return { data: { content: (data.content ?? []).map(toProviderListItem) } };
   },
-  getById: (id: string) => api.get(`/providers/${id}`),
-  getProfile: () => api.get("/providers/me"),
-  update: (data: Partial<ProviderProfile>) => api.put("/providers/me", data),
-  uploadDoc: (file: FormData) => api.post("/providers/me/documents", file, { headers: { "Content-Type": "multipart/form-data" } }),
+  async getById(id: string): ApiResult<ProviderProfileItem> {
+    const { data } = await api.get<BackendProvider>(`/providers/${id}`);
+    return { data: toProviderProfileItem(data) };
+  },
+  async getProfile(): ApiResult<ProviderProfileItem> {
+    const { data } = await api.get<BackendProvider>("/providers/me");
+    return { data: toProviderProfileItem(data) };
+  },
+  async update(data: Partial<ProviderProfileUpdatePayload>): ApiResult<ProviderProfileItem> {
+    const response = await api.put<BackendProvider>("/providers/me", data);
+    return { data: toProviderProfileItem(response.data) };
+  },
+  uploadDoc: (file: FormData) =>
+    api.post("/providers/me/documents", file, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
   async getOfferings(providerId: string): ApiResult<ServiceOfferingItem[]> {
-    const { data } = await api.get<BackendServiceOffering[]>(`/catalog/services/providers/${providerId}/offerings`);
+    const { data } = await api.get<BackendServiceOffering[]>(
+      `/catalog/services/providers/${providerId}/offerings`,
+    );
     return { data: data.map(toServiceOfferingItem) };
   },
 };
@@ -541,15 +618,21 @@ export const providersApi = {
 export const catalogApi = {
   getCategories: () => api.get("/categories"),
   async getServices(categoryId?: string): ApiResult<ServiceOfferingItem[]> {
-    const { data } = await api.get<BackendServiceOffering[]>("/catalog/services", { params: { category: categoryId } });
+    const { data } = await api.get<BackendServiceOffering[]>("/catalog/services", {
+      params: { category: categoryId },
+    });
     return { data: data.map(toServiceOfferingItem) };
   },
   async getOfferings(params?: object): ApiResult<ServiceOfferingItem[]> {
-    const { data } = await api.get<BackendServiceOffering[]>("/catalog/services/offerings", { params });
+    const { data } = await api.get<BackendServiceOffering[]>(
+      "/catalog/services/offerings",
+      { params },
+    );
     return { data: data.map(toServiceOfferingItem) };
   },
   createOffering: (data: object) => api.post("/catalog/services/offerings", data),
-  updateOffering: (id: string, data: object) => api.put(`/catalog/services/offerings/${id}`, data),
+  updateOffering: (id: string, data: object) =>
+    api.put(`/catalog/services/offerings/${id}`, data),
   deleteOffering: (id: string) => api.delete(`/catalog/services/offerings/${id}`),
 };
 
@@ -568,21 +651,32 @@ export const bookingsApi = {
     return { data: toBookingListItem(response.data) };
   },
   accept: (id: string) => api.post(`/bookings/${id}/accept`),
-  decline: (id: string, reason: string) => api.post(`/bookings/${id}/decline`, { reason }),
+  decline: (id: string, reason: string) =>
+    api.post(`/bookings/${id}/decline`, { reason }),
   start: (id: string) => api.post(`/bookings/${id}/start`),
   complete: (id: string, data?: object) => api.post(`/bookings/${id}/complete`, data),
-  cancel: (id: string, reason: string) => api.post(`/bookings/${id}/cancel`, { reason }),
+  cancel: (id: string, reason: string) =>
+    api.post(`/bookings/${id}/cancel`, { reason }),
   reschedule: (id: string, data: object) => api.post(`/bookings/${id}/reschedule`, data),
   getEvents: (id: string) => api.get(`/bookings/${id}/events`),
 };
 
 export const messagesApi = {
-  async getThread(bookingId: string, params?: object): ApiResult<{ content: ChatMessageItem[] }> {
-    const { data } = await api.get<{ content?: BackendChatMessage[] }>(`/bookings/${bookingId}/messages`, { params });
+  async getThread(
+    bookingId: string,
+    params?: object,
+  ): ApiResult<{ content: ChatMessageItem[] }> {
+    const { data } = await api.get<{ content?: BackendChatMessage[] }>(
+      `/bookings/${bookingId}/messages`,
+      { params },
+    );
     return { data: { content: (data.content ?? []).map(toChatMessageItem) } };
   },
   async send(bookingId: string, content: string): ApiResult<ChatMessageItem> {
-    const { data } = await api.post<BackendChatMessage>(`/bookings/${bookingId}/messages`, { content });
+    const { data } = await api.post<BackendChatMessage>(
+      `/bookings/${bookingId}/messages`,
+      { content },
+    );
     return { data: toChatMessageItem(data) };
   },
 };
@@ -611,7 +705,10 @@ export const customerApi = {
     note?: string;
     defaultAddress?: boolean;
   }): ApiResult<CustomerAddressItem> {
-    const response = await api.post<BackendCustomerAddress>("/customers/me/addresses", data);
+    const response = await api.post<BackendCustomerAddress>(
+      "/customers/me/addresses",
+      data,
+    );
     return { data: toCustomerAddressItem(response.data) };
   },
   async updateAddress(id: string, data: {
@@ -620,12 +717,17 @@ export const customerApi = {
     note?: string;
     defaultAddress?: boolean;
   }): ApiResult<CustomerAddressItem> {
-    const response = await api.put<BackendCustomerAddress>(`/customers/me/addresses/${id}`, data);
+    const response = await api.put<BackendCustomerAddress>(
+      `/customers/me/addresses/${id}`,
+      data,
+    );
     return { data: toCustomerAddressItem(response.data) };
   },
   deleteAddress: (id: string) => api.delete(`/customers/me/addresses/${id}`),
   async getPaymentMethods(): ApiResult<SavedPaymentMethodItem[]> {
-    const { data } = await api.get<BackendSavedPaymentMethod[]>("/customers/me/payment-methods");
+    const { data } = await api.get<BackendSavedPaymentMethod[]>(
+      "/customers/me/payment-methods",
+    );
     return { data: data.map(toSavedPaymentMethodItem) };
   },
   async createPaymentMethod(data: {
@@ -634,7 +736,10 @@ export const customerApi = {
     expiry: string;
     defaultMethod?: boolean;
   }): ApiResult<SavedPaymentMethodItem> {
-    const response = await api.post<BackendSavedPaymentMethod>("/customers/me/payment-methods", data);
+    const response = await api.post<BackendSavedPaymentMethod>(
+      "/customers/me/payment-methods",
+      data,
+    );
     return { data: toSavedPaymentMethodItem(response.data) };
   },
   async updatePaymentMethod(id: string, data: {
@@ -642,45 +747,66 @@ export const customerApi = {
     expiry?: string;
     defaultMethod?: boolean;
   }): ApiResult<SavedPaymentMethodItem> {
-    const response = await api.put<BackendSavedPaymentMethod>(`/customers/me/payment-methods/${id}`, data);
+    const response = await api.put<BackendSavedPaymentMethod>(
+      `/customers/me/payment-methods/${id}`,
+      data,
+    );
     return { data: toSavedPaymentMethodItem(response.data) };
   },
   deletePaymentMethod: (id: string) => api.delete(`/customers/me/payment-methods/${id}`),
 };
 
 export const socialApi = {
-  async getFeed(params?: { category?: string; q?: string; size?: number }): ApiResult<SocialFeedPostItem[]> {
+  async getFeed(params?: {
+    category?: string;
+    q?: string;
+    size?: number;
+  }): ApiResult<SocialFeedPostItem[]> {
     const { data } = await api.get<BackendSocialFeedPost[]>("/social/feed", { params });
     return { data: data.map(toSocialFeedPostItem) };
   },
   async getComments(offeringId: string): ApiResult<SocialCommentItem[]> {
-    const { data } = await api.get<BackendSocialComment[]>(`/social/feed/${offeringId}/comments`);
+    const { data } = await api.get<BackendSocialComment[]>(
+      `/social/feed/${offeringId}/comments`,
+    );
     return { data: data.map(toSocialCommentItem) };
   },
-  async addComment(offeringId: string, content: string): ApiResult<SocialCommentItem> {
-    const { data } = await api.post<BackendSocialComment>(`/social/feed/${offeringId}/comments`, { content });
+  async addComment(
+    offeringId: string,
+    content: string,
+  ): ApiResult<SocialCommentItem> {
+    const { data } = await api.post<BackendSocialComment>(
+      `/social/feed/${offeringId}/comments`,
+      { content },
+    );
     return { data: toSocialCommentItem(data) };
   },
   async toggleLike(offeringId: string): ApiResult<SocialReactionToggleItem> {
-    const { data } = await api.post<BackendSocialReaction>(`/social/feed/${offeringId}/likes/toggle`);
+    const { data } = await api.post<BackendSocialReaction>(
+      `/social/feed/${offeringId}/likes/toggle`,
+    );
     return { data: toSocialReactionToggleItem(data) };
   },
   async toggleRepost(offeringId: string): ApiResult<SocialReactionToggleItem> {
-    const { data } = await api.post<BackendSocialReaction>(`/social/feed/${offeringId}/reposts/toggle`);
+    const { data } = await api.post<BackendSocialReaction>(
+      `/social/feed/${offeringId}/reposts/toggle`,
+    );
     return { data: toSocialReactionToggleItem(data) };
   },
 };
 
 export const reviewsApi = {
   getForProvider: (providerId: string) => api.get(`/providers/${providerId}/reviews`),
-  create: (bookingId: string, data: ReviewPayload) => api.post(`/bookings/${bookingId}/review`, data),
+  create: (bookingId: string, data: ReviewPayload) =>
+    api.post(`/bookings/${bookingId}/review`, data),
   getByBooking: (bookingId: string) => api.get(`/bookings/${bookingId}/review`),
 };
 
 export const disputesApi = {
   getAll: (params?: object) => api.get("/disputes", { params }),
   getById: (id: string) => api.get(`/disputes/${id}`),
-  create: (bookingId: string, data: object) => api.post("/disputes", { bookingId, ...data }),
+  create: (bookingId: string, data: object) =>
+    api.post("/disputes", { bookingId, ...data }),
   update: (id: string, data: object) => api.put(`/disputes/${id}`, data),
   resolve: (id: string, data: object) => api.post(`/disputes/${id}/resolve`, data),
 };
@@ -699,11 +825,23 @@ export const adminApi = {
   updateUser: (id: string, data: object) => api.put(`/admin/users/${id}`, data),
   getVerificationQueue: () => api.get("/admin/verifications"),
   approveProvider: (id: string) => api.post(`/admin/verifications/${id}/approve`),
-  rejectProvider: (id: string, reason: string) => api.post(`/admin/verifications/${id}/reject`, { reason }),
+  rejectProvider: (id: string, reason: string) =>
+    api.post(`/admin/verifications/${id}/reject`, { reason }),
   getDisputes: (params?: object) => api.get("/admin/disputes", { params }),
   getBookings: (params?: object) => api.get("/admin/bookings", { params }),
-  async getAuditLogs(params?: object): ApiResult<{ content: { id: string; type: string; description: string; timestamp: string; severity: "low" | "medium" | "high" }[] }> {
-    const { data } = await api.get<{ content?: BackendAuditLog[] }>("/admin/audit-logs", { params });
+  async getAuditLogs(params?: object): ApiResult<{
+    content: {
+      id: string;
+      type: string;
+      description: string;
+      timestamp: string;
+      severity: "low" | "medium" | "high";
+    }[];
+  }> {
+    const { data } = await api.get<{ content?: BackendAuditLog[] }>(
+      "/admin/audit-logs",
+      { params },
+    );
     return {
       data: {
         content: (data.content ?? []).map((entry) => ({
@@ -711,7 +849,11 @@ export const adminApi = {
           type: entry.action,
           description: entry.detail,
           timestamp: entry.createdAt,
-          severity: entry.action.includes("REJECT") ? "high" : entry.action.includes("APPROVE") ? "medium" : "low",
+          severity: entry.action.includes("REJECT")
+            ? "high"
+            : entry.action.includes("APPROVE")
+              ? "medium"
+              : "low",
         })),
       },
     };
@@ -762,6 +904,9 @@ export interface RegisterPayload {
   lastName: string;
   phone: string;
   role?: UserRole;
+  city?: string;
+  serviceRadiusKm?: number;
+  bio?: string;
 }
 
 export interface ProviderSearchParams {
@@ -778,15 +923,13 @@ export interface ProviderSearchParams {
   size?: number;
 }
 
-export interface ProviderProfile {
+export interface ProviderProfileUpdatePayload {
   bio: string;
-  experience: string;
-  languages: string[];
-  serviceRadius: number;
-  baseLat: number;
-  baseLng: number;
-  baseAddress: string;
-  workingHours: Record<string, { start: string; end: string; enabled: boolean }>;
+  city: string;
+  serviceRadiusKm: number;
+  latitude?: number;
+  longitude?: number;
+  profileImageUrl?: string;
 }
 
 export interface BookingFilterParams {

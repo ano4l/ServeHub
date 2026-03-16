@@ -30,5 +30,14 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "**/*-VKT.ts",
+    "**/*-VKT.tsx",
+    "**/*-VKT.js",
+    "**/*-VKT.json",
+    "**/*-VKT.css",
+    "**/*-VKT.log",
+    ".next/dev/types/*-VKT.ts"
+  ]
 }

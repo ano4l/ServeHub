@@ -1,91 +1,278 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarCheck2,
-  Compass,
+  ChevronRight,
+  Clock3,
   MapPin,
+  Search,
+  Sparkles,
   Star,
-  UserCircle2,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  providersApi,
-  type ProviderListItem,
+  bookingsApi,
+  customerApi,
+  socialApi,
+  type BookingListItem,
+  type CustomerAddressItem,
+  type SocialFeedPostItem,
 } from "@/lib/api";
-import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
+import {
+  HOME_ADDRESS_FIXTURES,
+  HOME_BOOKING_FIXTURES,
+  HOME_HIGHLIGHTS,
+  HOME_ORDER_HISTORY_FIXTURES,
+  HOME_SERVICE_FIXTURES,
+  type HomeAddressFixture,
+  type HomeServiceFixture,
+} from "@/lib/app-home-fixtures";
+import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 
-const QUICK_ACTIONS = [
-  {
-    href: "/explore",
-    icon: Compass,
-    title: "Explore",
-    description: "Scroll the service feed and jump into live provider profiles.",
-  },
-  {
-    href: "/bookings",
-    icon: CalendarCheck2,
-    title: "Bookings",
-    description: "Track upcoming jobs, status updates, and conversations.",
-  },
-  {
-    href: "/profile",
-    icon: UserCircle2,
-    title: "Profile",
-    description: "Manage your account, saved addresses, and payment details.",
-  },
-];
-
-interface FeaturedProvider {
-  id: string;
-  name: string;
-  avatar?: string;
-  rating: number;
-  reviewCount: number;
-  verified: boolean;
-  category: string;
-  bio?: string;
-  tags: string[];
-  availableNow: boolean;
+interface AreaPoint {
+  label: string;
+  lat: number;
+  lng: number;
 }
 
-function toProviderCard(provider: ProviderListItem): FeaturedProvider {
+interface HomeAddressOption extends HomeAddressFixture {
+  source: "fixture" | "live";
+}
+
+interface RecommendedService extends HomeServiceFixture {
+  live: boolean;
+}
+
+interface HomeBookingCard {
+  id: string;
+  service: string;
+  provider: string;
+  statusLabel: string;
+  etaLabel: string;
+  scheduledLabel: string;
+  address: string;
+  progress: number;
+  live: boolean;
+}
+
+interface HomeOrderCard {
+  id: string;
+  title: string;
+  provider: string;
+  dateLabel: string;
+  priceLabel: string;
+  live: boolean;
+}
+
+const SERVICE_ACCENTS = [
+  "from-cyan-300 via-sky-400 to-blue-700",
+  "from-amber-200 via-orange-400 to-rose-600",
+  "from-emerald-300 via-teal-500 to-cyan-700",
+  "from-fuchsia-400 via-rose-500 to-orange-600",
+];
+
+const AREA_POINTS: AreaPoint[] = [
+  { label: "Sandton", lat: -26.1073, lng: 28.0539 },
+  { label: "Sandown", lat: -26.1052, lng: 28.0581 },
+  { label: "Rosebank", lat: -26.1457, lng: 28.0413 },
+  { label: "Fourways", lat: -26.0018, lng: 28.0178 },
+  { label: "Midrand", lat: -25.9992, lng: 28.1263 },
+  { label: "Pretoria East", lat: -25.7689, lng: 28.3107 },
+  { label: "Centurion", lat: -25.8603, lng: 28.1896 },
+  { label: "Lone Hill", lat: -26.0116, lng: 28.0154 },
+];
+
+function inferAreaFromText(value: string): AreaPoint {
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    AREA_POINTS.find((area) => normalized.includes(area.label.toLowerCase())) ??
+    AREA_POINTS[0]
+  );
+}
+
+function distanceBetween(first: AreaPoint, second: AreaPoint) {
+  const lat = first.lat - second.lat;
+  const lng = first.lng - second.lng;
+  return Math.sqrt(lat * lat + lng * lng);
+}
+
+function travelMinutes(service: Pick<RecommendedService, "lat" | "lng">, area: AreaPoint) {
+  const distance = distanceBetween({ label: "service", lat: service.lat, lng: service.lng }, area);
+  return Math.max(9, Math.round(9 + distance * 180));
+}
+
+function buildMapBounds(
+  area: AreaPoint,
+  services: Pick<RecommendedService, "lat" | "lng">[],
+) {
+  const points = [{ lat: area.lat, lng: area.lng }, ...services];
+  const latitudes = points.map((point) => point.lat);
+  const longitudes = points.map((point) => point.lng);
+  const padding = 0.045;
+
   return {
-    id: provider.id,
-    name: provider.name,
-    avatar: provider.avatar,
-    rating: provider.rating,
-    reviewCount: provider.reviewCount,
-    verified: provider.verified,
-    category: provider.category,
-    bio: provider.bio,
-    tags: provider.tags,
-    availableNow: provider.availableNow,
+    latMin: Math.min(...latitudes) - padding,
+    latMax: Math.max(...latitudes) + padding,
+    lngMin: Math.min(...longitudes) - padding,
+    lngMax: Math.max(...longitudes) + padding,
   };
 }
 
-const fallbackFeaturedProviders: FeaturedProvider[] = EXPLORE_FEED_FIXTURES.slice(0, 3).map(
-  (post) => ({
-    id: post.providerId,
-    name: post.name,
-    rating: post.rating,
-    reviewCount: post.reviewCount,
-    verified: post.verified,
+function buildOsmEmbedUrl(
+  bounds: ReturnType<typeof buildMapBounds>,
+  marker?: { lat: number; lng: number } | null,
+) {
+  const bbox = `${bounds.lngMin},${bounds.latMin},${bounds.lngMax},${bounds.latMax}`;
+  const markerPart = marker ? `&marker=${marker.lat},${marker.lng}` : "";
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+    bbox,
+  )}&layer=mapnik${markerPart}`;
+}
+
+function bookingProgress(status: BookingListItem["status"]) {
+  switch (status) {
+    case "REQUESTED":
+      return 24;
+    case "ACCEPTED":
+      return 56;
+    case "IN_PROGRESS":
+      return 82;
+    case "COMPLETED":
+    case "REVIEWABLE":
+      return 100;
+    default:
+      return 8;
+  }
+}
+
+function bookingStatusLabel(status: BookingListItem["status"]) {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "In progress";
+    case "REVIEWABLE":
+      return "Completed";
+    default:
+      return status.charAt(0) + status.slice(1).toLowerCase().replaceAll("_", " ");
+  }
+}
+
+function bookingEtaLabel(status: BookingListItem["status"]) {
+  switch (status) {
+    case "REQUESTED":
+      return "Awaiting provider";
+    case "ACCEPTED":
+      return "Confirmed";
+    case "IN_PROGRESS":
+      return "On the way";
+    case "COMPLETED":
+    case "REVIEWABLE":
+      return "Completed";
+    case "DECLINED":
+      return "Declined";
+    case "CANCELLED":
+      return "Cancelled";
+    case "EXPIRED":
+      return "Expired";
+    default:
+      return "Pending";
+  }
+}
+
+function toAddressOption(address: CustomerAddressItem): HomeAddressOption {
+  const area = inferAreaFromText(`${address.label} ${address.value} ${address.note ?? ""}`);
+
+  return {
+    id: address.id,
+    label: address.label,
+    value: address.value,
+    note: address.note ?? "Saved location",
+    area: area.label,
+    lat: area.lat,
+    lng: area.lng,
+    source: "live",
+  };
+}
+
+function toRecommendedService(post: SocialFeedPostItem, index: number): RecommendedService {
+  const area = inferAreaFromText(post.city);
+
+  return {
+    id: `live-service-${post.id}`,
+    providerId: post.providerId,
+    providerName: post.providerName,
+    title: post.serviceName,
+    subtitle: `${post.providerName} in ${post.city}`,
+    description:
+      post.caption?.trim() ||
+      `${post.providerName} is actively taking ${post.category.toLowerCase()} requests in ${post.city}.`,
     category: post.category,
-    bio: post.caption,
-    tags: [post.city, ...post.hashtags]
-      .filter((tag): tag is string => Boolean(tag))
-      .slice(0, 4),
-    availableNow: post.availableNow,
-  }),
-);
+    badge: post.reviewCount > 25 ? "Recommended" : "Fresh today",
+    priceLabel: "Quote on request",
+    accent: SERVICE_ACCENTS[index % SERVICE_ACCENTS.length],
+    rating: post.rating,
+    reviews: post.reviewCount,
+    neighborhood: area.label,
+    lat: area.lat,
+    lng: area.lng,
+    tags: [post.category, post.city, post.verified ? "Verified" : "Open"].filter(Boolean),
+    availableNow: true,
+    live: true,
+  };
+}
+
+function toHomeBookingCard(booking: BookingListItem): HomeBookingCard {
+  return {
+    id: booking.id,
+    service: booking.service,
+    provider: booking.provider.name,
+    statusLabel: bookingStatusLabel(booking.status),
+    etaLabel: bookingEtaLabel(booking.status),
+    scheduledLabel: formatDateTime(booking.scheduledAt),
+    address: booking.address,
+    progress: bookingProgress(booking.status),
+    live: true,
+  };
+}
+
+function toOrderCard(booking: BookingListItem): HomeOrderCard {
+  return {
+    id: booking.id,
+    title: booking.service,
+    provider: booking.provider.name,
+    dateLabel: formatDateTime(booking.scheduledAt),
+    priceLabel: booking.price ? formatCurrency(booking.price) : "Quote settled",
+    live: true,
+  };
+}
+
+const fallbackAddresses: HomeAddressOption[] = HOME_ADDRESS_FIXTURES.map((address) => ({
+  ...address,
+  source: "fixture",
+}));
+
+const fallbackServices: RecommendedService[] = HOME_SERVICE_FIXTURES.map((service) => ({
+  ...service,
+  live: false,
+}));
+
+const fallbackBookings: HomeBookingCard[] = HOME_BOOKING_FIXTURES.map((booking) => ({
+  ...booking,
+  live: false,
+}));
+
+const fallbackOrders: HomeOrderCard[] = HOME_ORDER_HISTORY_FIXTURES.map((order) => ({
+  ...order,
+  live: false,
+}));
 
 export default function HomePage() {
   const router = useRouter();
@@ -95,273 +282,652 @@ export default function HomePage() {
     () => true,
     () => false,
   );
-  const [featuredProviders, setFeaturedProviders] = useState<FeaturedProvider[]>(
-    fallbackFeaturedProviders,
+
+  const [addresses, setAddresses] = useState<HomeAddressOption[]>(fallbackAddresses);
+  const [address, setAddress] = useState(fallbackAddresses[0]?.value ?? "");
+  const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
+  const [serviceQuery, setServiceQuery] = useState("");
+  const [recommendedServices, setRecommendedServices] =
+    useState<RecommendedService[]>(fallbackServices);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+    fallbackServices[0]?.id ?? null,
   );
-  const [usingFallbackProviders, setUsingFallbackProviders] = useState(true);
+  const [currentBookings, setCurrentBookings] =
+    useState<HomeBookingCard[]>(fallbackBookings);
+  const [recentOrders, setRecentOrders] = useState<HomeOrderCard[]>(fallbackOrders);
+
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated) {
+      return;
+    }
+
+    if (user?.activeRole === "PROVIDER") {
+      router.replace("/provider");
+      return;
+    }
+
+    if (user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT") {
+      router.replace("/admin");
+    }
+  }, [hydrated, isAuthenticated, router, user]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadProviders = async () => {
-      try {
-        const response = await providersApi.getAll({
-          page: 0,
-          size: 3,
-          sort: "recommended",
-        });
-        if (cancelled) {
-          return;
-        }
+    const load = async () => {
+      if (isAuthenticated && user?.activeRole === "CUSTOMER") {
+        try {
+          const response = await customerApi.getAddresses();
+          if (cancelled || response.data.length === 0) {
+            return;
+          }
 
-        const liveProviders = (response.data.content ?? []).map(toProviderCard);
-        if (liveProviders.length > 0) {
-          setFeaturedProviders(liveProviders);
-          setUsingFallbackProviders(false);
-        } else {
-          setFeaturedProviders(fallbackFeaturedProviders);
-          setUsingFallbackProviders(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setFeaturedProviders(fallbackFeaturedProviders);
-          setUsingFallbackProviders(true);
+          const liveAddresses = response.data.map(toAddressOption);
+          const defaultAddressEntry =
+            response.data.find((entry) => entry.defaultAddress) ?? response.data[0];
+          const defaultAddress =
+            liveAddresses.find((item) => item.id === defaultAddressEntry.id) ??
+            liveAddresses[0];
+
+          setAddresses(liveAddresses);
+          setAddress(defaultAddress.value);
+        } catch {
+          // Keep fixture addresses when saved addresses are unavailable.
         }
       }
     };
 
-    void loadProviders();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const response = await socialApi.getFeed({ size: 8 });
+        if (cancelled || response.data.length === 0) {
+          return;
+        }
+
+        setRecommendedServices(response.data.map(toRecommendedService));
+      } catch {
+        // Keep fixture recommendations when the feed is unavailable.
+      }
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const primaryCta = useMemo(() => {
-    if (!hydrated || !isAuthenticated) {
-      return {
-        href: "/explore",
-        label: "Open Explore",
-      };
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    if (user?.activeRole === "PROVIDER") {
-      return {
-        href: "/provider",
-        label: "Open Provider Hub",
-      };
-    }
+    const load = async () => {
+      if (!isAuthenticated || user?.activeRole !== "CUSTOMER") {
+        return;
+      }
 
-    if (user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT") {
-      return {
-        href: "/admin",
-        label: "Open Admin",
-      };
-    }
+      try {
+        const response = await bookingsApi.getAll({ page: 0, size: 8 });
+        if (cancelled) {
+          return;
+        }
 
-    return {
-      href: "/dashboard",
-      label: "Open Dashboard",
+        const liveBookings = response.data.content ?? [];
+        if (liveBookings.length === 0) {
+          return;
+        }
+
+        const active = liveBookings.filter((booking) =>
+          ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(booking.status),
+        );
+        const completed = liveBookings.filter((booking) =>
+          ["COMPLETED", "REVIEWABLE"].includes(booking.status),
+        );
+
+        setCurrentBookings(
+          (active.length > 0 ? active : liveBookings).slice(0, 3).map(toHomeBookingCard),
+        );
+        setRecentOrders(
+          (completed.length > 0 ? completed : liveBookings).slice(0, 3).map(toOrderCard),
+        );
+      } catch {
+        // Keep fixture booking previews when the API is unavailable.
+      }
     };
-  }, [hydrated, isAuthenticated, user]);
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
+
+  const activeArea = useMemo(() => inferAreaFromText(address), [address]);
+
+  const addressSuggestions = useMemo(() => {
+    const query = address.trim().toLowerCase();
+    if (!query) {
+      return addresses;
+    }
+
+    return addresses.filter(
+      (item) =>
+        item.label.toLowerCase().includes(query) ||
+        item.value.toLowerCase().includes(query) ||
+        item.area.toLowerCase().includes(query) ||
+        item.note.toLowerCase().includes(query),
+    );
+  }, [address, addresses]);
+
+  const serviceCategories = useMemo(
+    () => ["All", ...Array.from(new Set(recommendedServices.map((service) => service.category)))],
+    [recommendedServices],
+  );
+
+  const filteredServices = useMemo(() => {
+    return recommendedServices
+      .filter((service) => {
+        const query = serviceQuery.trim().toLowerCase();
+        const matchesQuery =
+          !query ||
+          `${service.title} ${service.subtitle} ${service.providerName} ${service.category} ${service.neighborhood}`
+            .toLowerCase()
+            .includes(query);
+        const matchesCategory =
+          selectedCategory === "All" || service.category === selectedCategory;
+        return matchesQuery && matchesCategory;
+      })
+      .sort((left, right) => travelMinutes(left, activeArea) - travelMinutes(right, activeArea));
+  }, [activeArea, recommendedServices, selectedCategory, serviceQuery]);
+
+  const selectedService =
+    filteredServices.find((service) => service.id === selectedServiceId) ??
+    filteredServices[0] ??
+    null;
+
+  const mapBounds = useMemo(
+    () => buildMapBounds(activeArea, filteredServices.slice(0, 6)),
+    [activeArea, filteredServices],
+  );
+
+  const mapUrl = useMemo(
+    () =>
+      buildOsmEmbedUrl(
+        mapBounds,
+        selectedService
+          ? { lat: selectedService.lat, lng: selectedService.lng }
+          : { lat: activeArea.lat, lng: activeArea.lng },
+      ),
+    [activeArea, mapBounds, selectedService],
+  );
+
+  const mapPins = useMemo(() => {
+    return filteredServices.slice(0, 6).map((service) => {
+      const left =
+        ((service.lng - mapBounds.lngMin) / (mapBounds.lngMax - mapBounds.lngMin || 1)) * 76 + 12;
+      const top =
+        ((mapBounds.latMax - service.lat) / (mapBounds.latMax - mapBounds.latMin || 1)) * 66 + 12;
+
+      return {
+        ...service,
+        left,
+        top,
+      };
+    });
+  }, [filteredServices, mapBounds]);
+
+  const openService = (service: RecommendedService) => {
+    if (service.live && service.providerId) {
+      router.push(`/providers/${service.providerId}`);
+      return;
+    }
+
+    router.push("/explore");
+  };
+
+  const homeName = user?.firstName ?? "there";
+
+  const shouldHideForRole =
+    hydrated &&
+    isAuthenticated &&
+    user?.activeRole !== "CUSTOMER" &&
+    user?.activeRole !== undefined;
+
+  if (shouldHideForRole) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(142,247,214,0.15),transparent_28%),linear-gradient(180deg,#09101a_0%,#0b1118_38%,#111827_100%)] px-4 py-4 text-white sm:px-6">
-      <div className="mx-auto max-w-6xl space-y-6 pb-8">
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-3 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
+      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-4 sm:px-6">
+        <div className="sticky top-0 z-40 rounded-[1.5rem] border border-white/10 bg-black/50 p-3 backdrop-blur-xl">
           <AppTabs />
         </div>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(9,16,26,0.94),rgba(24,56,108,0.88)_55%,rgba(37,184,154,0.34))] px-5 py-8 shadow-[0_30px_120px_rgba(8,15,32,0.4)] sm:px-8">
-          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-full bg-white text-black hover:bg-white">
-                  ServeHub
-                </Badge>
-                <Badge className="rounded-full border border-white/15 bg-white/8 text-white hover:bg-white/8">
-                  Home is back
-                </Badge>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/65">
-                  Book local services faster
-                </p>
-                <h1 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
-                  Browse, book, and manage everything without getting trapped in the explore feed.
-                </h1>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
-                  Start from a real homepage, jump into explore when you want the social feed, and keep bookings and profile one tap away.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button size="lg" onClick={() => router.push(primaryCta.href)}>
-                  {primaryCta.label}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => router.push("/explore")}
-                >
-                  See explore feed
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              {QUICK_ACTIONS.map((action) => {
-                const Icon = action.icon;
-
-                return (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="rounded-[1.6rem] border border-white/10 bg-white/8 p-4 transition hover:bg-white/12"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-black">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h2 className="mt-4 text-lg font-semibold">{action.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-white/66">
-                      {action.description}
-                    </p>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[2rem] border border-white/10 bg-black/28 p-6 backdrop-blur-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">
-              Why this matters
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">
+              Homepage
             </p>
-            <div className="mt-4 space-y-4 text-sm leading-6 text-white/70">
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
-                <p className="font-medium text-white">Explore is now just explore</p>
-                <p className="mt-2">
-                  The TikTok-style feed still exists, but it is no longer pretending to be the whole app.
-                </p>
-              </div>
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
-                <p className="font-medium text-white">Bookings and profile are direct destinations</p>
-                <p className="mt-2">
-                  Those pages are routable again instead of being hidden behind dashboard-only navigation.
-                </p>
-              </div>
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
-                <p className="font-medium text-white">Home gives the app structure</p>
-                <p className="mt-2">
-                  You can now land somewhere intentional, then decide whether to browse, book, or update your account.
-                </p>
-              </div>
-            </div>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-[2.2rem]">
+              Good morning, {homeName}
+            </h1>
+            <p className="mt-2 text-sm text-white/58">
+              Set an address, check the map, and jump into services or bookings from one place.
+            </p>
           </div>
+          <Avatar name={user?.fullName ?? "ServeHub"} src={user?.avatar} size="lg" />
+        </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">
-                  Featured providers
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">
-                  Start with a real provider profile
-                </h2>
-              </div>
-              {usingFallbackProviders ? (
-                <Badge className="rounded-full border border-amber-200/20 bg-amber-400/10 text-amber-50 hover:bg-amber-400/10">
-                  Sample picks
-                </Badge>
-              ) : (
-                <Badge className="rounded-full border border-emerald-200/20 bg-emerald-400/10 text-emerald-50 hover:bg-emerald-400/10">
-                  Live picks
-                </Badge>
-              )}
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              {featuredProviders.map((provider) => (
-                <div
-                  key={provider.id}
-                  className="rounded-[1.8rem] border border-white/10 bg-black/28 p-5 backdrop-blur-xl"
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar
-                      src={provider.avatar}
-                      name={provider.name}
-                      size="lg"
-                      online={provider.availableNow}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-lg font-semibold text-white">
-                          {provider.name}
-                        </p>
-                        {provider.verified ? (
-                          <Badge className="rounded-full bg-white text-black hover:bg-white">
-                            Verified
-                          </Badge>
-                        ) : null}
-                        {provider.availableNow ? (
-                          <Badge className="rounded-full border border-emerald-200/20 bg-emerald-400/10 text-emerald-50 hover:bg-emerald-400/10">
-                            Available
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.24em] text-white/42">
-                        {provider.category}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-white/66">
-                        <span className="inline-flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                          {provider.rating.toFixed(1)}
-                        </span>
-                        <span>{provider.reviewCount} reviews</span>
-                        {provider.tags[0] ? (
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {provider.tags[0]}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  {provider.bio ? (
-                    <p className="mt-4 text-sm leading-6 text-white/70">
-                      {provider.bio}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {provider.tags.slice(0, 4).map((tag) => (
-                      <span
-                        key={`${provider.id}-${tag}`}
-                        className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/72"
+        <div className="mt-6 grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
+          <div className="space-y-6">
+            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+              <Input
+                value={address}
+                onChange={(event) => {
+                  setAddress(event.target.value);
+                  setAddressSuggestionsOpen(true);
+                }}
+                onFocus={() => setAddressSuggestionsOpen(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && addressSuggestions[0]) {
+                    event.preventDefault();
+                    setAddress(addressSuggestions[0].value);
+                    setAddressSuggestionsOpen(false);
+                  }
+                }}
+                placeholder="Enter address"
+                leftIcon={<MapPin className="h-4 w-4" />}
+                rightIcon={<ChevronRight className="h-4 w-4" />}
+                className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400"
+              />
+              {addressSuggestionsOpen ? (
+                <div className="mt-3 space-y-2 rounded-[20px] border border-white/10 bg-[#08111f] p-3">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                    Suggested addresses
+                  </p>
+                  <div className="space-y-2">
+                    {addressSuggestions.slice(0, 5).map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setAddress(suggestion.value);
+                          setAddressSuggestionsOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between rounded-[16px] bg-white/6 px-3 py-3 text-left"
                       >
-                        {tag}
-                      </span>
+                        <div>
+                          <p className="text-sm font-medium text-white">{suggestion.label}</p>
+                          <p className="mt-1 text-xs text-white/48">{suggestion.value}</p>
+                        </div>
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-cyan-200">
+                          {suggestion.area}
+                        </span>
+                      </button>
                     ))}
                   </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Link
-                      href={`/providers/${provider.id}`}
-                      className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/8 px-5 text-sm font-medium text-white transition hover:bg-white/12"
-                    >
-                      View profile
-                    </Link>
-                    <Button onClick={() => router.push(`/providers/${provider.id}`)}>
-                      Book now
-                    </Button>
-                  </div>
                 </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {addresses.slice(0, 4).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setAddress(item.value)}
+                    className={cn(
+                      "min-h-11 rounded-full border px-3 py-2 text-xs transition-colors",
+                      address === item.value
+                        ? "border-cyan-300/40 bg-cyan-400/12 text-cyan-100"
+                        : "border-white/10 bg-black/20 text-white/72",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-white/50">Matched area: {activeArea.label}</p>
+            </div>
+
+            <div className="overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#8ef7d6_0%,#ffd27f_52%,#ff9d7d_100%)] p-5 text-slate-950">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                Recommended right now
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
+                The app home should feel like booking, not browsing a landing page.
+              </h2>
+              <div className="mt-3 space-y-1 text-sm text-slate-700">
+                {HOME_HIGHLIGHTS.map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
+              <Button
+                className="mt-4 min-h-11 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+                onClick={() => router.push("/explore")}
+              >
+                Open explore
+              </Button>
+            </div>
+
+            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Current bookings</p>
+                  <p className="text-xs text-white/45">
+                    Open the jobs already in motion or jump to the full bookings page.
+                  </p>
+                </div>
+                <Button variant="ghost" onClick={() => router.push("/bookings")}>
+                  View all
+                </Button>
+              </div>
+              <div className="mt-4 space-y-3">
+                {currentBookings.map((booking) => (
+                  <button
+                    key={booking.id}
+                    type="button"
+                    onClick={() => router.push("/bookings")}
+                    className="w-full rounded-[24px] border border-white/10 bg-black/20 p-4 text-left transition hover:bg-black/28"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{booking.service}</p>
+                        <p className="mt-1 text-sm text-white/55">{booking.provider}</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        {booking.statusLabel}
+                      </span>
+                    </div>
+                    <div className="mt-4 h-2 rounded-full bg-white/10">
+                      <div
+                        className="h-2 rounded-full bg-[linear-gradient(90deg,#8ef7d6_0%,#7dd3fc_100%)]"
+                        style={{ width: `${booking.progress}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white/50">
+                      <span>{booking.scheduledLabel}</span>
+                      <span>{booking.etaLabel}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Map widget</p>
+                  <p className="text-xs text-white/45">
+                    Services nearest to your selected address, just like the app home used to do.
+                  </p>
+                </div>
+                <Badge className="rounded-full border border-cyan-300/18 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/12">
+                  {activeArea.label}
+                </Badge>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {serviceCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setSelectedCategory(category)}
+                    className={cn(
+                      "min-h-10 rounded-full px-3 py-2 text-xs transition-colors",
+                      selectedCategory === category
+                        ? "bg-white text-slate-950"
+                        : "border border-white/10 bg-black/20 text-white/72",
+                    )}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-[#091220]">
+                <div className="relative h-[320px]">
+                  <iframe
+                    title="Service coverage map"
+                    src={mapUrl}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,31,0.24),rgba(7,17,31,0.55))] pointer-events-none" />
+                  <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/45 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-white/78">
+                    Service coverage
+                  </div>
+                  {mapPins.map((service) => (
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() => setSelectedServiceId(service.id)}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: `${service.left}%`, top: `${service.top}%` }}
+                    >
+                      <span
+                        className={cn(
+                          "relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-[0_12px_24px_rgba(5,11,20,0.45)]",
+                          selectedService?.id === service.id
+                            ? "border-cyan-200 bg-cyan-400 text-slate-950"
+                            : "border-white/14 bg-black/45",
+                        )}
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </span>
+                    </button>
+                  ))}
+                  {selectedService ? (
+                    <div className="absolute inset-x-4 bottom-4 rounded-[20px] border border-white/10 bg-[#08111f]/92 p-4 backdrop-blur-md">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">{selectedService.title}</p>
+                          <p className="mt-1 text-xs text-white/52">
+                            {selectedService.providerName} | {selectedService.neighborhood}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/72">
+                          {travelMinutes(selectedService, activeArea)} min
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <p className="text-xs text-white/48">{selectedService.priceLabel}</p>
+                        <button
+                          type="button"
+                          onClick={() => openService(selectedService)}
+                          className="text-xs font-semibold text-cyan-200"
+                        >
+                          Open service
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Search services near you</p>
+                  <p className="text-xs text-white/45">
+                    The home screen should surface what to book next, not make you hunt for it.
+                  </p>
+                </div>
+                <Search className="h-4 w-4 text-cyan-200" />
+              </div>
+              <div className="mt-3">
+                <Input
+                  value={serviceQuery}
+                  onChange={(event) => setServiceQuery(event.target.value)}
+                  placeholder="Search cleaning, plumbing, electrical..."
+                  leftIcon={<Search className="h-4 w-4" />}
+                  className="h-12 rounded-full border-white/8 bg-black/20 text-white placeholder:text-white/35"
+                />
+              </div>
+              <p className="mt-3 text-xs text-white/48">
+                Sorted by distance from {activeArea.label}.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Recommended services</p>
+              <p className="text-xs text-white/45">
+                Quick tiles to jump straight into booking from the home screen.
+              </p>
+            </div>
+            <Button variant="ghost" onClick={() => router.push("/explore")}>
+              Explore all
+            </Button>
+          </div>
+          {filteredServices.length === 0 ? (
+            <div className="mt-4 rounded-[24px] border border-dashed border-white/12 bg-white/6 p-6 text-center">
+              <p className="text-sm font-semibold">No services found</p>
+              <p className="mt-2 text-sm text-white/50">
+                Try another search term or switch your category filter.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {filteredServices.slice(0, 8).map((service) => (
+                <button
+                  key={service.id}
+                  type="button"
+                  onClick={() => openService(service)}
+                  className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.94),rgba(8,15,28,0.18))]" />
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">
+                        {service.badge}
+                      </span>
+                      <Sparkles className="h-5 w-5 text-white/86" />
+                    </div>
+                    <h3 className="mt-10 text-xl font-semibold">{service.title}</h3>
+                    <p className="mt-1 text-sm text-white/72">{service.subtitle}</p>
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/24 px-3 py-2 text-sm">
+                      <Clock3 className="h-4 w-4" />
+                      {travelMinutes(service, activeArea)} min
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 text-xs text-white/66">
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-current text-amber-300" />
+                        {service.rating.toFixed(1)}
+                      </span>
+                      <span>{service.reviews} reviews</span>
+                    </div>
+                    <p className="mt-3 text-xs text-white/55">{service.priceLabel}</p>
+                    <p className="mt-2 text-xs text-cyan-100/82">{service.neighborhood}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Recent reorders</p>
+                <p className="text-xs text-white/45">
+                  Jump back into services you already trust.
+                </p>
+              </div>
+              <CalendarCheck2 className="h-4 w-4 text-cyan-200" />
+            </div>
+            <div className="mt-4 space-y-3">
+              {recentOrders.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => router.push("/bookings")}
+                  className="w-full rounded-[22px] border border-white/10 bg-black/20 p-4 text-left transition hover:bg-black/28"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="mt-1 text-sm text-white/55">{item.provider}</p>
+                    </div>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/72">
+                      {item.priceLabel}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-white/45">
+                    <span>{item.dateLabel}</span>
+                    <span className="text-cyan-200">Rebook</span>
+                  </div>
+                </button>
               ))}
             </div>
           </div>
-        </section>
+
+          <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Why this home works</p>
+                <p className="text-xs text-white/45">
+                  The app home is where location, discovery, and active jobs meet.
+                </p>
+              </div>
+              <Badge className="rounded-full border border-white/10 bg-white/8 text-white hover:bg-white/8">
+                App home
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {[
+                {
+                  title: "Address first",
+                  body: "Your location anchors everything from recommendations to the map widget.",
+                },
+                {
+                  title: "Map in context",
+                  body: "You can see service coverage without leaving the home screen.",
+                },
+                {
+                  title: "Bookings stay close",
+                  body: "Current jobs and repeat services are one scroll away instead of buried.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-[22px] border border-white/10 bg-black/20 p-4"
+                >
+                  <p className="font-medium text-white">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-white/62">{item.body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button onClick={() => router.push("/explore")}>
+                Explore now
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/bookings")}>
+                Open bookings
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
