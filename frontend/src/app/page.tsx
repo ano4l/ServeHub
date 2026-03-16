@@ -223,9 +223,10 @@ function toRecommendedService(post: SocialFeedPostItem, index: number): Recommen
     neighborhood: area.label,
     lat: area.lat,
     lng: area.lng,
-    tags: [post.category, post.city, post.verified ? "Verified" : "Open"].filter(Boolean),
+    tags: ["Live", "Verified"],
     availableNow: true,
     live: true,
+    imageUrl: post.imageUrl || generateImageUrl(post.category, index),
   };
 }
 

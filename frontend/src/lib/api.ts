@@ -355,6 +355,7 @@ export interface SocialFeedPostItem {
   likedByViewer: boolean;
   repostedByViewer: boolean;
   commentPreview: SocialCommentItem[];
+  imageUrl?: string;
 }
 
 export interface SocialReactionToggleItem {
