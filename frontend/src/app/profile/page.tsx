@@ -36,25 +36,44 @@ export default function ProfileEntryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white px-4 py-4 sm:px-6">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-3 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
+      <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6">
+        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
           <AppTabs />
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-black/28 p-8 text-center backdrop-blur-xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-white text-black">
-            <UserCircle2 className="h-8 w-8" />
+        <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-5 text-center backdrop-blur-md sm:p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-950 sm:h-16 sm:w-16">
+            <UserCircle2 className="h-7 w-7 sm:h-8 sm:w-8" />
           </div>
-          <h1 className="mt-6 text-3xl font-semibold">Demo Profile</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/84">
-            In demo mode, you can view sample profile info, addresses, payment methods, and notification preferences. All actions are simulated.
+          <h1 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-7 text-white/70">
+            Open your signed-in profile to manage personal details, addresses, payment methods, and notification settings.
           </p>
           <div className="mt-8 flex flex-col items-center gap-4">
-            <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Demo Avatar" className="h-20 w-20 rounded-full border border-white/10" />
+            <img
+              src="https://randomuser.me/api/portraits/men/32.jpg"
+              alt="Demo Avatar"
+              className="h-20 w-20 rounded-full border border-white/10"
+            />
             <div className="text-lg font-semibold">John Doe</div>
             <div className="text-sm text-white/70">johndoe@email.com</div>
             <div className="text-sm text-white/70">+1 (555) 123-4567</div>
+          </div>
+          <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
+            <Button size="lg" className="h-12 w-full sm:w-auto" onClick={() => router.push("/login")}>
+              <LogIn className="h-4 w-4" />
+              Sign in to open profile
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 w-full sm:w-auto"
+              onClick={() => router.push("/explore")}
+            >
+              Keep exploring
+            </Button>
           </div>
         </div>
       </div>
