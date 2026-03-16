@@ -13,6 +13,7 @@ Two services from one GitHub repo:
 
 **Healthcheck Path:** `/api/v1/actuator/health/readiness`  
 **Start command:** leave Railway auto-detect on (uses the root `Dockerfile`)
+**Custom Config File:** `/railway.json`
 
 ### Required environment variables
 
@@ -40,6 +41,7 @@ Flyway runs all migrations and seeds (V1–V5) on first boot — no manual DB se
 
 **Root Directory:** `/frontend`  
 Railway will detect Next.js and use the `frontend/Dockerfile` (standalone build).
+**Custom Config File:** `/frontend/railway.json`
 
 ### Required environment variables
 
@@ -55,18 +57,20 @@ Railway will detect Next.js and use the `frontend/Dockerfile` (standalone build)
 1. Create a new Railway project and connect the GitHub repo.
 2. **Add service → GitHub Repo** → Root: `/` → name it `backend`.
 3. **Add service → GitHub Repo** (same repo) → Root: `/frontend` → name it `frontend`.
-4. **Add service → Database → PostgreSQL** → name it `postgres`.
-5. On the `backend` service, add variable references for the five `PG*` vars from `postgres`.
-6. Set `SPRING_PROFILES_ACTIVE=prod`, `JWT_SECRET=<random>`, `SPRING_CACHE_TYPE=simple`.
-7. Generate a public domain for `backend` → copy the URL.
-8. On the `frontend` service, set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` using that URL.
-9. Set `CORS_ALLOWED_ORIGINS` on `backend` to the frontend public domain.
-10. Generate a public domain for `frontend`.
-11. Deploy both services. Backend will run Flyway and seed the DB automatically.
+4. In `backend` Settings, set **Custom Config File** to `/railway.json`.
+5. In `frontend` Settings, set **Custom Config File** to `/frontend/railway.json`.
+6. **Add service → Database → PostgreSQL** → name it `postgres`.
+7. On the `backend` service, add variable references for the five `PG*` vars from `postgres`.
+8. Set `SPRING_PROFILES_ACTIVE=prod`, `JWT_SECRET=<random>`, `SPRING_CACHE_TYPE=simple`.
+9. Generate a public domain for `backend` → copy the URL.
+10. On the `frontend` service, set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` using that URL.
+11. Set `CORS_ALLOWED_ORIGINS` on `backend` to the frontend public domain.
+12. Generate a public domain for `frontend`.
+13. Deploy both services. Backend will run Flyway and seed the DB automatically.
 
 ---
 
-## 4  Showcase — demo accounts seeded by V5 migration
+## 4  Showcase — seeded accounts from V5 migration
 
 All accounts share the same hashed password seeded in V1. The password for the V1
 hash (`$2a$10$dXJ3SW6G7P50...`) matches the one originally used when the V1 migration
@@ -78,7 +82,7 @@ Postgres console.
 |------|-------|-------|
 | ADMIN | `admin@servehub.dev` | Admin panel at `/admin` |
 | CUSTOMER | `customer@servehub.dev` | Pre-loaded bookings and notifications |
-| CUSTOMER | `showcase@servehub.dev` | Clean account for live registration demo |
+| CUSTOMER | `showcase@servehub.dev` | Clean account for live registration testing |
 | PROVIDER | `sarah@servehub.dev` | Cleaning · Verified · Cape Town |
 | PROVIDER | `nina@servehub.dev` | Hair · Verified · Pretoria |
 | PROVIDER | `lebo@servehub.dev` | Makeup · Verified · Sandton |
@@ -99,7 +103,7 @@ Postgres console.
 
 | Route | What it shows |
 |-------|--------------|
-| `/` | Full mobile-style customer shell (home, explore, bookings, profile) |
+| `/` | Live customer entry page that routes signed-in users to their workspace |
 | `/browse` | Social feed — live data from the backend with likes, comments, reposts |
 | `/login` | Sign in with any seeded account |
 | `/register` | Live registration flow |
@@ -115,5 +119,6 @@ Postgres console.
 - The backend supports Railway's injected `PORT` and `PG*` variables — no extra config needed.
 - `SPRING_CACHE_TYPE=simple` removes the Redis requirement for a basic deploy. Add Redis and flip to `redis` when you need production caching.
 - Health checks use `/api/v1/actuator/health/readiness`, the canonical readiness endpoint behind the app context path.
+- Railway config files do not follow the service Root Directory automatically. Set the frontend service's Custom Config File to `/frontend/railway.json` or Railway may accidentally apply the backend config to the frontend service.
 - The WebSocket endpoint is at `/api/v1/ws` — set `NEXT_PUBLIC_WS_URL` to the full backend URL including that path.
 - If Flyway fails to start, check for duplicate migration version files under `src/main/resources/db/migration/`. Each `V<n>__*.sql` version must be unique.

@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, ChevronDown, Search, SwitchCamera } from "lucide-react";
 import type { UserRole } from "@/lib/constants";
 import { Avatar } from "@/components/ui/avatar";
+import { notificationsApi } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
 
 const rolePaths: Record<UserRole, string> = {
-  CUSTOMER: "/",
+  CUSTOMER: "/dashboard",
   PROVIDER: "/provider",
   ADMIN: "/admin",
   SUPPORT: "/admin",
@@ -20,15 +21,89 @@ const rolePaths: Record<UserRole, string> = {
 
 export function TopBar() {
   const { user, setActiveRole, clearAuth } = useAuthStore();
-  const { notifications, unreadCount, markAllRead, markNotificationRead } = useUIStore();
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    markNotificationRead,
+    setNotifications,
+  } = useUIStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const router = useRouter();
+  const settingsPath =
+    user?.activeRole === "PROVIDER"
+      ? "/provider/settings"
+      : user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT"
+        ? "/admin"
+        : "/dashboard/settings";
+  const notificationsPath =
+    user?.activeRole === "PROVIDER"
+      ? "/provider/messages"
+      : user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT"
+        ? "/admin"
+        : "/dashboard/messages";
 
   const handleRoleSwitch = (role: UserRole) => {
     setActiveRole(role);
     router.push(rolePaths[role]);
     setProfileOpen(false);
+  };
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!user) {
+        return;
+      }
+
+      try {
+        const response = await notificationsApi.getAll({ page: 0, size: 8 });
+        const items = (response.data.content ?? []).map(
+          (notification: {
+            id: number;
+            title: string;
+            message: string;
+            read: boolean;
+            createdAt: string;
+            link?: string;
+          }) => ({
+            id: String(notification.id),
+            title: notification.title,
+            message: notification.message,
+            type: "info" as const,
+            read: notification.read,
+            createdAt: notification.createdAt,
+            link: notification.link,
+          }),
+        );
+        setNotifications(items);
+      } catch {
+        // The workspace should remain usable even when notifications fail to load.
+      }
+    };
+
+    void loadNotifications();
+  }, [setNotifications, user]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationsApi.markAllRead();
+    } catch {
+      // Fall back to the local optimistic state.
+    } finally {
+      markAllRead();
+    }
+  };
+
+  const handleNotificationOpen = async (notificationId: string) => {
+    try {
+      await notificationsApi.markRead(notificationId);
+    } catch {
+      // Fall back to the local optimistic state.
+    } finally {
+      markNotificationRead(notificationId);
+      setNotifOpen(false);
+    }
   };
 
   return (
@@ -77,7 +152,7 @@ export function TopBar() {
                 <div className="flex items-center justify-between border-b border-slate-200/35 px-4 py-3">
                   <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
                   {unreadCount > 0 && (
-                    <button onClick={markAllRead} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                    <button onClick={() => void handleMarkAllRead()} className="text-xs font-medium text-slate-500 hover:text-slate-900">
                       Mark all read
                     </button>
                   )}
@@ -89,10 +164,7 @@ export function TopBar() {
                     notifications.slice(0, 8).map((notification) => (
                       <button
                         key={notification.id}
-                        onClick={() => {
-                          markNotificationRead(notification.id);
-                          setNotifOpen(false);
-                        }}
+                        onClick={() => void handleNotificationOpen(notification.id)}
                         className="w-full border-b border-white/50 px-4 py-3 text-left last:border-b-0 hover:bg-white/40"
                       >
                         <div className="flex gap-3">
@@ -108,7 +180,7 @@ export function TopBar() {
                   )}
                 </div>
                 <div className="border-t border-slate-200/35 px-4 py-3">
-                  <Link href="/dashboard/notifications" onClick={() => setNotifOpen(false)} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                  <Link href={notificationsPath} onClick={() => setNotifOpen(false)} className="text-xs font-medium text-slate-500 hover:text-slate-900">
                     View all notifications
                   </Link>
                 </div>
@@ -169,7 +241,7 @@ export function TopBar() {
 
                 <div className="p-2">
                   <Link
-                    href="/dashboard/settings"
+                    href={settingsPath}
                     onClick={() => setProfileOpen(false)}
                     className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-sm text-slate-700 hover:bg-white/56"
                   >

@@ -24,23 +24,10 @@ import {
   type SocialFeedPostItem,
 } from "@/lib/api";
 import { SERVICE_CATEGORIES, USER_ROLES } from "@/lib/constants";
-import { demoProviders } from "@/lib/demo-data";
+import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
 import { formatRelativeTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
-
-interface ApiProviderResponse {
-  id: string;
-  name: string;
-  avatar?: string;
-  rating: number;
-  reviewCount: number;
-  verified: boolean;
-  category: string;
-  bio?: string;
-  tags?: string[];
-  availableNow?: boolean;
-}
 
 interface FeedComment {
   id: string;
@@ -108,80 +95,6 @@ function toFeedComment(comment: SocialCommentItem): FeedComment {
   };
 }
 
-function buildBaseComments(provider: ApiProviderResponse, index: number): FeedComment[] {
-  return [
-    {
-      id: `${provider.id}-comment-1`,
-      author: "A. Mokoena",
-      handle: "@amokoena",
-      text: `This content makes ${provider.name} feel like a real brand, not just a listing.`,
-      timeAgo: `${2 + index}h`,
-    },
-    {
-      id: `${provider.id}-comment-2`,
-      author: "N. Daniels",
-      handle: "@ndaniels",
-      text: "More businesses should post their actual process like this.",
-      timeAgo: `${5 + index}h`,
-    },
-  ];
-}
-
-function buildDemoFeedPost(provider: ApiProviderResponse, index: number): FeedPost {
-  const hashtags = provider.tags?.slice(0, 3).map((tag) => `#${tag.replace(/\s+/g, "")}`) ?? [];
-  const comments = buildBaseComments(provider, index);
-
-  return {
-    postId: `${provider.id}-post`,
-    providerId: provider.id,
-    name: provider.name,
-    avatar: provider.avatar,
-    rating: provider.rating,
-    reviewCount: provider.reviewCount,
-    verified: provider.verified,
-    category: provider.category,
-    caption:
-      provider.bio?.trim() ||
-      `${provider.name} is using the feed like a business social channel.`,
-    hashtags:
-      hashtags.length > 0
-        ? hashtags
-        : [
-            `#${provider.category.replace(/\s+/g, "")}`,
-            "#ServeHub",
-            "#BusinessContent",
-          ],
-    publishedAt: `${index + 1}h ago`,
-    mediaType: index % 2 === 0 ? "video" : "photo",
-    likes: Math.round(provider.reviewCount * 40 + provider.rating * 120 + index * 41),
-    commentsCount: comments.length + Math.max(6, Math.round(provider.reviewCount / 4)),
-    reposts: Math.round(provider.reviewCount * 6 + 14 + index * 9),
-    comments,
-    accent: FEED_BACKDROPS[index % FEED_BACKDROPS.length],
-    availableNow: true,
-    headline: provider.tags?.[0]
-      ? `${provider.tags[0]} behind the scenes`
-      : `${provider.category} content drop`,
-    likedByViewer: false,
-    repostedByViewer: false,
-    live: false,
-  };
-}
-
-function toDemoProviderResponse(provider: (typeof demoProviders)[number]): ApiProviderResponse {
-  return {
-    id: provider.id,
-    name: provider.name,
-    rating: provider.rating,
-    reviewCount: provider.reviews,
-    verified: provider.verified,
-    category: provider.category,
-    bio: provider.caption,
-    tags: [provider.neighborhood, "ServeHub"],
-    availableNow: true,
-  };
-}
-
 function buildLiveHashtags(post: SocialFeedPostItem) {
   return [
     `#${post.category.replace(/\s+/g, "")}`,
@@ -221,12 +134,24 @@ function toLiveFeedPost(post: SocialFeedPostItem, index: number): FeedPost {
   };
 }
 
+function toSampleFeedPost(post: (typeof EXPLORE_FEED_FIXTURES)[number], index: number): FeedPost {
+  return {
+    ...post,
+    comments: post.comments.map((comment) => ({ ...comment })),
+    accent: FEED_BACKDROPS[index % FEED_BACKDROPS.length],
+    likedByViewer: post.likedByViewer ?? false,
+    repostedByViewer: post.repostedByViewer ?? false,
+    live: false,
+  };
+}
+
 function BrowsePageContent() {
   const searchParams = useSearchParams();
   const { addToast } = useUIStore();
   const { user, isAuthenticated } = useAuthStore();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedSource, setFeedSource] = useState<"live" | "sample">("live");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [selectedCategory, setSelectedCategory] = useState(
@@ -242,25 +167,17 @@ function BrowsePageContent() {
       ? Number(searchParams.get("rating"))
       : 0,
   });
-  const isDemoMode = searchParams.get("demo") === "1";
   const canEngage = isAuthenticated && user?.activeRole === USER_ROLES.CUSTOMER;
-  const supportsAvailabilityFilter = isDemoMode;
+  const samplePosts = useMemo(
+    () => EXPLORE_FEED_FIXTURES.map((post, index) => toSampleFeedPost(post, index)),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
-      if (isDemoMode) {
-        if (!cancelled) {
-          setPosts(
-            demoProviders.map(toDemoProviderResponse).map(buildDemoFeedPost),
-          );
-          setLoading(false);
-        }
-        return;
-      }
-
       try {
         const response = await socialApi.getFeed({
           q: search.trim() || undefined,
@@ -268,11 +185,18 @@ function BrowsePageContent() {
           size: 40,
         });
         if (cancelled) return;
-        setPosts(response.data.map(toLiveFeedPost));
+        if (response.data.length > 0) {
+          setPosts(response.data.map(toLiveFeedPost));
+          setFeedSource("live");
+          return;
+        }
+
+        setPosts(samplePosts);
+        setFeedSource("sample");
       } catch {
         if (!cancelled) {
-          setPosts([]);
-          addToast({ type: "error", message: "Failed to load business feed" });
+          setPosts(samplePosts);
+          setFeedSource("sample");
         }
       } finally {
         if (!cancelled) {
@@ -286,7 +210,7 @@ function BrowsePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [addToast, isDemoMode, search, selectedCategory]);
+  }, [samplePosts, search, selectedCategory]);
 
   useEffect(() => {
     if (!activePostId) return;
@@ -308,10 +232,7 @@ function BrowsePageContent() {
         !selectedCategory ||
         post.category.toLowerCase() === selectedCategory.toLowerCase();
       const matchesVerified = !filters.verifiedOnly || post.verified;
-      const matchesAvailable =
-        !supportsAvailabilityFilter ||
-        !filters.availableToday ||
-        post.availableNow;
+      const matchesAvailable = !filters.availableToday || post.availableNow;
       const matchesRating = !filters.minRating || post.rating >= filters.minRating;
       return (
         matchesSearch &&
@@ -341,15 +262,14 @@ function BrowsePageContent() {
     });
 
     return filtered;
-  }, [filters, posts, search, selectedCategory, sortBy, supportsAvailabilityFilter]);
+  }, [filters, posts, search, selectedCategory, sortBy]);
 
   const activePost = posts.find((post) => post.postId === activePostId) ?? null;
   const activeFilterCount =
     Object.values(filters).filter((value) => value !== false && value !== 0)
       .length +
     (selectedCategory ? 1 : 0) +
-    (search ? 1 : 0) -
-    (supportsAvailabilityFilter || !filters.availableToday ? 0 : 1);
+    (search ? 1 : 0);
 
   const requireCustomer = () => {
     if (canEngage) return true;
@@ -445,7 +365,6 @@ function BrowsePageContent() {
   };
 
   const submitComment = async (postId: string) => {
-    if (!requireCustomer()) return;
     const draft = commentDrafts[postId]?.trim();
     if (!draft) {
       addToast({ type: "info", message: "Write a comment before posting." });
@@ -456,6 +375,7 @@ function BrowsePageContent() {
     if (!post) return;
 
     if (post.live && post.offeringId) {
+      if (!requireCustomer()) return;
       try {
         const response = await socialApi.addComment(post.offeringId, draft);
         updatePost(postId, (current) => ({
@@ -477,7 +397,7 @@ function BrowsePageContent() {
     const author =
       user?.firstName && user?.lastName
         ? `${user.firstName} ${user.lastName}`
-        : user?.email ?? "Customer";
+        : user?.fullName ?? user?.email ?? "Guest";
     const handle = `@${splitName(author).firstName.toLowerCase()}`;
     updatePost(postId, (current) => ({
       ...current,
@@ -494,7 +414,10 @@ function BrowsePageContent() {
       commentsCount: current.commentsCount + 1,
     }));
     setCommentDrafts((current) => ({ ...current, [postId]: "" }));
-    addToast({ type: "success", message: "Comment posted." });
+    addToast({
+      type: "success",
+      message: post.live ? "Comment posted." : "Sample comment added.",
+    });
   };
 
   return (
@@ -550,14 +473,17 @@ function BrowsePageContent() {
             </div>
           </div>
           <div className="mt-3 rounded-[1.25rem] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white/72">
-            {isDemoMode
-              ? "Investor demo mode is active. This feed is running on seeded data, so it stays clickable without the backend."
-              : canEngage
-                ? "You are in customer mode. You can like, comment, and repost posts in this feed."
-                : isAuthenticated
-                  ? "This account can browse, but only customer accounts can engage."
-                  : "Browse freely. Sign in as a customer to like, comment, or repost posts."}
+            {canEngage
+              ? "You are in customer mode. You can like, comment, and repost posts in this feed."
+              : isAuthenticated
+                ? "This account can browse, but only customer accounts can engage."
+                : "Browse freely. Sign in as a customer to like, comment, or repost posts."}
           </div>
+          {feedSource === "sample" ? (
+            <div className="mt-3 rounded-[1.25rem] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+              The live explore feed is still warming up, so sample business posts are filling the stream for now. All feed actions stay clickable locally.
+            </div>
+          ) : null}
           <AnimatePresence>
             {filtersOpen ? (
               <motion.div
@@ -622,21 +548,19 @@ function BrowsePageContent() {
                       />
                       Verified
                     </label>
-                    {supportsAvailabilityFilter ? (
-                      <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80">
-                        <input
-                          type="checkbox"
-                          checked={filters.availableToday}
-                          onChange={(event) =>
-                            setFilters((current) => ({
-                              ...current,
-                              availableToday: event.target.checked,
-                            }))
-                          }
-                        />
-                        Available now
-                      </label>
-                    ) : null}
+                    <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={filters.availableToday}
+                        onChange={(event) =>
+                          setFilters((current) => ({
+                            ...current,
+                            availableToday: event.target.checked,
+                          }))
+                        }
+                      />
+                      Available now
+                    </label>
                   </div>
                 </div>
               </motion.div>
@@ -720,6 +644,11 @@ function BrowsePageContent() {
                       <Badge className="rounded-full bg-white/12 text-white hover:bg-white/12">
                         {compactCount(post.reviewCount)} reviews
                       </Badge>
+                      {!post.live ? (
+                        <Badge className="rounded-full border border-white/12 bg-white/10 text-white hover:bg-white/10">
+                          Sample post
+                        </Badge>
+                      ) : null}
                     </div>
                     <h2 className="max-w-sm text-3xl font-semibold leading-tight sm:text-4xl">
                       {post.headline}
@@ -841,9 +770,11 @@ function BrowsePageContent() {
               </div>
               <div className="border-t border-white/10 px-5 py-4">
                 <div className="mb-3 text-sm text-white/65">
-                  {canEngage
-                    ? "Comment as customer"
-                    : "Only customer accounts can post comments"}
+                  {activePost.live
+                    ? canEngage
+                      ? "Comment as customer"
+                      : "Only customer accounts can post comments"
+                    : "Sample thread. Comments stay local so you can try the flow."}
                 </div>
                 <div className="flex gap-3">
                   <Input

@@ -19,8 +19,39 @@ const schema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Enter a valid email address"),
   phone: z.string().regex(/^0[67]\d{8}$/, "Enter a valid South African phone number"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum([USER_ROLES.CUSTOMER, USER_ROLES.PROVIDER]),
+  city: z.string().optional(),
+  serviceRadiusKm: z.number().optional(),
+  bio: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.role !== USER_ROLES.PROVIDER) {
+    return;
+  }
+
+  if (!value.city?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "City is required for providers",
+      path: ["city"],
+    });
+  }
+
+  if (!value.serviceRadiusKm || Number.isNaN(value.serviceRadiusKm) || value.serviceRadiusKm < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter a valid service radius",
+      path: ["serviceRadiusKm"],
+    });
+  }
+
+  if (!value.bio?.trim() || value.bio.trim().length < 20) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Bio must be at least 20 characters",
+      path: ["bio"],
+    });
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -51,7 +82,7 @@ function RegisterPageContent() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { role: initialRole },
+    defaultValues: { role: initialRole, serviceRadiusKm: 15 },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -61,7 +92,7 @@ function RegisterPageContent() {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       setAuth(user, accessToken, refreshToken);
-      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/";
+      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/dashboard";
       router.replace(dest);
     } catch (error: unknown) {
       addToast({ type: "error", message: getErrorMessage(error) });
@@ -167,6 +198,38 @@ function RegisterPageContent() {
             </div>
             <Input label="Email address" type="email" placeholder="you@example.com" error={errors.email?.message} {...register("email")} />
             <Input label="Phone number" type="tel" placeholder="0712345678" error={errors.phone?.message} {...register("phone")} />
+            {selectedRole === USER_ROLES.PROVIDER && (
+              <>
+                <Input label="City" placeholder="Sandton" error={errors.city?.message} {...register("city")} />
+                <Input
+                  label="Service radius (km)"
+                  type="number"
+                  min={1}
+                  max={200}
+                  placeholder="15"
+                  error={errors.serviceRadiusKm?.message}
+                  {...register("serviceRadiusKm", {
+                    setValueAs: (value) => value === "" ? undefined : Number(value),
+                  })}
+                />
+                <div className="space-y-1.5">
+                  <label htmlFor="provider-bio" className="block text-sm font-medium text-slate-700">
+                    Provider bio
+                  </label>
+                  <textarea
+                    id="provider-bio"
+                    rows={4}
+                    placeholder="Tell customers what you specialize in, the neighborhoods you cover, and why they should book you."
+                    className="liquid-panel glass-hairline surface-ring w-full rounded-[22px] border border-white/65 px-3.5 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-[0_10px_24px_rgba(64,87,130,0.12)] focus:bg-white/85 focus:outline-none focus:ring-2 focus:ring-sky-500/25 focus:border-white"
+                    {...register("bio")}
+                  />
+                  {errors.bio && <p className="text-xs text-red-600">{errors.bio.message}</p>}
+                  {!errors.bio && (
+                    <p className="text-xs text-slate-500">This shows up on your provider profile after verification.</p>
+                  )}
+                </div>
+              </>
+            )}
             <Input
               label="Password"
               type={showPass ? "text" : "password"}

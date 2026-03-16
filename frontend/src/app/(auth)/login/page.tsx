@@ -15,7 +15,7 @@ import { useUIStore } from "@/store/ui.store";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -49,7 +49,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
       setAuth(user, accessToken, refreshToken);
-      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/";
+      const dest = user.roles.includes("ADMIN") ? "/admin" : user.roles.includes("PROVIDER") ? "/provider" : "/dashboard";
       router.replace(dest);
     } catch (error: unknown) {
       addToast({ type: "error", message: getErrorMessage(error) });

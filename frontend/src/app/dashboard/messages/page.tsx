@@ -77,7 +77,7 @@ export default function MessagesPage() {
 
   if (selectedThread) {
     return (
-      <DashboardLayout>
+      <DashboardLayout requiredRole="CUSTOMER">
         <div className="h-full">
           <Button
             variant="ghost"
@@ -97,7 +97,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout requiredRole="CUSTOMER">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -16,6 +16,13 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
+  const fallbackPath =
+    user?.activeRole === "PROVIDER"
+      ? "/provider"
+      : user?.activeRole === "ADMIN" || user?.activeRole === "SUPPORT"
+        ? "/admin"
+        : "/dashboard";
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/login");
@@ -23,9 +30,9 @@ export function DashboardLayout({ children, requiredRole }: DashboardLayoutProps
     }
 
     if (requiredRole && user?.activeRole !== requiredRole) {
-      router.replace(user?.activeRole === "CUSTOMER" ? "/" : "/dashboard");
+      router.replace(fallbackPath);
     }
-  }, [isAuthenticated, requiredRole, router, user]);
+  }, [fallbackPath, isAuthenticated, requiredRole, router, user]);
 
   if (!isAuthenticated) {
     return null;
