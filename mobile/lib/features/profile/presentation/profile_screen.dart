@@ -5,6 +5,14 @@ import 'package:serveify/core/demo/customer_demo_data.dart';
 import 'package:serveify/core/theme/app_theme.dart';
 import 'package:serveify/features/auth/providers/auth_provider.dart';
 
+const _softShadow = [
+  BoxShadow(
+    color: Color(0x0A000000),
+    blurRadius: 20,
+    offset: Offset(0, 4),
+  ),
+];
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -15,7 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     final displayName = email.split('@').first.replaceAll('.', ' ').split(' ').map(_capitalise).join(' ');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.darkBackground,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -23,7 +31,7 @@ class ProfileScreen extends ConsumerWidget {
               bottom: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Text('Profile', style: Theme.of(context).textTheme.headlineMedium),
+                child: Text('Profile', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.darkTextPrimary)),
               ),
             ),
           ),
@@ -32,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: AppColors.darkSurface,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: _softShadow,
                 ),
@@ -44,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: AppColors.accentLight,
+                          color: AppColors.accent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: Center(
@@ -59,14 +67,14 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.darkTextPrimary)),
                       const SizedBox(height: 4),
-                      Text(email, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                      Text(email, style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13)),
                       const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.accentLight,
+                          color: AppColors.accent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -102,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
                 child: Ink(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.06),
+                    color: AppColors.error.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Row(
@@ -124,7 +132,7 @@ class ProfileScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
-                child: Text('Serveify v1.0.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                child: Text('Serveify v1.0.0', style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 12)),
               ),
             ),
           ),
@@ -147,12 +155,12 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w700),
+          style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: AppColors.darkSurface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: _softShadow,
           ),
@@ -164,7 +172,7 @@ class _ProfileSection extends StatelessWidget {
                   if (entry.key < items.length - 1)
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: Divider(height: 1, color: AppColors.divider),
+                      child: Divider(height: 1, color: AppColors.darkBorder),
                     ),
                 ],
               );
@@ -192,16 +200,16 @@ class _ProfileRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
+              color: AppColors.darkBackground,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: AppColors.textSecondary, size: 20),
+            child: Icon(icon, color: AppColors.darkTextSecondary, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.darkTextPrimary)),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.darkTextSecondary),
         ],
       ),
     );
@@ -243,11 +251,3 @@ String _initials(String name) {
   if (parts.isEmpty) return '?';
   return parts.map((part) => part[0].toUpperCase()).join();
 }
-
-const _softShadow = <BoxShadow>[
-  BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
-  ),
-];

@@ -4,6 +4,14 @@ import 'package:serveify/core/demo/customer_demo_data.dart';
 import 'package:serveify/core/network/api_client.dart';
 import 'package:serveify/core/theme/app_theme.dart';
 
+const _softShadow = [
+  BoxShadow(
+    color: Color(0x0A000000),
+    blurRadius: 20,
+    offset: Offset(0, 4),
+  ),
+];
+
 final _bookingsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.read(dioProvider);
   try {
@@ -52,7 +60,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     final bookingsAsync = ref.watch(_bookingsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.darkBackground,
       body: RefreshIndicator(
         color: AppColors.accent,
         onRefresh: () async => ref.invalidate(_bookingsProvider),
@@ -72,7 +80,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     bottom: false,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Text('Bookings', style: Theme.of(context).textTheme.headlineMedium),
+                      child: Text('Bookings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.darkTextPrimary)),
                     ),
                   ),
                 ),
@@ -98,7 +106,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: AppColors.darkSurface,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: _softShadow,
                       ),
@@ -109,7 +117,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                           children: [
                             Text(
                               selected['service']?.toString() ?? 'Booking',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.darkTextPrimary),
                             ),
                             const SizedBox(height: 14),
                             _MetaRow(icon: Icons.calendar_today_rounded, text: _formatDate(selected['scheduledAt']?.toString() ?? '')),
@@ -123,12 +131,13 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surfaceAlt,
+                                  color: AppColors.darkBackground,
                                   borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.darkBorder),
                                 ),
                                 child: const Text(
                                   'No messages yet for this booking.',
-                                  style: TextStyle(color: AppColors.textMuted),
+                                  style: TextStyle(color: AppColors.darkTextSecondary),
                                 ),
                               )
                             else
@@ -143,8 +152,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                         constraints: const BoxConstraints(maxWidth: 280),
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                         decoration: BoxDecoration(
-                                          color: own ? AppColors.accentLight : AppColors.surfaceAlt,
+                                          color: own ? AppColors.accent.withValues(alpha: 0.8) : AppColors.darkBackground,
                                           borderRadius: BorderRadius.circular(16),
+                                          border: own ? null : Border.all(color: AppColors.darkBorder),
                                         ),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,15 +164,20 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w700,
-                                                color: AppColors.textMuted,
+                                                color: AppColors.darkTextSecondary,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
-                                            Text(message['text']?.toString() ?? ''),
+                                            Text(
+                                              message['text']?.toString() ?? '',
+                                              style: TextStyle(
+                                                color: own ? Colors.white : AppColors.darkTextPrimary,
+                                              ),
+                                            ),
                                             const SizedBox(height: 6),
                                             Text(
                                               message['time']?.toString() ?? '',
-                                              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                              style: const TextStyle(fontSize: 11, color: AppColors.darkTextSecondary),
                                             ),
                                           ],
                                         ),
@@ -183,20 +198,21 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                 return ActionChip(
                                   label: Text(text),
                                   onPressed: () => _messageController.text = text,
-                                  backgroundColor: AppColors.surfaceAlt,
+                                  backgroundColor: AppColors.darkBackground,
                                   labelStyle: const TextStyle(
-                                    color: AppColors.textSecondary,
+                                    color: AppColors.darkTextSecondary,
                                     fontWeight: FontWeight.w600,
                                   ),
-                                  side: BorderSide.none,
+                                  side: BorderSide(color: AppColors.darkBorder),
                                 );
                               }).toList(),
                             ),
                             const SizedBox(height: 12),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceAlt,
+                                color: AppColors.darkBackground,
                                 borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.darkBorder),
                               ),
                               child: Row(
                                 children: [
@@ -259,7 +275,7 @@ class _BookingCard extends StatelessWidget {
       onTap: onTap,
       child: Ink(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.darkSurface,
           borderRadius: BorderRadius.circular(20),
           border: selected ? Border.all(color: AppColors.accent.withValues(alpha: 0.24)) : null,
           boxShadow: _softShadow,
@@ -286,12 +302,12 @@ class _BookingCard extends StatelessWidget {
                       booking['service']?.toString() ?? 'Service',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.darkTextPrimary),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       booking['provider']?.toString() ?? 'Provider',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
                     ),
                   ],
                 ),
@@ -327,12 +343,12 @@ class _MetaRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppColors.textMuted),
+          Icon(icon, size: 16, color: AppColors.darkTextSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
             ),
           ),
         ],
@@ -371,11 +387,3 @@ String _formatDate(String value) {
     return value;
   }
 }
-
-const _softShadow = <BoxShadow>[
-  BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
-  ),
-];
