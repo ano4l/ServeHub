@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Filter, Search, SlidersHorizontal, X } from "lucide-react";
+import { AppTabs } from "@/components/navigation/AppTabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -278,18 +279,23 @@ function BrowsePageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_30%),linear-gradient(180deg,#fafaf9_0%,#f5f5f4_48%,#fafaf9_100%)]">
-      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
-        <div className="rounded-[28px] border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(28,25,23,0.08)] backdrop-blur">
+    <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
+      <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6">
+        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
+          <AppTabs />
+        </div>
+        
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/8 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.45)] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100/55">
                 Explore
               </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-stone-900 sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white sm:text-3xl">
                 Find the right provider without losing the feed.
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-stone-500">
+              <p className="mt-2 max-w-2xl text-sm text-white/70">
                 Search stays compact, quick filters stay one tap away, and the deeper controls open
                 in their own panel instead of swallowing the page.
               </p>

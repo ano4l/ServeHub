@@ -61,6 +61,9 @@ export default function ProfileEntryPage() {
             <div className="text-lg font-semibold">{DEMO_CUSTOMER_PROFILE_FIXTURE.fullName}</div>
             <div className="text-sm text-white/70">{DEMO_CUSTOMER_PROFILE_FIXTURE.email}</div>
             <div className="text-sm text-white/70">{DEMO_CUSTOMER_PROFILE_FIXTURE.phoneNumber}</div>
+            <div className="text-sm text-white/50">Member since {DEMO_CUSTOMER_PROFILE_FIXTURE.memberSince}</div>
+            <div className="text-sm text-cyan-100">{DEMO_CUSTOMER_PROFILE_FIXTURE.totalBookings} bookings completed</div>
+            <div className="text-sm text-white/60">📍 {DEMO_CUSTOMER_PROFILE_FIXTURE.city}</div>
           </div>
           <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
             <Button size="lg" className="h-12 w-full sm:w-auto" onClick={() => router.push("/login")}>

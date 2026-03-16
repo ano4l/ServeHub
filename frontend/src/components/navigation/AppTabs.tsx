@@ -35,7 +35,13 @@ const TABS = [
 export function AppTabs() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+  // Hide navigation on login, register, dashboard, and provider pages
+  if (
+    pathname.startsWith("/login") || 
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/provider")
+  ) {
     return null;
   }
 

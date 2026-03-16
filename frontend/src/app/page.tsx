@@ -35,6 +35,7 @@ import {
 } from "@/lib/app-home-fixtures";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
+import { generateImageUrl, generateFallbackGradient } from "@/lib/image-utils";
 
 interface AreaPoint {
   label: string;
@@ -282,19 +283,21 @@ export default function HomePage() {
     () => false,
   );
 
-  const [addresses, setAddresses] = useState<HomeAddressOption[]>(fallbackAddresses);
-  const [address, setAddress] = useState(fallbackAddresses[0]?.value ?? "");
+  // Form states
+  const [address, setAddress] = useState("123 Main Street, Sandton");
   const [addressSuggestionsOpen, setAddressSuggestionsOpen] = useState(false);
   const [serviceQuery, setServiceQuery] = useState("");
-  const [recommendedServices, setRecommendedServices] =
-    useState<RecommendedService[]>(fallbackServices);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
-    fallbackServices[0]?.id ?? null,
-  );
-  const [currentBookings, setCurrentBookings] =
-    useState<HomeBookingCard[]>(fallbackBookings);
-  const [recentOrders, setRecentOrders] = useState<HomeOrderCard[]>(fallbackOrders);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [loadedServiceImages, setLoadedServiceImages] = useState<Set<number>>(new Set());
+
+  // Data states
+  const [addresses, setAddresses] = useState<HomeAddressOption[]>([]);
+  const [recommendedServices, setRecommendedServices] = useState<RecommendedService[]>([]);
+  const [liveBookings, setLiveBookings] = useState<HomeBookingCard[]>([]);
+  const [completed, setCompleted] = useState<HomeOrderCard[]>([]);
+  const [currentBookings, setCurrentBookings] = useState<HomeBookingCard[]>([]);
+  const [recentOrders, setRecentOrders] = useState<HomeOrderCard[]>([]);
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated) {
@@ -492,6 +495,10 @@ export default function HomePage() {
     }
 
     router.push("/explore");
+  };
+
+  const handleServiceImageLoad = (index: number) => {
+    setLoadedServiceImages(prev => new Set(prev).add(index));
   };
 
   const homeName = user?.firstName ?? "there";
@@ -813,7 +820,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {filteredServices.slice(0, 8).map((service) => (
+              {filteredServices.slice(0, 8).map((service, index) => (
                 <button
                   key={service.id}
                   type="button"
@@ -821,6 +828,25 @@ export default function HomePage() {
                   className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}
                 >
                   <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.94),rgba(8,15,28,0.18))]" />
+                  
+                  {/* Service Image */}
+                  <div className="absolute inset-0">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${generateFallbackGradient(service.category)}`} />
+                    <img
+                      src={generateImageUrl(service.category, index, { width: 400, height: 300 })}
+                      alt={`${service.category} service`}
+                      className={cn(
+                        "absolute inset-0 h-full w-full object-cover transition-all duration-500",
+                        loadedServiceImages.has(index) ? "opacity-30" : "opacity-0"
+                      )}
+                      loading="lazy"
+                      onLoad={() => handleServiceImageLoad(index)}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  
                   <div className="relative">
                     <div className="flex items-center justify-between">
                       <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">
