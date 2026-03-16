@@ -59,13 +59,5 @@ export default function ProfileEntryPage() {
         </div>
       </div>
     </div>
-              onClick={() => router.push("/explore")}
-            >
-              Keep exploring
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

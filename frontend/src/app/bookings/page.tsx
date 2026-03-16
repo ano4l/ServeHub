@@ -57,35 +57,14 @@ export default function BookingsEntryPage() {
             </Button>
             <Button
               variant="outline"
-              return (
-                <div className="min-h-screen bg-[#080808] text-white px-4 py-4 sm:px-6">
-                  <div className="mx-auto max-w-4xl space-y-6">
-                    <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-3 backdrop-blur-xl">
-                      <AppTabs />
-                    </div>
-
-                    <div className="rounded-[2rem] border border-white/10 bg-black/28 p-8 text-center backdrop-blur-xl">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-white text-black">
-                        <CalendarCheck2 className="h-8 w-8" />
-                      </div>
-                      <h1 className="mt-6 text-3xl font-semibold">Demo Bookings</h1>
-                      <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/84">
-                        In demo mode, you can view sample bookings, timelines, and chat threads. All actions are simulated.
-                      </p>
-                      <div className="mt-6 flex flex-wrap justify-center gap-3">
-                        <Button size="lg" onClick={() => alert('Demo: View bookings!')}>
-                          <CalendarCheck2 className="h-4 w-4" />
-                          View demo bookings
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          onClick={() => router.push("/explore")}
-                        >
-                          Browse providers first
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
+              size="lg"
+              onClick={() => router.push("/explore")}
+            >
+              Browse providers first
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

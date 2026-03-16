@@ -578,7 +578,7 @@ function demoProviders(): ProviderListItem[] {
   return HOME_SERVICE_FIXTURES.map((service, index) => ({
     id: service.providerId,
     name: service.providerName,
-    avatar: service.avatar || `https://randomuser.me/api/portraits/men/${index + 10}.jpg`,
+    avatar: `https://randomuser.me/api/portraits/men/${index + 10}.jpg`,
     rating: service.rating,
     reviewCount: service.reviews,
     distanceKm: Number((1.2 + index * 1.4).toFixed(1)),
@@ -650,7 +650,6 @@ function demoSocialFeed(): SocialFeedPostItem[] {
       content: comment.text,
       createdAt: new Date().toISOString(),
     })),
-    image: post.image || `https://source.unsplash.com/600x800/?service,${post.category},${index}`,
   }));
 }
 
