@@ -12,7 +12,6 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import { AppTabs } from "@/components/navigation/AppTabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -511,11 +510,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#07111f] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
       <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-4 sm:px-6">
-        <div className="sticky top-0 z-40 rounded-[1.5rem] border border-white/10 bg-black/50 p-3 backdrop-blur-xl">
-          <AppTabs />
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">
               Homepage

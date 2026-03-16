@@ -28,24 +28,39 @@ interface AuthState {
   clearAuth: () => void;
 }
 
+const DEMO_USER: User = {
+  id: "demo-customer-1",
+  email: "demo@servehub.local",
+  fullName: "Demo Customer",
+  firstName: "Demo",
+  lastName: "Customer",
+  phone: "+27 00 000 0000",
+  roles: ["CUSTOMER"],
+  activeRole: "CUSTOMER",
+  emailVerified: true,
+  phoneVerified: true,
+  createdAt: new Date().toISOString(),
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      isAuthenticated: false,
+      user: DEMO_USER,
+      accessToken: "demo-token",
+      refreshToken: "demo-refresh-token",
+      isAuthenticated: true,
       setAuth: (user, accessToken, refreshToken) =>
         set({ user, accessToken, refreshToken, isAuthenticated: true }),
       setUser: (user) => set({ user }),
       setActiveRole: (role) =>
         set((s) => s.user ? { user: { ...s.user, activeRole: role } } : {}),
       clearAuth: () => {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-        }
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+        set({
+          user: DEMO_USER,
+          accessToken: "demo-token",
+          refreshToken: "demo-refresh-token",
+          isAuthenticated: true,
+        });
       },
     }),
     {

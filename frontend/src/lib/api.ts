@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 
 import { API_BASE_URL } from "./constants";
 import type { BookingStatus, ProviderStatus, UserRole } from "./constants";
 import type { User } from "@/store/auth.store";
+import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
+import { HOME_SERVICE_FIXTURES, HOME_BOOKING_FIXTURES } from "@/lib/app-home-fixtures";
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -60,6 +62,8 @@ api.interceptors.response.use(
 );
 
 type ApiResult<T> = Promise<{ data: T }>;
+
+const DEMO_MODE = true;
 
 interface AuthApiResponse {
   userId: number;
@@ -552,6 +556,95 @@ function toSocialReactionToggleItem(item: BackendSocialReaction): SocialReaction
   };
 }
 
+const DEMO_PROVIDER_PROFILE: ProviderProfileItem = {
+  id: "demo-provider-1",
+  userId: "demo-user-1",
+  fullName: "Demo Provider",
+  email: "provider@servehub.local",
+  city: "Sandton",
+  bio: "Demo provider profile used while API integration is disabled.",
+  serviceRadiusKm: 25,
+  verificationStatus: "VERIFIED",
+  averageRating: 4.8,
+  reviewCount: 128,
+  completionRate: 97,
+  responseTimeMinutes: 12,
+  profileImageUrl: undefined,
+  latitude: -26.1073,
+  longitude: 28.0539,
+};
+
+function demoProviders(): ProviderListItem[] {
+  return HOME_SERVICE_FIXTURES.map((service, index) => ({
+    id: service.providerId,
+    name: service.providerName,
+    avatar: undefined,
+    rating: service.rating,
+    reviewCount: service.reviews,
+    distanceKm: Number((1.2 + index * 1.4).toFixed(1)),
+    startingPrice: Number(service.priceLabel.replace(/[^\d.]/g, "")) || undefined,
+    verified: true,
+    category: service.category,
+    responseTime: `${12 + index * 3} min`,
+    completionRate: 95 - index,
+    bio: service.description,
+    tags: service.tags,
+    availableNow: service.availableNow,
+    city: service.neighborhood,
+    serviceRadiusKm: 20,
+    verificationStatus: "VERIFIED",
+  }));
+}
+
+function demoBookings(): BookingListItem[] {
+  const statuses: BookingStatus[] = ["REQUESTED", "ACCEPTED", "IN_PROGRESS", "COMPLETED"];
+  return HOME_BOOKING_FIXTURES.map((booking, index) => ({
+    id: booking.id,
+    reference: `BK-${1000 + index}`,
+    status: statuses[index % statuses.length],
+    provider: { id: `provider-${index}`, name: booking.provider },
+    customer: { id: "demo-customer-1", name: "Demo Customer" },
+    service: booking.service,
+    serviceOfferingId: `offering-${index}`,
+    scheduledAt: new Date(Date.now() + index * 60 * 60 * 1000).toISOString(),
+    address: booking.address,
+    notes: "Demo booking generated locally",
+    price: 350 + index * 140,
+    cancelledReason: undefined,
+    createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
+    bookingType: "AT_CUSTOMER",
+  }));
+}
+
+function demoSocialFeed(): SocialFeedPostItem[] {
+  return EXPLORE_FEED_FIXTURES.map((post) => ({
+    id: post.postId,
+    providerId: post.providerId,
+    providerName: post.name,
+    providerAvatarUrl: post.avatar,
+    category: post.category,
+    serviceName: post.headline,
+    caption: post.caption,
+    city: post.city ?? "Sandton",
+    verified: post.verified,
+    rating: post.rating,
+    reviewCount: post.reviewCount,
+    likes: post.likes,
+    comments: post.commentsCount,
+    reposts: post.reposts,
+    likedByViewer: post.likedByViewer ?? false,
+    repostedByViewer: post.repostedByViewer ?? false,
+    commentPreview: post.comments.map((comment) => ({
+      id: comment.id,
+      offeringId: post.postId,
+      authorId: comment.handle.replace("@", ""),
+      authorName: comment.author,
+      content: comment.text,
+      createdAt: new Date().toISOString(),
+    })),
+  }));
+}
+
 export default api;
 
 export const authApi = {
@@ -588,14 +681,24 @@ export const authApi = {
 
 export const providersApi = {
   async getAll(params?: ProviderSearchParams): ApiResult<{ content: ProviderListItem[] }> {
+    if (DEMO_MODE) {
+      void params;
+      return { data: { content: demoProviders() } };
+    }
     const { data } = await api.get<{ content?: BackendProvider[] }>("/providers", { params });
     return { data: { content: (data.content ?? []).map(toProviderListItem) } };
   },
   async getById(id: string): ApiResult<ProviderProfileItem> {
+    if (DEMO_MODE) {
+      return { data: { ...DEMO_PROVIDER_PROFILE, id, fullName: `Provider ${id}` } };
+    }
     const { data } = await api.get<BackendProvider>(`/providers/${id}`);
     return { data: toProviderProfileItem(data) };
   },
   async getProfile(): ApiResult<ProviderProfileItem> {
+    if (DEMO_MODE) {
+      return { data: DEMO_PROVIDER_PROFILE };
+    }
     const { data } = await api.get<BackendProvider>("/providers/me");
     return { data: toProviderProfileItem(data) };
   },
@@ -608,6 +711,20 @@ export const providersApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   async getOfferings(providerId: string): ApiResult<ServiceOfferingItem[]> {
+    if (DEMO_MODE) {
+      return {
+        data: HOME_SERVICE_FIXTURES.map((service, index) => ({
+          id: `demo-offering-${index}`,
+          providerId,
+          providerName: service.providerName,
+          category: service.category,
+          serviceName: service.title,
+          pricingType: "FIXED",
+          price: Number(service.priceLabel.replace(/[^\d.]/g, "")) || 450,
+          estimatedDurationMinutes: 60 + index * 15,
+        })),
+      };
+    }
     const { data } = await api.get<BackendServiceOffering[]>(
       `/catalog/services/providers/${providerId}/offerings`,
     );
@@ -638,11 +755,19 @@ export const catalogApi = {
 
 export const bookingsApi = {
   async getAll(params?: BookingFilterParams): ApiResult<{ content: BookingListItem[] }> {
+    if (DEMO_MODE) {
+      void params;
+      return { data: { content: demoBookings() } };
+    }
     void params;
     const { data } = await api.get<BackendBooking[]>("/bookings");
     return { data: { content: data.map(toBookingListItem) } };
   },
   async getById(id: string): ApiResult<BookingListItem> {
+    if (DEMO_MODE) {
+      const match = demoBookings().find((booking) => booking.id === id) ?? demoBookings()[0];
+      return { data: { ...match, id } };
+    }
     const { data } = await api.get<BackendBooking>(`/bookings/${id}`);
     return { data: toBookingListItem(data) };
   },
@@ -683,6 +808,17 @@ export const messagesApi = {
 
 export const customerApi = {
   async getProfile(): ApiResult<CustomerProfileItem> {
+    if (DEMO_MODE) {
+      return {
+        data: {
+          id: "demo-customer-1",
+          fullName: "Demo Customer",
+          email: "demo@servehub.local",
+          phoneNumber: "+27 00 000 0000",
+          avatarUrl: undefined,
+        },
+      };
+    }
     const { data } = await api.get<BackendCustomerProfile>("/customers/me");
     return { data: toCustomerProfileItem(data) };
   },
@@ -696,6 +832,26 @@ export const customerApi = {
     return { data: toCustomerProfileItem(response.data) };
   },
   async getAddresses(): ApiResult<CustomerAddressItem[]> {
+    if (DEMO_MODE) {
+      return {
+        data: [
+          {
+            id: "demo-address-1",
+            label: "Home",
+            value: "83 Rivonia Road, Sandton",
+            note: "Main gate",
+            defaultAddress: true,
+          },
+          {
+            id: "demo-address-2",
+            label: "Office",
+            value: "129 Rivonia Road, Sandown",
+            note: "Reception",
+            defaultAddress: false,
+          },
+        ],
+      };
+    }
     const { data } = await api.get<BackendCustomerAddress[]>("/customers/me/addresses");
     return { data: data.map(toCustomerAddressItem) };
   },
@@ -762,6 +918,9 @@ export const socialApi = {
     q?: string;
     size?: number;
   }): ApiResult<SocialFeedPostItem[]> {
+    if (DEMO_MODE) {
+      return { data: demoSocialFeed() };
+    }
     const { data } = await api.get<BackendSocialFeedPost[]>("/social/feed", { params });
     return { data: data.map(toSocialFeedPostItem) };
   },
@@ -812,7 +971,25 @@ export const disputesApi = {
 };
 
 export const notificationsApi = {
-  getAll: (params?: object) => api.get("/notifications", { params }),
+  getAll: (params?: object) => {
+    if (DEMO_MODE) {
+      void params;
+      return Promise.resolve({
+        data: {
+          content: [
+            {
+              id: "demo-notif-1",
+              title: "Booking update",
+              message: "Your demo booking is on the way.",
+              read: false,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return api.get("/notifications", { params });
+  },
   markRead: (id: string) => api.patch(`/notifications/${id}/read`),
   markAllRead: () => api.patch("/notifications/read-all"),
   getPrefs: () => api.get("/notifications/preferences"),
@@ -889,11 +1066,60 @@ export const adminApi = {
 
 export const walletApi = {
   async getBalance(): ApiResult<BackendWalletBalance> {
+    if (DEMO_MODE) {
+      return {
+        data: {
+          available: 5240,
+          pending: 740,
+          totalEarnings: 34120,
+          thisMonth: 6120,
+        },
+      };
+    }
     const { data } = await api.get<BackendWalletBalance>("/wallet/balance");
     return { data };
   },
-  getTransactions: (params?: object) => api.get("/wallet/transactions", { params }),
-  getPayouts: (params?: object) => api.get("/wallet/payouts", { params }),
+  getTransactions: (params?: object) => {
+    if (DEMO_MODE) {
+      void params;
+      return Promise.resolve({
+        data: {
+          content: [
+            {
+              id: 1,
+              type: "EARNING",
+              amount: 850,
+              reference: "DEMO-TXN-001",
+              description: "Demo payout credit",
+              balanceAfter: 5240,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return api.get("/wallet/transactions", { params });
+  },
+  getPayouts: (params?: object) => {
+    if (DEMO_MODE) {
+      void params;
+      return Promise.resolve({
+        data: {
+          content: [
+            {
+              id: 1,
+              type: "PAYOUT",
+              amount: 1500,
+              reference: "DEMO-PO-001",
+              description: "Demo payout request",
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return api.get("/wallet/payouts", { params });
+  },
   requestPayout: (amount: number) => api.post("/wallet/payouts", { amount }),
 };
 

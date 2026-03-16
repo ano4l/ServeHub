@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users, CalendarCheck, TrendingUp, AlertTriangle, ShieldCheck, Star, MessageSquare, ArrowRight, BarChart3, FileText } from "lucide-react";
