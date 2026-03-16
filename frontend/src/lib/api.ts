@@ -578,7 +578,7 @@ function demoProviders(): ProviderListItem[] {
   return HOME_SERVICE_FIXTURES.map((service, index) => ({
     id: service.providerId,
     name: service.providerName,
-    avatar: undefined,
+    avatar: service.avatar || `https://randomuser.me/api/portraits/men/${index + 10}.jpg`,
     rating: service.rating,
     reviewCount: service.reviews,
     distanceKm: Number((1.2 + index * 1.4).toFixed(1)),
@@ -602,8 +602,16 @@ function demoBookings(): BookingListItem[] {
     id: booking.id,
     reference: `BK-${1000 + index}`,
     status: statuses[index % statuses.length],
-    provider: { id: `provider-${index}`, name: booking.provider },
-    customer: { id: "demo-customer-1", name: "Demo Customer" },
+    provider: {
+      id: `provider-${index}`,
+      name: booking.provider,
+      avatar: `https://randomuser.me/api/portraits/men/${index + 20}.jpg`,
+    },
+    customer: {
+      id: "demo-customer-1",
+      name: "Demo Customer",
+      avatar: "https://randomuser.me/api/portraits/women/10.jpg",
+    },
     service: booking.service,
     serviceOfferingId: `offering-${index}`,
     scheduledAt: new Date(Date.now() + index * 60 * 60 * 1000).toISOString(),
@@ -617,11 +625,11 @@ function demoBookings(): BookingListItem[] {
 }
 
 function demoSocialFeed(): SocialFeedPostItem[] {
-  return EXPLORE_FEED_FIXTURES.map((post) => ({
+  return EXPLORE_FEED_FIXTURES.map((post, index) => ({
     id: post.postId,
     providerId: post.providerId,
     providerName: post.name,
-    providerAvatarUrl: post.avatar,
+    providerAvatarUrl: post.avatar || `https://randomuser.me/api/portraits/men/${index + 30}.jpg`,
     category: post.category,
     serviceName: post.headline,
     caption: post.caption,
@@ -642,6 +650,7 @@ function demoSocialFeed(): SocialFeedPostItem[] {
       content: comment.text,
       createdAt: new Date().toISOString(),
     })),
+    image: post.image || `https://source.unsplash.com/600x800/?service,${post.category},${index}`,
   }));
 }
 
