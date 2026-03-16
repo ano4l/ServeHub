@@ -28,6 +28,7 @@ export interface ExploreFeedFixturePost {
   headline: string;
   likedByViewer?: boolean;
   repostedByViewer?: boolean;
+  imageUrl?: string;
 }
 
 export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
@@ -66,6 +67,7 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     ],
     availableNow: true,
     headline: "Emergency plumbing in Midrand",
+    imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
   },
   {
     postId: "sample-electrical-sandton",
@@ -103,6 +105,7 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     availableNow: true,
     headline: "Backup power upgrades in Sandton",
     likedByViewer: true,
+    imageUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=900&q=80",
   },
   {
     postId: "sample-cleaning-rosebank",
@@ -139,6 +142,7 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     ],
     availableNow: true,
     headline: "Move-out cleaning in Rosebank",
+    imageUrl: "https://images.unsplash.com/photo-1581578731548-2364de5c7b07?auto=format&fit=crop&w=900&q=80",
   },
   {
     postId: "sample-gardening-pretoria-east",
@@ -176,6 +180,7 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     availableNow: true,
     headline: "Garden refresh in Pretoria East",
     repostedByViewer: true,
+    imageUrl: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=80",
   },
   {
     postId: "sample-painting-centurion",
@@ -212,6 +217,7 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     ],
     availableNow: false,
     headline: "Apartment painting in Centurion",
+    imageUrl: "https://images.unsplash.com/photo-1501045661006-fcebe0257c3f?auto=format&fit=crop&w=900&q=80",
   },
   {
     postId: "sample-hvac-fourways",
@@ -248,5 +254,6 @@ export const EXPLORE_FEED_FIXTURES: ExploreFeedFixturePost[] = [
     ],
     availableNow: true,
     headline: "Office AC tune-up in Fourways",
+    imageUrl: "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&w=900&q=80",
   },
 ];

@@ -26,6 +26,7 @@ export interface HomeServiceFixture {
   lng: number;
   tags: string[];
   availableNow: boolean;
+  imageUrl: string;
 }
 
 export interface HomeBookingFixture {
@@ -112,6 +113,8 @@ export const HOME_SERVICE_FIXTURES: HomeServiceFixture[] = [
     lng: 28.1263,
     tags: ["Urgent", "Verified", "Warranty"],
     availableNow: true,
+    imageUrl:
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
   },
   {
     id: "home-service-2",
@@ -132,6 +135,8 @@ export const HOME_SERVICE_FIXTURES: HomeServiceFixture[] = [
     lng: 28.0539,
     tags: ["Verified", "Weekends", "Fast quote"],
     availableNow: true,
+    imageUrl:
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=900&q=80",
   },
   {
     id: "home-service-3",
@@ -152,6 +157,8 @@ export const HOME_SERVICE_FIXTURES: HomeServiceFixture[] = [
     lng: 28.0413,
     tags: ["Eco", "Same-day", "Repeatable"],
     availableNow: true,
+    imageUrl:
+      "https://images.unsplash.com/photo-1581578731548-2364de5c7b07?auto=format&fit=crop&w=900&q=80",
   },
   {
     id: "home-service-4",
@@ -172,6 +179,8 @@ export const HOME_SERVICE_FIXTURES: HomeServiceFixture[] = [
     lng: 28.0178,
     tags: ["Commercial", "Home", "Preventive"],
     availableNow: true,
+    imageUrl:
+      "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&w=900&q=80",
   },
 ];
 
