@@ -6,7 +6,7 @@ import { Heart, MessageCircle, Repeat2, Search, ChevronLeft, ChevronRight, Spark
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
+import { EXPLORE_FEED_FIXTURES, type ExploreFeedFixturePost } from "@/lib/explore-feed-fixtures";
 import { SwipeGesture, SafeAreaWrapper } from "@/components/ui/mobile-components";
 import { cn } from "@/lib/utils";
 import { generateImageUrl, generateFallbackGradient, createImageLoader } from "@/lib/image-utils";
@@ -26,8 +26,12 @@ function compactCount(value: number) {
 	return `${value}`;
 }
 
-function photoForPost(category: string, index: number) {
-	return generateImageUrl(category, index);
+function photoForPost(post: ExploreFeedFixturePost, index: number) {
+	// Use the imageUrl from the fixture if available, otherwise generate one
+	if (post.imageUrl) {
+		return post.imageUrl;
+	}
+	return generateImageUrl(post.category, index);
 }
 
 function getFallbackGradient(category: string) {
@@ -190,7 +194,7 @@ export default function ExplorePage() {
 										
 										{/* Actual image */}
 										<img
-											src={photoForPost(post.category, index)}
+											src={photoForPost(post, index)}
 											alt={`${post.category} service photo`}
 											className={cn(
 												"absolute inset-0 h-full w-full object-cover transition-all duration-500",
@@ -275,7 +279,16 @@ export default function ExplorePage() {
 												className="inline-flex h-10 min-h-[44px] min-w-[44px] items-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-medium text-white hover:from-cyan-500 hover:to-blue-600 active:scale-95 transition-all duration-200 shadow-lg"
 												onClick={(e) => {
 													e.stopPropagation();
-													router.push("/bookings");
+													// Pass provider data to booking workflow
+													const bookingData = {
+														provider: post.name,
+														service: post.category,
+														category: post.category,
+														price: "Quote on request"
+													};
+													// Store booking data in session storage for the booking wizard
+													sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
+													router.push("/book");
 												}}
 											>
 												<span>Book Now</span>

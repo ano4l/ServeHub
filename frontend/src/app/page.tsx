@@ -491,12 +491,16 @@ export default function HomePage() {
   }, [filteredServices, mapBounds]);
 
   const openService = (service: RecommendedService) => {
-    if (service.live && service.providerId) {
-      router.push(`/providers/${service.providerId}`);
-      return;
-    }
-
-    router.push("/explore");
+    // Pass service data to booking workflow
+    const bookingData = {
+      provider: service.providerName,
+      service: service.title,
+      category: service.category,
+      price: service.priceLabel
+    };
+    // Store booking data in session storage for the booking wizard
+    sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
+    router.push("/book");
   };
 
   const handleServiceImageLoad = (index: number) => {
@@ -839,7 +843,7 @@ export default function HomePage() {
                   <div className="absolute inset-0">
                     <div className={`absolute inset-0 bg-gradient-to-br ${generateFallbackGradient(service.category)}`} />
                     <img
-                      src={generateImageUrl(service.category, index, { width: 400, height: 300 })}
+                      src={service.imageUrl || generateImageUrl(service.category, index, { width: 400, height: 300 })}
                       alt={`${service.category} service`}
                       className={cn(
                         "absolute inset-0 h-full w-full object-cover transition-all duration-500",

@@ -64,33 +64,76 @@ const URGENCY_OPTIONS = [
 export default function BookNowPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<BookingFormData>({
-    service: {
-      provider: "",
-      service: "",
-      category: "",
-      price: "",
-    },
-    scheduling: {
-      date: "",
-      time: "",
-      urgency: "standard",
-    },
-    location: {
-      address: "",
-      type: "home",
-      notes: "",
-    },
-    contact: {
-      name: "",
-      phone: "",
-      email: "",
-      preferredContact: "phone",
-    },
-    payment: {
-      method: "card",
-      saveCard: false,
-    },
+  const [formData, setFormData] = useState<BookingFormData>(() => {
+    // Check for pre-filled data from explore page
+    if (typeof window !== 'undefined') {
+      const storedData = sessionStorage.getItem('bookingData');
+      if (storedData) {
+        try {
+          const parsedData = JSON.parse(storedData);
+          return {
+            service: {
+              provider: parsedData.provider || "",
+              service: parsedData.service || "",
+              category: parsedData.category || "",
+              price: parsedData.price || "",
+            },
+            scheduling: {
+              date: "",
+              time: "",
+              urgency: "standard",
+            },
+            location: {
+              address: "",
+              type: "home",
+              notes: "",
+            },
+            contact: {
+              name: "",
+              phone: "",
+              email: "",
+              preferredContact: "phone",
+            },
+            payment: {
+              method: "card",
+              saveCard: false,
+            },
+          };
+        } catch (error) {
+          console.error('Error parsing booking data:', error);
+        }
+      }
+    }
+    
+    // Default form data
+    return {
+      service: {
+        provider: "",
+        service: "",
+        category: "",
+        price: "",
+      },
+      scheduling: {
+        date: "",
+        time: "",
+        urgency: "standard",
+      },
+      location: {
+        address: "",
+        type: "home",
+        notes: "",
+      },
+      contact: {
+        name: "",
+        phone: "",
+        email: "",
+        preferredContact: "phone",
+      },
+      payment: {
+        method: "card",
+        saveCard: false,
+      },
+    };
   });
 
   const updateFormData = (step: keyof BookingFormData, data: Partial<BookingFormData[typeof step]>) => {
