@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   CalendarCheck,
+  Compass,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -28,9 +29,10 @@ import { useUIStore } from "@/store/ui.store";
 
 const customerNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/dashboard/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Profile", icon: Settings },
 ];
 
 const providerNav = [

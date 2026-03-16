@@ -14,6 +14,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { AppTabs } from "@/components/navigation/AppTabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,15 @@ function BrowsePageContent() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedSource, setFeedSource] = useState<"live" | "sample">("live");
+  const [controlsOpen, setControlsOpen] = useState(
+    Boolean(
+      searchParams.get("q") ||
+        searchParams.get("category") ||
+        searchParams.get("verified") === "true" ||
+        searchParams.get("available") === "true" ||
+        searchParams.get("rating"),
+    ),
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [selectedCategory, setSelectedCategory] = useState(
@@ -423,67 +433,91 @@ function BrowsePageContent() {
   return (
     <div className="min-h-screen bg-[#080808] text-white">
       <div className="mx-auto max-w-6xl px-4 pb-6 pt-4 sm:px-6">
-        <div className="sticky top-0 z-40 rounded-[2rem] border border-white/10 bg-black/70 px-4 py-4 backdrop-blur-xl">
-          <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-            <Sparkles className="h-3.5 w-3.5" />
-            Business social feed
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Businesses post. Customers like, comment, and repost.
-          </h1>
-          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search business posts, industries, captions..."
-                className="h-12 rounded-full border-white/10 bg-white/8 pl-10 text-white placeholder:text-white/40"
-              />
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto">
-              <Button
-                variant="outline"
-                onClick={() => setFiltersOpen((open) => !open)}
-                className="rounded-full border-white/15 bg-white/8 text-white hover:bg-white/12"
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-                {activeFilterCount > 0 ? (
-                  <span className="ml-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-black">
-                    {activeFilterCount}
-                  </span>
-                ) : null}
-              </Button>
-              <select
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value)}
-                className="h-11 rounded-full border border-white/15 bg-white/8 px-4 text-sm text-white outline-none"
-              >
-                <option value="recommended" className="text-black">
-                  Recommended
-                </option>
-                <option value="recent" className="text-black">
-                  Most active
-                </option>
-                <option value="top-rated" className="text-black">
-                  Top rated
-                </option>
-              </select>
-            </div>
+        <div className="sticky top-0 z-40 space-y-3 pb-3">
+          <div className="rounded-[1.5rem] border border-white/10 bg-black/70 p-3 backdrop-blur-xl">
+            <AppTabs />
           </div>
-          <div className="mt-3 rounded-[1.25rem] border border-white/10 bg-white/6 px-4 py-3 text-sm text-white/72">
-            {canEngage
-              ? "You are in customer mode. You can like, comment, and repost posts in this feed."
-              : isAuthenticated
-                ? "This account can browse, but only customer accounts can engage."
-                : "Browse freely. Sign in as a customer to like, comment, or repost posts."}
-          </div>
-          {feedSource === "sample" ? (
-            <div className="mt-3 rounded-[1.25rem] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
-              The live explore feed is still warming up, so sample business posts are filling the stream for now. All feed actions stay clickable locally.
+          <div className="rounded-[1.7rem] border border-white/10 bg-black/70 px-4 py-4 backdrop-blur-xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/48">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Explore
+                </p>
+                <h1 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
+                  For you
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setControlsOpen((open) => !open)}
+                  className="rounded-full border-white/15 bg-white/8 text-white hover:bg-white/12"
+                >
+                  <Search className="h-4 w-4" />
+                  {controlsOpen ? "Hide search" : "Search"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setFiltersOpen((open) => !open)}
+                  className="rounded-full border-white/15 bg-white/8 text-white hover:bg-white/12"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="ml-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-black">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </Button>
+              </div>
             </div>
-          ) : null}
+            <p className="mt-3 text-sm text-white/62">
+              {feedSource === "sample"
+                ? "Sample posts are filling the feed while live content warms up, so the app stays clickable."
+                : canEngage
+                  ? "Customer mode is active. Likes, comments, and reposts work on live posts."
+                  : isAuthenticated
+                    ? "Browse any post here. Switch to customer mode when you want to engage."
+                    : "This is the explore feed. Sign in when you want to book, like, comment, or repost."}
+            </p>
+            <AnimatePresence>
+              {controlsOpen ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+                      <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search business posts, industries, captions..."
+                        className="h-12 rounded-full border-white/10 bg-white/8 pl-10 text-white placeholder:text-white/40"
+                      />
+                    </div>
+                    <select
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                      className="h-11 rounded-full border border-white/15 bg-white/8 px-4 text-sm text-white outline-none"
+                    >
+                      <option value="recommended" className="text-black">
+                        Recommended
+                      </option>
+                      <option value="recent" className="text-black">
+                        Most active
+                      </option>
+                      <option value="top-rated" className="text-black">
+                        Top rated
+                      </option>
+                    </select>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           <AnimatePresence>
             {filtersOpen ? (
               <motion.div
@@ -567,8 +601,9 @@ function BrowsePageContent() {
             ) : null}
           </AnimatePresence>
         </div>
+        </div>
 
-        <div className="mt-6 h-[calc(100vh-11rem)] snap-y snap-mandatory overflow-y-auto scroll-smooth pr-1">
+        <div className="mt-3 h-[calc(100vh-11rem)] snap-y snap-mandatory overflow-y-auto scroll-smooth pr-1">
           <div className="space-y-6 pb-10">
             {loading ? (
               Array.from({ length: 3 }).map((_, index) => (

@@ -219,9 +219,9 @@ export default function ProviderProfilePage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button variant="ghost" asChild>
-            <Link href="/browse">
+            <Link href="/explore">
               <ArrowLeft className="h-4 w-4" />
-              Back to browse
+              Back to explore
             </Link>
           </Button>
           <div className="flex flex-wrap gap-2">

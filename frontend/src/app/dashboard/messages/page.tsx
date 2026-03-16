@@ -149,7 +149,7 @@ export default function MessagesPage() {
                 </p>
                 {!search && (
                   <Button variant="primary" asChild>
-                    <a href="/browse">Find Providers</a>
+                    <a href="/explore">Find Providers</a>
                   </Button>
                 )}
               </div>

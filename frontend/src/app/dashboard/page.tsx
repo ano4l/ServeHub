@@ -94,7 +94,7 @@ export default function CustomerDashboard() {
             </p>
           </div>
           <Button variant="primary" asChild>
-            <Link href="/browse">
+            <Link href="/explore">
               <MapPin className="h-4 w-4" />
               Find Providers
             </Link>
@@ -170,7 +170,7 @@ export default function CustomerDashboard() {
                   <CalendarCheck className="mx-auto mb-2 h-8 w-8 opacity-50" />
                   <p className="text-sm">No bookings yet</p>
                   <Button variant="primary" size="sm" className="mt-3" asChild>
-                    <Link href="/browse">Find Providers</Link>
+                    <Link href="/explore">Find Providers</Link>
                   </Button>
                 </div>
               ) : (
@@ -213,7 +213,7 @@ export default function CustomerDashboard() {
             <CardHeader className="flex items-center justify-between">
               <CardTitle className="text-lg">Recommended for You</CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/browse">Browse All</Link>
+                <Link href="/explore">Browse All</Link>
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -267,7 +267,7 @@ export default function CustomerDashboard() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <Button variant="outline" className="flex h-auto flex-col gap-2 p-4" asChild>
-                <Link href="/browse">
+                <Link href="/explore">
                   <MapPin className="h-5 w-5" />
                   <span className="text-sm">Browse Services</span>
                 </Link>
