@@ -507,96 +507,107 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07111f] text-white">
+    <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-4 sm:px-6">
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55">
+      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        {/* Mobile-optimized header */}
+        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55 sm:text-[12px]">
               Homepage
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-[2.2rem]">
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl lg:text-[2.2rem]">
               Good morning, {homeName}
             </h1>
-            <p className="mt-2 text-sm text-white/58">
+            <p className="mt-2 text-sm text-white/58 sm:text-base">
               Set an address, check the map, and jump into services or bookings from one place.
             </p>
           </div>
-          <Avatar name={user?.fullName ?? "ServeHub"} src={user?.avatar} size="lg" />
+          <div className="flex justify-center sm:justify-end">
+            <Avatar name={user?.fullName ?? "ServeHub"} src={user?.avatar} size="lg" />
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
+        {/* Mobile-first grid layout */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[0.88fr_1.12fr] xl:grid-cols-[0.88fr_1.12fr]">
           <div className="space-y-6">
-            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-              <Input
-                value={address}
-                onChange={(event) => {
-                  setAddress(event.target.value);
-                  setAddressSuggestionsOpen(true);
-                }}
-                onFocus={() => setAddressSuggestionsOpen(true)}
-                onBlur={() => {
-                  window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && addressSuggestions[0]) {
-                    event.preventDefault();
-                    setAddress(addressSuggestions[0].value);
-                    setAddressSuggestionsOpen(false);
-                  }
-                }}
-                placeholder="Enter address"
-                leftIcon={<MapPin className="h-4 w-4" />}
-                rightIcon={<ChevronRight className="h-4 w-4" />}
-                className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400"
-              />
-              {addressSuggestionsOpen ? (
-                <div className="mt-3 space-y-2 rounded-[20px] border border-white/10 bg-[#08111f] p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                    Suggested addresses
-                  </p>
-                  <div className="space-y-2">
-                    {addressSuggestions.slice(0, 5).map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          setAddress(suggestion.value);
-                          setAddressSuggestionsOpen(false);
-                        }}
-                        className="flex w-full items-center justify-between rounded-[16px] bg-white/6 px-3 py-3 text-left"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-white">{suggestion.label}</p>
-                          <p className="mt-1 text-xs text-white/48">{suggestion.value}</p>
-                        </div>
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-cyan-200">
-                          {suggestion.area}
-                        </span>
-                      </button>
-                    ))}
+            {/* Address input - mobile optimized */}
+            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md sm:p-5">
+              <div className="space-y-3">
+                <Input
+                  value={address}
+                  onChange={(event) => {
+                    setAddress(event.target.value);
+                    setAddressSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setAddressSuggestionsOpen(true)}
+                  onBlur={() => {
+                    window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && addressSuggestions[0]) {
+                      event.preventDefault();
+                      setAddress(addressSuggestions[0].value);
+                      setAddressSuggestionsOpen(false);
+                    }
+                  }}
+                  placeholder="Enter address"
+                  leftIcon={<MapPin className="h-4 w-4" />}
+                  rightIcon={<ChevronRight className="h-4 w-4" />}
+                  className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400 text-base sm:text-sm"
+                />
+                
+                {/* Address suggestions - mobile optimized */}
+                {addressSuggestionsOpen ? (
+                  <div className="mt-3 space-y-2 rounded-[20px] border border-white/10 bg-[#08111f] p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                      Suggested addresses
+                    </p>
+                    <div className="space-y-2">
+                      {addressSuggestions.slice(0, 5).map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setAddress(suggestion.value);
+                            setAddressSuggestionsOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between rounded-[16px] bg-white/6 px-3 py-3 text-left min-h-[44px] active:bg-white/10"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-white truncate">{suggestion.label}</p>
+                            <p className="mt-1 text-xs text-white/48 truncate">{suggestion.value}</p>
+                          </div>
+                          <span className="text-[11px] uppercase tracking-[0.12em] text-cyan-200 flex-shrink-0">
+                            {suggestion.area}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                ) : null}
+                
+                {/* Quick address buttons - mobile optimized */}
+                <div className="flex flex-wrap gap-2">
+                  {addresses.slice(0, 4).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setAddress(item.value)}
+                      className={cn(
+                        "min-h-[44px] min-w-[44px] rounded-full border px-3 py-2 text-xs transition-colors active:scale-95",
+                        address === item.value
+                          ? "border-cyan-300/40 bg-cyan-400/12 text-cyan-100"
+                          : "border-white/10 bg-black/20 text-white/72",
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {addresses.slice(0, 4).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setAddress(item.value)}
-                    className={cn(
-                      "min-h-11 rounded-full border px-3 py-2 text-xs transition-colors",
-                      address === item.value
-                        ? "border-cyan-300/40 bg-cyan-400/12 text-cyan-100"
-                        : "border-white/10 bg-black/20 text-white/72",
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                <p className="mt-3 text-xs text-white/50">Matched area: {activeArea.label}</p>
               </div>
-              <p className="mt-3 text-xs text-white/50">Matched area: {activeArea.label}</p>
             </div>
 
             <div className="overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#8ef7d6_0%,#ffd27f_52%,#ff9d7d_100%)] p-5 text-slate-950">

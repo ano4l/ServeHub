@@ -11,12 +11,23 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Mobile viewport optimization */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   background-color: #fafaf9;
   color: #1c1917;
   font-family: var(--font-sans);
+  /* Prevent horizontal overflow on mobile */
+  overflow-x: hidden;
+  /* Better touch scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Safe area insets for notched devices */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 /* Scrollbar */
@@ -47,6 +58,14 @@ body {
 :focus-visible {
   outline: 2px solid #1c1917;
   outline-offset: 2px;
+}
+
+/* Mobile touch targets - minimum 44px */
+@media (max-width: 768px) {
+  button, a, input, select, textarea, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 /* Animations */
@@ -81,4 +100,99 @@ body {
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
   50%       { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Better text rendering on mobile */
+  body {
+    -webkit-font-feature-settings: "kern" 1;
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Prevent zoom on input focus (iOS Safari) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Safe area handling for notched devices */
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+  
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left), 1rem);
+  }
+  
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right), 1rem);
+  }
+}
+
+/* Adaptive typography */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1025px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Mobile viewport edge cases */
+@media (max-width: 380px) {
+  /* Extra small phones */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (min-width: 381px) and (max-width: 480px) {
+  /* Small phones */
+  .container {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+/* Landscape orientation handling */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Adjust layouts for landscape mobile */
+  .landscape-mobile {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Crisper rendering on high DPI screens */
+  .sharp-text {
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+  }
 }
