@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AppTabs } from "@/components/navigation/AppTabs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -42,7 +41,6 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased bg-stone-50 text-stone-900 pb-24 safe-area-top safe-area-bottom">
         {children}
-        <AppTabs />
       </body>
     </html>
   );
