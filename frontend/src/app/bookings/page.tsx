@@ -39,7 +39,11 @@ export default function BookingsEntryPage() {
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
       <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6">
-        <div className="rounded-[26px] border border-white/10 bg-white/8 p-5 text-center backdrop-blur-md sm:p-8">
+        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
+          <AppTabs />
+        </div>
+        
+        <div className="mt-4 rounded-[26px] border border-white/10 bg-white/8 p-5 text-center backdrop-blur-md sm:p-8">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-950 sm:h-16 sm:w-16">
             <CalendarCheck2 className="h-7 w-7 sm:h-8 sm:w-8" />
           </div>
