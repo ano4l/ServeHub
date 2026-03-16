@@ -4,6 +4,7 @@ import type { BookingStatus, ProviderStatus, UserRole } from "./constants";
 import type { User } from "@/store/auth.store";
 import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
 import { HOME_SERVICE_FIXTURES, HOME_BOOKING_FIXTURES } from "@/lib/app-home-fixtures";
+import { DEMO_CUSTOMER_PROFILE_FIXTURE } from "@/lib/demo-profile-fixtures";
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -819,11 +820,11 @@ export const customerApi = {
     if (DEMO_MODE) {
       return {
         data: {
-          id: "demo-customer-1",
-          fullName: "Demo Customer",
-          email: "demo@servehub.local",
-          phoneNumber: "+27 00 000 0000",
-          avatarUrl: undefined,
+          id: DEMO_CUSTOMER_PROFILE_FIXTURE.id,
+          fullName: DEMO_CUSTOMER_PROFILE_FIXTURE.fullName,
+          email: DEMO_CUSTOMER_PROFILE_FIXTURE.email,
+          phoneNumber: DEMO_CUSTOMER_PROFILE_FIXTURE.phoneNumber,
+          avatarUrl: DEMO_CUSTOMER_PROFILE_FIXTURE.avatarUrl,
         },
       };
     }

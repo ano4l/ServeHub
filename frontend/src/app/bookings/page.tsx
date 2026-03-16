@@ -59,7 +59,7 @@ export default function BookingsEntryPage() {
             <Button
               variant="outline"
               size="lg"
-              className="h-12 w-full sm:w-auto"
+              className="h-12 w-full border-white/35 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               onClick={() => router.push("/explore")}
             >
               Browse providers first

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogIn, UserCircle2 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { Button } from "@/components/ui/button";
+import { DEMO_CUSTOMER_PROFILE_FIXTURE } from "@/lib/demo-profile-fixtures";
 import { useAuthStore } from "@/store/auth.store";
 
 export default function ProfileEntryPage() {
@@ -53,13 +54,13 @@ export default function ProfileEntryPage() {
           </p>
           <div className="mt-8 flex flex-col items-center gap-4">
             <img
-              src="https://randomuser.me/api/portraits/men/32.jpg"
+              src={DEMO_CUSTOMER_PROFILE_FIXTURE.avatarUrl}
               alt="Demo Avatar"
               className="h-20 w-20 rounded-full border border-white/10"
             />
-            <div className="text-lg font-semibold">John Doe</div>
-            <div className="text-sm text-white/70">johndoe@email.com</div>
-            <div className="text-sm text-white/70">+1 (555) 123-4567</div>
+            <div className="text-lg font-semibold">{DEMO_CUSTOMER_PROFILE_FIXTURE.fullName}</div>
+            <div className="text-sm text-white/70">{DEMO_CUSTOMER_PROFILE_FIXTURE.email}</div>
+            <div className="text-sm text-white/70">{DEMO_CUSTOMER_PROFILE_FIXTURE.phoneNumber}</div>
           </div>
           <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
             <Button size="lg" className="h-12 w-full sm:w-auto" onClick={() => router.push("/login")}>
@@ -69,7 +70,7 @@ export default function ProfileEntryPage() {
             <Button
               variant="outline"
               size="lg"
-              className="h-12 w-full sm:w-auto"
+              className="h-12 w-full border-white/35 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               onClick={() => router.push("/explore")}
             >
               Keep exploring
