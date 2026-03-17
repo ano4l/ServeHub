@@ -117,7 +117,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(999),
-                              boxShadow: _softShadow,
+                              boxShadow: _glassShadow,
                             ),
                             child: const Text(
                               'Live Demo',
@@ -134,7 +134,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(16),
-                                boxShadow: _softShadow,
+                                boxShadow: _glassShadow,
                               ),
                               child: Stack(
                                 children: [
@@ -159,7 +159,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: _softShadow,
+                          boxShadow: _glassShadow,
                         ),
                         child: TextField(
                           readOnly: true,
@@ -254,7 +254,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                   child: Ink(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF1A1A2E), Color(0xFF2D2B55)],
+                        colors: [Color(0xFF0D2847), Color(0xFF1A1040)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -436,7 +436,7 @@ class _CategoryCard extends StatelessWidget {
               color: color,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: AppColors.textPrimary.withValues(alpha: 0.72), size: 26),
+            child: Icon(icon, color: Colors.white.withValues(alpha: 0.72), size: 26),
           ),
           const SizedBox(height: 8),
           Text(
@@ -473,7 +473,7 @@ class _ProviderCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: _softShadow,
+            boxShadow: _glassShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,7 +539,7 @@ class _BookingTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: _softShadow,
+          boxShadow: _glassShadow,
         ),
         child: Row(
           children: [
@@ -645,10 +645,10 @@ String _initials(String name) {
   return parts.map((part) => part[0].toUpperCase()).join();
 }
 
-const _softShadow = <BoxShadow>[
+const _glassShadow = <BoxShadow>[
   BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
+    color: Color(0x66000000),
+    blurRadius: 24,
+    offset: Offset(0, 8),
   ),
 ];

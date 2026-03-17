@@ -91,7 +91,7 @@ class _DashboardContent extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.primary, const Color(0xFF2D2B55)],
+              colors: [Color(0xFF0D2847), Color(0xFF1A1040)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -243,10 +243,10 @@ class _ActionTile extends StatelessWidget {
         leading: Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: AppColors.accent.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 20),
+          child: Icon(icon, color: AppColors.accent, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),

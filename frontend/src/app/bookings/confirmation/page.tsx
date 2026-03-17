@@ -86,11 +86,8 @@ export default function BookingConfirmationPage() {
     return (
       <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-        <div className="relative mx-auto max-w-4xl px-4 pb-28 pt-4 sm:px-6">
-          <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
-            <AppTabs />
-          </div>
-          
+        <AppTabs />
+        <div className="relative mx-auto max-w-4xl px-4 pb-24 pt-4 sm:px-6">
           <div className="mt-6 flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
@@ -106,11 +103,8 @@ export default function BookingConfirmationPage() {
     return (
       <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-        <div className="relative mx-auto max-w-4xl px-4 pb-28 pt-4 sm:px-6">
-          <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
-            <AppTabs />
-          </div>
-          
+        <AppTabs />
+        <div className="relative mx-auto max-w-4xl px-4 pb-24 pt-4 sm:px-6">
           <div className="mt-6 text-center">
             <h1 className="text-2xl font-semibold mb-4">Booking Not Found</h1>
             <p className="text-white/70 mb-6">We couldn't find your booking confirmation.</p>
@@ -156,11 +150,8 @@ export default function BookingConfirmationPage() {
   return (
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-      <div className="relative mx-auto max-w-4xl px-4 pb-28 pt-4 sm:px-6">
-        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
-          <AppTabs />
-        </div>
-
+      <AppTabs />
+      <div className="relative mx-auto max-w-4xl px-4 pb-24 pt-4 sm:px-6">
         {/* Success Header */}
         <div className="mt-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-400/20">

@@ -101,12 +101,12 @@ class _NotificationCard extends StatelessWidget {
     final read = notification['read'] == true;
     return Container(
       decoration: BoxDecoration(
-        color: read ? AppColors.surface : AppColors.primary.withValues(alpha: 0.05),
+        color: read ? AppColors.surface : AppColors.accent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: read ? AppColors.divider.withValues(alpha: 0.4) : AppColors.primary.withValues(alpha: 0.16),
+          color: read ? AppColors.border : AppColors.accent.withValues(alpha: 0.16),
         ),
-        boxShadow: _softShadow,
+        boxShadow: _glassShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -142,7 +142,7 @@ class _NotificationCard extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                         ),
                     ],
                   ),
@@ -196,7 +196,7 @@ _NotificationMeta _notificationMeta(String kind) {
     case 'booking':
       return const _NotificationMeta(icon: Icons.calendar_today_rounded, foreground: AppColors.info, background: AppColors.pastelBlue);
     case 'message':
-      return const _NotificationMeta(icon: Icons.chat_bubble_outline_rounded, foreground: AppColors.primary, background: AppColors.pastelPurple);
+      return const _NotificationMeta(icon: Icons.chat_bubble_outline_rounded, foreground: AppColors.accent, background: AppColors.pastelPurple);
     case 'payment':
       return const _NotificationMeta(icon: Icons.payments_rounded, foreground: AppColors.warning, background: AppColors.pastelYellow);
     case 'review':
@@ -238,10 +238,10 @@ String _timeAgo(String iso) {
   }
 }
 
-const _softShadow = <BoxShadow>[
+const _glassShadow = <BoxShadow>[
   BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
+    color: Color(0x66000000),
+    blurRadius: 24,
+    offset: Offset(0, 8),
   ),
 ];

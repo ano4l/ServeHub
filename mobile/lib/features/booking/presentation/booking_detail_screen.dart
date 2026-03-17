@@ -169,7 +169,7 @@ class _BookingDetailBody extends StatelessWidget {
   (Color, String) _statusInfo(String status) {
     return switch (status) {
       'REQUESTED' => (AppColors.info, 'Requested'),
-      'ACCEPTED' => (AppColors.primary, 'Accepted'),
+      'ACCEPTED' => (AppColors.accent, 'Accepted'),
       'IN_PROGRESS' => (AppColors.warning, 'In Progress'),
       'COMPLETED' => (AppColors.success, 'Completed'),
       'REVIEWABLE' => (AppColors.success, 'Completed & Reviewed'),

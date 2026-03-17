@@ -51,7 +51,7 @@ class WalletScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, const Color(0xFF2D2B55)],
+                  colors: [Color(0xFF0D2847), Color(0xFF1A1040)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

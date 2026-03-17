@@ -78,7 +78,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: _softShadow,
+                        boxShadow: _glassShadow,
                       ),
                       child: TextField(
                         controller: _searchController,
@@ -124,10 +124,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                           selected: selected,
                           onSelected: (_) => setState(() => _selectedCategory = label),
                           showCheckmark: false,
-                          selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.surface,
+                          selectedColor: Colors.white,
+                          backgroundColor: AppColors.surfaceAlt,
                           labelStyle: TextStyle(
-                            color: selected ? Colors.white : AppColors.textSecondary,
+                            color: selected ? AppColors.primary : AppColors.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
                           side: BorderSide.none,
@@ -208,7 +208,7 @@ class _ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: _softShadow,
+        boxShadow: _glassShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -237,8 +237,8 @@ class _ServiceCard extends StatelessWidget {
                   top: 16,
                   child: _Pill(
                     label: service['category']?.toString() ?? 'Service',
-                    color: Colors.white.withValues(alpha: 0.9),
-                    textColor: AppColors.textSecondary,
+                    color: Colors.black.withValues(alpha: 0.5),
+                    textColor: Colors.white,
                   ),
                 ),
                 Positioned(
@@ -246,8 +246,8 @@ class _ServiceCard extends StatelessWidget {
                   top: 16,
                   child: _Pill(
                     label: service['priceLabel']?.toString() ?? 'From R0',
-                    color: Colors.white.withValues(alpha: 0.96),
-                    textColor: AppColors.textPrimary,
+                    color: Colors.black.withValues(alpha: 0.6),
+                    textColor: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -301,7 +301,7 @@ class _ServiceCard extends StatelessWidget {
                               ),
                               if (verified) ...[
                                 const SizedBox(width: 4),
-                                const Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
+                                Icon(Icons.verified_rounded, size: 16, color: AppColors.accent),
                               ],
                             ],
                           ),
@@ -361,9 +361,10 @@ class _ServiceCard extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       ),
                       child: const Text('Book Now'),
                     ),
@@ -438,13 +439,13 @@ class _StaticChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.surface,
+          color: active ? Colors.white : AppColors.surfaceAlt,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Colors.white : AppColors.textSecondary,
+            color: active ? AppColors.primary : AppColors.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -480,10 +481,10 @@ String _initials(String name) {
   return parts.map((part) => part[0].toUpperCase()).join();
 }
 
-const _softShadow = <BoxShadow>[
+const _glassShadow = <BoxShadow>[
   BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
+    color: Color(0x66000000),
+    blurRadius: 24,
+    offset: Offset(0, 8),
   ),
 ];

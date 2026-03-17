@@ -82,7 +82,7 @@ class _ProviderDetailContent extends ConsumerWidget {
             background: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primary, const Color(0xFF2D2B55)],
+                  colors: [Color(0xFF0D2847), Color(0xFF1A1040)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -235,12 +235,12 @@ class _ServiceTile extends StatelessWidget {
       child: ListTile(
         leading: Container(
           width: 40, height: 40,
-          decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.miscellaneous_services_outlined, color: AppColors.primary, size: 20),
+          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+          child: Icon(Icons.miscellaneous_services_outlined, color: AppColors.accent, size: 20),
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         trailing: price.isNotEmpty
-            ? Text('R$price', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary))
+            ? Text('R$price', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent))
             : null,
         onTap: () {
           if (serviceId != null) {

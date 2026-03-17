@@ -199,109 +199,117 @@ export default function BookNowPage() {
     }
   };
 
+  const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
+
   return (
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
-      <div className="relative mx-auto max-w-4xl px-4 pb-28 pt-4 sm:px-6">
-        <div className="rounded-[24px] border border-white/10 bg-white/8 p-2.5 backdrop-blur-md">
-          <AppTabs />
-        </div>
-
-        {/* Header */}
-        <div className="mt-6 flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => router.back()}
-            className="text-white/70 hover:text-white"
+      <div className="relative mx-auto max-w-2xl px-4 pb-36 pt-4 sm:px-6">
+        {/* Compact header */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => currentStep > 1 ? prevStep() : router.back()}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold">Book a Service</h1>
-            <p className="text-sm text-white/70">Complete the form to book your service</p>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold">Book a Service</h1>
+            <p className="text-xs text-white/50">
+              Step {currentStep} of {STEPS.length} · {STEPS[currentStep - 1].name}
+            </p>
           </div>
+          <button
+            onClick={() => router.back()}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/50 hover:bg-white/15 active:scale-95"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        {/* Progress Steps */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
-              const isActive = currentStep === step.id;
-              const isCompleted = currentStep > step.id;
-              const Icon = step.icon;
-              
-              return (
-                <div key={step.id} className="flex items-center">
-                  <div className="flex flex-col items-center">
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all",
-                      isActive 
-                        ? "border-cyan-400 bg-cyan-400 text-slate-900" 
-                        : isCompleted 
-                          ? "border-green-400 bg-green-400 text-white"
-                          : "border-white/20 bg-white/10 text-white/50"
-                    )}>
-                      {isCompleted ? (
-                        <Check className="h-5 w-5" />
-                      ) : (
-                        <Icon className="h-5 w-5" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "mt-2 text-xs font-medium",
-                      isActive ? "text-cyan-100" : isCompleted ? "text-green-400" : "text-white/50"
-                    )}>
-                      {step.name}
-                    </span>
-                  </div>
-                  {index < STEPS.length - 1 && (
-                    <div className={cn(
-                      "mx-4 h-0.5 w-12 transition-all",
-                      isCompleted ? "bg-green-400" : "bg-white/20"
-                    )} />
+        {/* Uber-style thin progress bar */}
+        <div className="mt-4 h-1 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Step dots */}
+        <div className="mt-3 flex items-center justify-between px-1">
+          {STEPS.map((step) => {
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStep > step.id;
+            return (
+              <button
+                key={step.id}
+                onClick={() => isCompleted ? setCurrentStep(step.id) : undefined}
+                className={cn(
+                  "flex items-center gap-1.5 text-[11px] font-medium transition-all",
+                  isActive
+                    ? "text-white"
+                    : isCompleted
+                      ? "text-cyan-300/70 cursor-pointer hover:text-cyan-200"
+                      : "text-white/30",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-all",
+                    isActive
+                      ? "bg-white text-slate-950"
+                      : isCompleted
+                        ? "bg-cyan-400/20 text-cyan-300"
+                        : "bg-white/8 text-white/30",
                   )}
+                >
+                  {isCompleted ? <Check className="h-3 w-3" /> : step.id}
                 </div>
-              );
-            })}
-          </div>
+                <span className="hidden sm:inline">{step.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Form Content */}
-        <div className="mt-8 rounded-[26px] border border-white/10 bg-white/8 p-6 backdrop-blur-md">
+        <div className="mt-6 rounded-[24px] border border-white/10 bg-white/6 p-5 backdrop-blur-md sm:p-6">
           {renderStep()}
         </div>
+      </div>
 
-        {/* Navigation */}
-        <div className="mt-6 flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className="border-white/35 text-white hover:bg-white/10 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Previous
-          </Button>
-
-          {currentStep === STEPS.length ? (
-            <Button
-              onClick={submitBooking}
-              className="bg-cyan-500 hover:bg-cyan-600 text-white"
+      {/* Floating bottom CTA (Uber-style) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/8 bg-[#07111f]/95 backdrop-blur-xl safe-area-bottom">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-4">
+          {currentStep > 1 && (
+            <button
+              onClick={prevStep}
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-white/15 text-white/70 active:scale-95"
             >
-              Complete Booking
-              <Check className="h-4 w-4 ml-2" />
-            </Button>
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+          {currentStep === STEPS.length ? (
+            <button
+              onClick={submitBooking}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white font-semibold text-slate-950 active:scale-[0.98] transition-all shadow-lg"
+            >
+              <Check className="h-5 w-5" />
+              Confirm Booking
+            </button>
           ) : (
-            <Button
+            <button
               onClick={nextStep}
               disabled={!canProceed()}
-              className="bg-cyan-500 hover:bg-cyan-600 text-white disabled:opacity-50"
+              className={cn(
+                "flex h-12 flex-1 items-center justify-center gap-2 rounded-full font-semibold transition-all active:scale-[0.98]",
+                canProceed()
+                  ? "bg-white text-slate-950 shadow-lg"
+                  : "bg-white/10 text-white/30 cursor-not-allowed",
+              )}
             >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+              Continue
+              <ArrowRight className="h-5 w-5" />
+            </button>
           )}
         </div>
       </div>

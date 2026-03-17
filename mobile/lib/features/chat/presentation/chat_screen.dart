@@ -179,7 +179,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : AppColors.divider,
+          color: isMe ? AppColors.accent.withValues(alpha: 0.8) : AppColors.surfaceAlt,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -254,7 +254,7 @@ class _MessageInput extends StatelessWidget {
           IconButton.filled(
             onPressed: onSend,
             icon: const Icon(Icons.send, size: 20),
-            style: IconButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            style: IconButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
           ),
         ],
       ),

@@ -1,42 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:serveify/core/demo/customer_demo_data.dart';
-import 'package:serveify/core/network/api_client.dart';
+import 'package:go_router/go_router.dart';
 import 'package:serveify/core/theme/app_theme.dart';
 
-const _softShadow = [
-  BoxShadow(
-    color: Color(0x0A000000),
-    blurRadius: 20,
-    offset: Offset(0, 4),
-  ),
+// Mock booking data matching web
+class _MockBooking {
+  final String id;
+  final String service;
+  final String provider;
+  final String initial;
+  final String status;
+  final String date;
+  final String time;
+  final String address;
+  final String price;
+  final double rating;
+  final double progress;
+  final String? eta;
+  final String category;
+
+  const _MockBooking({
+    required this.id,
+    required this.service,
+    required this.provider,
+    required this.initial,
+    required this.status,
+    required this.date,
+    required this.time,
+    required this.address,
+    required this.price,
+    required this.rating,
+    required this.progress,
+    this.eta,
+    required this.category,
+  });
+}
+
+const _mockBookings = [
+  _MockBooking(id: 'BK-001', service: 'Emergency plumbing repair', provider: 'Mpho Flow Fix', initial: 'M', status: 'in_progress', date: 'Today', time: '14:00', address: '83 Rivonia Road, Sandton', price: 'R420', rating: 4.9, progress: 0.65, eta: 'Arriving in 12 min', category: 'Plumbing'),
+  _MockBooking(id: 'BK-002', service: 'Move-out deep clean', provider: 'Fresh Fold Crew', initial: 'F', status: 'confirmed', date: 'Tomorrow', time: '09:00', address: '15 Tyrwhitt Avenue, Rosebank', price: 'R360', rating: 4.7, progress: 0.4, eta: 'Confirmed for 9:00 AM', category: 'Cleaning'),
+  _MockBooking(id: 'BK-003', service: 'Backup power install', provider: 'Nandi Spark Works', initial: 'N', status: 'requested', date: '18 Mar', time: '10:00', address: 'The Marc, Sandton', price: 'R650', rating: 4.8, progress: 0.15, eta: 'Awaiting confirmation', category: 'Electrical'),
+  _MockBooking(id: 'BK-004', service: 'Garden maintenance', provider: 'GreenThumb SA', initial: 'G', status: 'completed', date: '12 Mar', time: '08:00', address: '22 Jan Smuts Ave, Rosebank', price: 'R280', rating: 4.6, progress: 1.0, category: 'Gardening'),
+  _MockBooking(id: 'BK-005', service: 'Interior wall repaint', provider: 'ColourCraft Pro', initial: 'C', status: 'completed', date: '8 Mar', time: '07:00', address: '10 Oxford Road, Parktown', price: 'R1,200', rating: 4.9, progress: 1.0, category: 'Painting'),
+  _MockBooking(id: 'BK-006', service: 'Aircon service', provider: 'CoolAir Solutions', initial: 'C', status: 'cancelled', date: '5 Mar', time: '11:00', address: 'Melrose Arch, Johannesburg', price: 'R450', rating: 4.5, progress: 0.0, category: 'HVAC'),
 ];
 
-final _bookingsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final dio = ref.read(dioProvider);
-  try {
-    final response = await dio.get('/bookings', queryParameters: {'size': 12, 'sort': 'createdAt,desc'});
-    final raw = response.data is List
-        ? response.data as List
-        : (response.data is Map && response.data['content'] is List ? response.data['content'] as List : <dynamic>[]);
-    if (raw.isEmpty) return CustomerDemoData.bookings();
-    return raw.map((item) {
-      final map = Map<String, dynamic>.from(item as Map);
-      return {
-        'id': map['id']?.toString() ?? '',
-        'service': map['serviceName']?.toString() ?? 'Service',
-        'provider': map['providerName']?.toString() ?? 'Provider',
-        'status': map['status']?.toString() ?? 'REQUESTED',
-        'scheduledAt': map['scheduledFor']?.toString() ?? map['scheduledAt']?.toString() ?? DateTime.now().toIso8601String(),
-        'price': map['quotedPrice']?.toString() ?? map['price']?.toString() ?? '',
-        'address': map['address']?.toString() ?? '',
-        'thread': const <Map<String, dynamic>>[],
-      };
-    }).toList();
-  } catch (_) {
-    return CustomerDemoData.bookings();
+const _filters = ['All', 'Active', 'Upcoming', 'Pending', 'Past', 'Cancelled'];
+
+class _StatusConfig {
+  final String label;
+  final Color color;
+  final List<Color> gradient;
+  const _StatusConfig({required this.label, required this.color, required this.gradient});
+}
+
+_StatusConfig _statusConfig(String status) {
+  switch (status) {
+    case 'in_progress':
+      return _StatusConfig(label: 'In Progress', color: AppColors.info, gradient: [const Color(0xFF3B82F6), const Color(0xFF06B6D4)]);
+    case 'confirmed':
+      return _StatusConfig(label: 'Confirmed', color: AppColors.success, gradient: [const Color(0xFF22C55E), const Color(0xFF10B981)]);
+    case 'requested':
+      return _StatusConfig(label: 'Requested', color: AppColors.warning, gradient: [const Color(0xFFF59E0B), const Color(0xFFF97316)]);
+    case 'completed':
+      return const _StatusConfig(label: 'Completed', color: Colors.white54, gradient: [Color(0xFF6B7280), Color(0xFF4B5563)]);
+    case 'cancelled':
+      return _StatusConfig(label: 'Cancelled', color: AppColors.error, gradient: [const Color(0xFFEF4444), const Color(0xFFF43F5E)]);
+    default:
+      return const _StatusConfig(label: 'Unknown', color: Colors.white38, gradient: [Color(0xFF6B7280), Color(0xFF4B5563)]);
   }
-});
+}
 
 class BookingsScreen extends ConsumerStatefulWidget {
   const BookingsScreen({super.key});
@@ -46,344 +79,358 @@ class BookingsScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsScreenState extends ConsumerState<BookingsScreen> {
-  String? _selectedBookingId;
-  final _messageController = TextEditingController();
+  int _filterIndex = 0;
+  String? _expandedId = 'BK-001';
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+  List<_MockBooking> get _filteredBookings {
+    switch (_filterIndex) {
+      case 1: return _mockBookings.where((b) => b.status == 'in_progress').toList();
+      case 2: return _mockBookings.where((b) => b.status == 'confirmed').toList();
+      case 3: return _mockBookings.where((b) => b.status == 'requested').toList();
+      case 4: return _mockBookings.where((b) => b.status == 'completed').toList();
+      case 5: return _mockBookings.where((b) => b.status == 'cancelled').toList();
+      default: return _mockBookings.toList();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(_bookingsProvider);
+    final activeCount = _mockBookings.where((b) => ['in_progress', 'confirmed', 'requested'].contains(b.status)).length;
+    final filtered = _filteredBookings;
 
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
-      body: RefreshIndicator(
-        color: AppColors.accent,
-        onRefresh: () async => ref.invalidate(_bookingsProvider),
-        child: bookingsAsync.when(
-          data: (bookings) {
-            final selected = bookings.firstWhere(
-              (item) => item['id'] == (_selectedBookingId ?? bookings.first['id']),
-              orElse: () => bookings.first,
-            );
-            _selectedBookingId ??= selected['id']?.toString();
-            final thread = (selected['thread'] as List?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        slivers: [
+          // Header
+          SliverToBoxAdapter(
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('BOOKINGS', style: TextStyle(fontSize: 11, letterSpacing: 2.4, color: AppColors.accent.withValues(alpha: 0.55), fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    const Text('Your appointments', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: -0.5)),
+                    const SizedBox(height: 4),
+                    Text('$activeCount active · ${_mockBookings.length} total', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.5))),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Text('Bookings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.darkTextPrimary)),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Column(
-                      children: bookings.map((booking) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _BookingCard(
-                            booking: booking,
-                            selected: booking['id'] == selected['id'],
-                            onTap: () => setState(() => _selectedBookingId = booking['id']?.toString()),
+          // Filters
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 0, 0),
+              child: SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(right: 20),
+                  itemCount: _filters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final active = _filterIndex == index;
+                    return GestureDetector(
+                      onTap: () => setState(() => _filterIndex = index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: active ? Colors.white : Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(100),
+                          border: active ? null : Border.all(color: AppColors.border),
+                        ),
+                        child: Text(
+                          _filters[index],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: active ? AppColors.primary : Colors.white.withValues(alpha: 0.7),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.darkSurface,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: _softShadow,
+                        ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+
+          // Active booking hero card
+          if (_filterIndex == 0)
+            ..._mockBookings.where((b) => b.status == 'in_progress').map((booking) {
+              final config = _statusConfig(booking.status);
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.accent.withValues(alpha: 0.1), const Color(0xFF3B82F6).withValues(alpha: 0.1)],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              selected['service']?.toString() ?? 'Booking',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.darkTextPrimary),
-                            ),
-                            const SizedBox(height: 14),
-                            _MetaRow(icon: Icons.calendar_today_rounded, text: _formatDate(selected['scheduledAt']?.toString() ?? '')),
-                            if ((selected['price']?.toString() ?? '').isNotEmpty)
-                              _MetaRow(icon: Icons.payments_outlined, text: selected['price']!.toString()),
-                            if ((selected['address']?.toString() ?? '').isNotEmpty)
-                              _MetaRow(icon: Icons.location_on_outlined, text: selected['address']!.toString()),
-                            const SizedBox(height: 16),
-                            if (thread.isEmpty)
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: AppColors.darkBackground,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AppColors.darkBorder),
-                                ),
-                                child: const Text(
-                                  'No messages yet for this booking.',
-                                  style: TextStyle(color: AppColors.darkTextSecondary),
-                                ),
-                              )
-                            else
-                              Column(
-                                children: thread.map((message) {
-                                  final own = message['own'] == true;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: Align(
-                                      alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-                                      child: Container(
-                                        constraints: const BoxConstraints(maxWidth: 280),
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: own ? AppColors.accent.withValues(alpha: 0.8) : AppColors.darkBackground,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: own ? null : Border.all(color: AppColors.darkBorder),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              message['sender']?.toString() ?? '',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.darkTextSecondary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              message['text']?.toString() ?? '',
-                                              style: TextStyle(
-                                                color: own ? Colors.white : AppColors.darkTextPrimary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              message['time']?.toString() ?? '',
-                                              style: const TextStyle(fontSize: 11, color: AppColors.darkTextSecondary),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                'Please ring on arrival',
-                                'Share updated quote',
-                                'I added another issue',
-                              ].map((text) {
-                                return ActionChip(
-                                  label: Text(text),
-                                  onPressed: () => _messageController.text = text,
-                                  backgroundColor: AppColors.darkBackground,
-                                  labelStyle: const TextStyle(
-                                    color: AppColors.darkTextSecondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  side: BorderSide(color: AppColors.darkBorder),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 12),
                             Container(
+                              width: 48, height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.darkBackground,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.darkBorder),
+                                borderRadius: BorderRadius.circular(24),
+                                gradient: LinearGradient(colors: config.gradient),
                               ),
-                              child: Row(
+                              alignment: Alignment.center,
+                              child: Text(booking.initial, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _messageController,
-                                      decoration: const InputDecoration(
-                                        hintText: 'Send a quick message...',
-                                        fillColor: Colors.transparent,
-                                        border: InputBorder.none,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () {
-                                      if (_messageController.text.trim().isEmpty) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Message queued in demo mode')),
-                                      );
-                                      _messageController.clear();
-                                    },
-                                    icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-                                  ),
+                                  Text(booking.service, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                                  const SizedBox(height: 2),
+                                  Text(booking.provider, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.6))),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(Icons.navigation_rounded, size: 16, color: AppColors.accent),
+                            const SizedBox(width: 8),
+                            Text(booking.eta ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.accent)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: booking.progress,
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation(AppColors.accent),
+                            minHeight: 6,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {},
+                                icon: const Icon(Icons.navigation_rounded, size: 16),
+                                label: const Text('Track'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () {},
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                              label: const Text('Chat'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: () {},
+                              child: const Icon(Icons.phone_rounded, size: 16),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
-      ),
-    );
-  }
-}
+              );
+            }),
 
-class _BookingCard extends StatelessWidget {
-  final Map<String, dynamic> booking;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _BookingCard({
-    required this.booking,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = _bookingMeta(booking['status']?.toString() ?? 'REQUESTED');
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: selected ? Border.all(color: AppColors.accent.withValues(alpha: 0.24)) : null,
-          boxShadow: _softShadow,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: meta.background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.handyman_rounded, color: meta.foreground),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      booking['service']?.toString() ?? 'Service',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.darkTextPrimary),
+          // Booking list
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+            sliver: filtered.isEmpty
+                ? SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 40, color: Colors.white.withValues(alpha: 0.2)),
+                          const SizedBox(height: 12),
+                          Text('No bookings found', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.7))),
+                          const SizedBox(height: 4),
+                          Text('Try a different filter or book a new service.', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.4))),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      booking['provider']?.toString() ?? 'Provider',
-                      style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final booking = filtered[index];
+                        // Skip hero card in 'all' filter
+                        if (_filterIndex == 0 && booking.status == 'in_progress') return const SizedBox.shrink();
+                        final config = _statusConfig(booking.status);
+                        final expanded = _expandedId == booking.id;
+                        final isActive = ['in_progress', 'confirmed', 'requested'].contains(booking.status);
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _expandedId = expanded ? null : booking.id),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: expanded ? Colors.white.withValues(alpha: 0.15) : AppColors.border),
+                                color: expanded ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.04),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 44, height: 44,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(22),
+                                          gradient: LinearGradient(colors: config.gradient),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(booking.initial, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(booking.service, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
+                                            const SizedBox(height: 2),
+                                            Text(booking.provider, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.55))),
+                                          ],
+                                        ),
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: config.color.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(100),
+                                            ),
+                                            child: Text(config.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: config.color)),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(booking.price, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.8))),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  if (isActive) ...[
+                                    const SizedBox(height: 12),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(3),
+                                      child: LinearProgressIndicator(
+                                        value: booking.progress,
+                                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                        valueColor: AlwaysStoppedAnimation(config.gradient.first),
+                                        minHeight: 4,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.access_time_rounded, size: 12, color: Colors.white.withValues(alpha: 0.45)),
+                                      const SizedBox(width: 4),
+                                      Text('${booking.date} · ${booking.time}', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),
+                                      const Spacer(),
+                                      Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+                                      const SizedBox(width: 2),
+                                      Text('${booking.rating}', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),
+                                      const SizedBox(width: 8),
+                                      AnimatedRotation(
+                                        turns: expanded ? 0.25 : 0,
+                                        duration: const Duration(milliseconds: 200),
+                                        child: Icon(Icons.chevron_right_rounded, size: 16, color: Colors.white.withValues(alpha: 0.45)),
+                                      ),
+                                    ],
+                                  ),
+                                  if (expanded) ...[
+                                    const Divider(height: 24),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.location_on_outlined, size: 16, color: AppColors.accent),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text(booking.address, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)))),
+                                      ],
+                                    ),
+                                    if (booking.eta != null) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.navigation_rounded, size: 16, color: AppColors.accent),
+                                          const SizedBox(width: 8),
+                                          Text(booking.eta!, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7))),
+                                        ],
+                                      ),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    if (booking.status == 'completed')
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () {},
+                                              icon: const Icon(Icons.refresh_rounded, size: 14),
+                                              label: const Text('Rebook'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          OutlinedButton(onPressed: () {}, child: const Icon(Icons.star_outline_rounded, size: 16)),
+                                        ],
+                                      )
+                                    else if (isActive)
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () {},
+                                              child: const Text('View details'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          OutlinedButton(onPressed: () {}, child: const Icon(Icons.chat_bubble_outline_rounded, size: 16)),
+                                        ],
+                                      ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: filtered.length,
                     ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: meta.background,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  meta.label,
-                  style: TextStyle(color: meta.foreground, fontWeight: FontWeight.w700, fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _MetaRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.darkTextSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
-            ),
+                  ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _BookingMeta {
-  final String label;
-  final Color foreground;
-  final Color background;
-
-  const _BookingMeta({required this.label, required this.foreground, required this.background});
-}
-
-_BookingMeta _bookingMeta(String status) {
-  switch (status) {
-    case 'ACCEPTED':
-      return _BookingMeta(label: 'Accepted', foreground: AppColors.info, background: AppColors.info.withValues(alpha: 0.12));
-    case 'IN_PROGRESS':
-      return _BookingMeta(label: 'Active', foreground: AppColors.accent, background: AppColors.accent.withValues(alpha: 0.12));
-    case 'COMPLETED':
-      return _BookingMeta(label: 'Done', foreground: AppColors.success, background: AppColors.success.withValues(alpha: 0.12));
-    default:
-      return _BookingMeta(label: 'Pending', foreground: AppColors.warning, background: AppColors.warning.withValues(alpha: 0.12));
-  }
-}
-
-String _formatDate(String value) {
-  try {
-    final date = DateTime.parse(value);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${date.day} ${months[date.month - 1]} ${date.year}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  } catch (_) {
-    return value;
   }
 }
