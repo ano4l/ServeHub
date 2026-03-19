@@ -111,7 +111,7 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () => context.go('/provider/wallet'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white54),
@@ -122,7 +122,7 @@ class _DashboardContent extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () => context.go('/provider/wallet'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white54),
@@ -188,13 +188,13 @@ class _DashboardContent extends StatelessWidget {
           icon: Icons.add_circle_outline,
           title: 'Add Service',
           subtitle: 'List a new service offering',
-          onTap: () {},
+          onTap: () => context.go('/provider/services'),
         ),
         _ActionTile(
           icon: Icons.bar_chart_outlined,
           title: 'View Earnings',
           subtitle: 'Track your income and payouts',
-          onTap: () {},
+          onTap: () => context.go('/provider/wallet'),
         ),
       ],
     );

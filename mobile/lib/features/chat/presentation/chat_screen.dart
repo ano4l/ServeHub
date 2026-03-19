@@ -119,15 +119,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textMuted),
-                            const SizedBox(height: 12),
-                            const Text('No messages yet', style: TextStyle(color: AppColors.textSecondary)),
-                            const SizedBox(height: 4),
-                            const Text('Start the conversation!', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                            SizedBox(height: 12),
+                            Text('No messages yet', style: TextStyle(color: AppColors.textSecondary)),
+                            SizedBox(height: 4),
+                            Text('Start the conversation!', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                           ],
                         ),
                       )

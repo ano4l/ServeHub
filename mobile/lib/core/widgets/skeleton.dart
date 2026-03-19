@@ -95,20 +95,20 @@ class HomeSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Skeleton(width: 120, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
-                const SizedBox(height: 8),
-                const Skeleton(width: 180, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
-                const SizedBox(height: 24),
-                const Skeleton(height: 52, borderRadius: BorderRadius.all(Radius.circular(16))),
-                const SizedBox(height: 24),
-                const Skeleton(width: 100, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
-                const SizedBox(height: 16),
+                Skeleton(width: 120, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
+                SizedBox(height: 8),
+                Skeleton(width: 180, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
+                SizedBox(height: 24),
+                Skeleton(height: 52, borderRadius: BorderRadius.all(Radius.circular(16))),
+                SizedBox(height: 24),
+                Skeleton(width: 100, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
+                SizedBox(height: 16),
               ],
             ),
           ),
@@ -133,18 +133,18 @@ class HomeSkeleton extends StatelessWidget {
             ),
           ),
         ),
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Skeleton(width: 100, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
-                const SizedBox(height: 16),
-                const Skeleton(height: 140, borderRadius: BorderRadius.all(Radius.circular(20))),
-                const SizedBox(height: 24),
-                const Skeleton(width: 120, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
-                const SizedBox(height: 16),
+                Skeleton(width: 100, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
+                SizedBox(height: 16),
+                Skeleton(height: 140, borderRadius: BorderRadius.all(Radius.circular(20))),
+                SizedBox(height: 24),
+                Skeleton(width: 120, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
+                SizedBox(height: 16),
               ],
             ),
           ),
@@ -170,16 +170,16 @@ class BrowseSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Skeleton(width: 80, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
-                const SizedBox(height: 16),
-                const Skeleton(height: 44, borderRadius: BorderRadius.all(Radius.circular(14))),
-                const SizedBox(height: 20),
+                Skeleton(width: 80, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
+                SizedBox(height: 16),
+                Skeleton(height: 44, borderRadius: BorderRadius.all(Radius.circular(14))),
+                SizedBox(height: 20),
               ],
             ),
           ),
@@ -261,10 +261,10 @@ class BookingsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: const Skeleton(width: 100, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Skeleton(width: 100, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
           ),
         ),
         SliverToBoxAdapter(
@@ -302,14 +302,14 @@ class NotificationsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Skeleton(width: 120, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
-                const Skeleton(width: 70, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
+                Skeleton(width: 120, height: 32, borderRadius: BorderRadius.all(Radius.circular(6))),
+                Skeleton(width: 70, height: 16, borderRadius: BorderRadius.all(Radius.circular(4))),
               ],
             ),
           ),

@@ -142,7 +142,7 @@ class _NotificationCard extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                         ),
                     ],
                   ),

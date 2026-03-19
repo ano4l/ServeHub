@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ToastRenderer } from "@/components/ui/ToastRenderer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,13 +12,14 @@ export const metadata: Metadata = {
   title: "Serveify – Find Trusted Service Providers",
   description: "Book verified plumbers, electricians, cleaners and more near you.",
   keywords: ["services", "booking", "marketplace", "providers"],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
     { media: "(prefers-color-scheme: dark)", color: "#07111f" },
@@ -41,6 +43,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased bg-stone-50 text-stone-900 pb-24 safe-area-top safe-area-bottom">
         {children}
+        <ToastRenderer />
       </body>
     </html>
   );

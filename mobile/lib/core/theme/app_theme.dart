@@ -51,7 +51,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.accent,
         onPrimary: Colors.white,
         secondary: AppColors.primary,
@@ -175,7 +175,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         onPrimary: Colors.black,
         secondary: AppColors.accent,
@@ -257,7 +257,7 @@ class AppTheme {
         hintStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14),
         labelStyle: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 14),
       ),
-      navigationBarTheme: NavigationBarThemeData(
+      navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: AppColors.navBackground,
         indicatorColor: AppColors.navActiveBackground,
         height: 64,

@@ -35,10 +35,13 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   String? _selectedTime;
   int _urgency = 0; // 0=standard, 1=urgent, 2=same-day
 
-  // Step 2
-  final _addressController = TextEditingController();
+  // Step 1 personal details
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+
+  // Step 2 delivery
+  final _addressController = TextEditingController();
   final _notesController = TextEditingController();
   List<_AddressResult> _suggestions = [];
   bool _searchingAddress = false;
@@ -48,21 +51,25 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   // Step 3
   String _paymentMethod = 'card';
 
+  // Order success
+  bool _orderSuccess = false;
+  String _orderNumber = '';
+
   @override
   void dispose() {
-    _addressController.dispose();
     _nameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     _notesController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
   bool get _canProceed {
-    final cart = ref.read(cartProvider);
     switch (_step) {
-      case 0: return cart.items.isNotEmpty && _selectedDate != null && _selectedTime != null;
-      case 1: return _addressController.text.isNotEmpty && _nameController.text.isNotEmpty && _phoneController.text.isNotEmpty;
+      case 0: return _nameController.text.isNotEmpty && _phoneController.text.isNotEmpty && _selectedDate != null && _selectedTime != null;
+      case 1: return _addressController.text.isNotEmpty;
       case 2: return true;
       default: return false;
     }
@@ -111,8 +118,121 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
-    final progress = _step / 2.0;
-    final itemCount = cart.itemCount;
+
+    // ─── Order Success Screen ───
+    if (_orderSuccess) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: Column(
+                children: [
+                  Container(
+                    width: 100, height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    ),
+                    child: const Icon(Icons.check_circle_rounded, size: 56, color: Color(0xFF10B981)),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Order Successful!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Thank you for choosing ServeHub.${_emailController.text.isNotEmpty ? ' Your invoice has been sent to ${_emailController.text}.' : ''}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.55)),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        children: [
+                          Text('Est. Arrival', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                          const SizedBox(height: 2),
+                          Text(_selectedDate ?? 'TBD', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.8))),
+                        ],
+                      ),
+                      Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 20), color: Colors.white.withValues(alpha: 0.1)),
+                      Column(
+                        children: [
+                          Text('Order', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                          const SizedBox(height: 2),
+                          Text('#$_orderNumber', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF06B6D4))),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/bookings'),
+                      icon: const Icon(Icons.description_outlined, size: 18),
+                      label: const Text('See Invoice'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF10B981),
+                        side: BorderSide(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/bookings'),
+                      icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                      label: const Text('See Order Status'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF06B6D4),
+                        side: BorderSide(color: const Color(0xFF06B6D4).withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Support chat coming soon'), duration: Duration(seconds: 2)),
+                      ),
+                      icon: Icon(Icons.help_outline_rounded, size: 18, color: Colors.white.withValues(alpha: 0.5)),
+                      label: Text('I need help with this booking', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Text('You might also like', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.3))),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: () => context.go('/services'),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: const Text('Browse more services'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     // Empty cart
     if (cart.isEmpty) {
@@ -159,39 +279,31 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                   Row(
                     children: [
                       _circleBtn(Icons.arrow_back_rounded, () => _step > 0 ? setState(() => _step--) : Navigator.of(context).pop()),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Checkout', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
-                            Text('Step ${_step + 1} of 3 · ${['Cart & Schedule', 'Location', 'Confirm'][_step]}',
-                              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),
-                          ],
-                        ),
-                      ),
+                      const Spacer(),
+                      const Text('Cart', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                      const Spacer(),
                       _circleBtn(Icons.close_rounded, () => Navigator.of(context).pop()),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      valueColor: AlwaysStoppedAnimation(AppColors.accent),
-                      minHeight: 3,
+                  const SizedBox(height: 14),
+                  // Pill-style step tabs
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(100),
+                      color: Colors.white.withValues(alpha: 0.04),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        for (int i = 0; i < 3; i++)
+                          Expanded(child: _pillTab(i, ['User Detail', 'Delivery', 'Payment'][i])),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (int i = 0; i < 3; i++)
-                        _stepIndicator(i, ['Cart & Schedule', 'Location', 'Confirm'][i],
-                          [Icons.shopping_cart_rounded, Icons.location_on_rounded, Icons.check_rounded][i]),
-                    ],
-                  ),
+                  const SizedBox(height: 14),
+                  // Compact cart strip
+                  _buildCartStrip(cart),
                 ],
               ),
             ),
@@ -253,8 +365,12 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                         if (_step < 2) {
                           setState(() => _step++);
                         } else {
+                          final ref0 = DateTime.now().millisecondsSinceEpoch.toRadixString(36).toUpperCase();
                           ref.read(cartProvider.notifier).clear();
-                          context.go('/bookings');
+                          setState(() {
+                            _orderSuccess = true;
+                            _orderNumber = 'SH$ref0';
+                          });
                         }
                       } : null,
                       style: ElevatedButton.styleFrom(
@@ -275,7 +391,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                           if (_step == 2) const Icon(Icons.check_rounded, size: 20),
                           if (_step == 2) const SizedBox(width: 8),
                           Text(
-                            _step == 2 ? 'Place order · $itemCount ${itemCount == 1 ? "service" : "services"}' : 'Continue',
+                            _step == 2 ? 'Place order · ${cart.cartTotal}+' : 'Continue',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           if (_step < 2) const SizedBox(width: 8),
@@ -307,50 +423,119 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
     );
   }
 
-  Widget _stepIndicator(int index, String label, IconData icon) {
+  Widget _pillTab(int index, String label) {
     final active = _step == index;
     final done = _step > index;
     return GestureDetector(
       onTap: done ? () => setState(() => _step = index) : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(100),
-          color: active ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
+          color: active ? Colors.white : Colors.transparent,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 24, height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? Colors.white : done ? AppColors.accent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.06),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (done)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(Icons.check_circle_rounded, size: 14, color: active ? AppColors.primary : AppColors.accent),
+                ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: active ? AppColors.primary : (done ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.3)),
+                ),
               ),
-              child: Center(
-                child: done
-                  ? Icon(Icons.check_rounded, size: 12, color: AppColors.accent)
-                  : Icon(icon, size: 12, color: active ? AppColors.primary : Colors.white.withValues(alpha: 0.25)),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildCartStrip(CartState cart) {
+    if (cart.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          // Stacked thumbnails
+          SizedBox(
+            width: 28.0 + (cart.items.length - 1).clamp(0, 3) * 18.0,
+            height: 28,
+            child: Stack(
+              children: [
+                for (int i = 0; i < cart.items.length.clamp(0, 4); i++)
+                  Positioned(
+                    left: i * 18.0,
+                    child: Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.background, width: 2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: Image.network(
+                          cart.items[i].service.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${cart.itemCount} ${cart.itemCount == 1 ? 'service' : 'services'}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ),
+          Text(cart.cartTotal, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.accent)),
+          Text('+', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.3))),
+        ],
+      ),
+    );
+  }
+
   // ══════════════════════════════════════
-  // Step 1: Cart items + Scheduling
+  // Step 1: Personal Details + Cart + Scheduling
   // ══════════════════════════════════════
   Widget _buildStep1(CartState cart) {
     return Column(
       key: const ValueKey('step1'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cart items header
+        // Personal details
+        const Text('Personal details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+        const SizedBox(height: 4),
+        Text('So the provider can reach you', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.4))),
+        const SizedBox(height: 16),
+        _inputField(_nameController, 'Full name', Icons.person_outline_rounded),
+        const SizedBox(height: 12),
+        _inputField(_emailController, 'Email address', Icons.email_outlined, inputType: TextInputType.emailAddress),
+        const SizedBox(height: 12),
+        _inputField(_phoneController, 'Phone number', Icons.phone_outlined, inputType: TextInputType.phone),
+
+        // Cart items
+        const SizedBox(height: 28),
         Row(
           children: [
-            Icon(Icons.shopping_cart_rounded, size: 18, color: AppColors.accent),
+            const Icon(Icons.shopping_cart_rounded, size: 18, color: AppColors.accent),
             const SizedBox(width: 8),
             const Text('Your services', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
             const SizedBox(width: 8),
@@ -442,7 +627,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.star_rounded, size: 11, color: AppColors.warning),
+                    const Icon(Icons.star_rounded, size: 11, color: AppColors.warning),
                     const SizedBox(width: 2),
                     Text('${item.service.rating}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
                     const SizedBox(width: 8),
@@ -452,7 +637,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(item.service.priceRange, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent)),
+                Text(item.service.priceRange, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent)),
               ],
             ),
           ),
@@ -538,7 +723,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
               if (value > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(value == 1 ? '+25%' : '+50%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.warning)),
+                  child: Text(value == 1 ? '+25%' : '+50%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.warning)),
                 ),
             ],
           ),
@@ -555,7 +740,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
       key: const ValueKey('step2'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Service address', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+        const Text('Delivery address', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
         const SizedBox(height: 4),
         Text('Where should the provider come?', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.4))),
         const SizedBox(height: 16),
@@ -572,7 +757,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 14),
                 child: _searchingAddress
-                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
                   : Icon(Icons.location_on_outlined, size: 18, color: Colors.white.withValues(alpha: 0.4)),
               ),
               Expanded(
@@ -648,15 +833,6 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
           ),
         ),
 
-        // Contact
-        const SizedBox(height: 28),
-        const Text('Your details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
-        const SizedBox(height: 4),
-        Text('So the provider can reach you', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.4))),
-        const SizedBox(height: 16),
-        _inputField(_nameController, 'Full name', Icons.person_outline_rounded),
-        const SizedBox(height: 12),
-        _inputField(_phoneController, 'Phone number', Icons.phone_outlined, inputType: TextInputType.phone),
         const SizedBox(height: 40),
       ],
     );
@@ -727,7 +903,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   }
 
   // ══════════════════════════════════════
-  // Step 3: Confirm (order review + payment)
+  // Step 3: Payment + Order Review
   // ══════════════════════════════════════
   Widget _buildStep3(CartState cart) {
     final urgencyLabels = ['Standard', 'Urgent +25%', 'Same-day +50%'];
@@ -774,11 +950,11 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
                               maxLines: 1, overflow: TextOverflow.ellipsis,
                             ),
-                            Text('${item.service.duration}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35))),
+                            Text(item.service.duration, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35))),
                           ],
                         ),
                       ),
-                      Text(item.service.priceRange, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.accent)),
+                      Text(item.service.priceRange, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.accent)),
                     ],
                   ),
                 ),
@@ -797,13 +973,14 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                     Container(height: 1, color: Colors.white.withValues(alpha: 0.06), margin: const EdgeInsets.symmetric(vertical: 10)),
                     _summaryRow('Address', _addressController.text.isEmpty ? '—' : _addressController.text, truncate: true),
                     _summaryRow('Contact', _nameController.text.isEmpty ? '—' : _nameController.text),
+                    _summaryRow('Email', _emailController.text.isEmpty ? '—' : _emailController.text),
                     _summaryRow('Phone', _phoneController.text.isEmpty ? '—' : _phoneController.text),
                     Container(height: 1, color: Colors.white.withValues(alpha: 0.06), margin: const EdgeInsets.symmetric(vertical: 10)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Estimated total (from)', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.5))),
-                        Text('${cart.cartTotal}+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.accent)),
+                        Text('${cart.cartTotal}+', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.accent)),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -846,13 +1023,13 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.shield_outlined, size: 20, color: AppColors.accent),
+              const Icon(Icons.shield_outlined, size: 20, color: AppColors.accent),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Secure booking', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.accent)),
+                    const Text('Secure booking', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.accent)),
                     const SizedBox(height: 4),
                     Text("You won't be charged until the service is confirmed. Free cancellation up to 2 hours before.",
                       style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),

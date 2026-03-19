@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:serveify/core/demo/customer_demo_data.dart';
 import 'package:serveify/core/network/api_client.dart';
 import 'package:serveify/core/theme/app_theme.dart';
@@ -301,7 +302,7 @@ class _ServiceCard extends StatelessWidget {
                               ),
                               if (verified) ...[
                                 const SizedBox(width: 4),
-                                Icon(Icons.verified_rounded, size: 16, color: AppColors.accent),
+                                const Icon(Icons.verified_rounded, size: 16, color: AppColors.accent),
                               ],
                             ],
                           ),
@@ -359,7 +360,7 @@ class _ServiceCard extends StatelessWidget {
                     const _Action(icon: Icons.share_outlined, label: 'Share'),
                     const Spacer(),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => context.push('/services'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: AppColors.primary,

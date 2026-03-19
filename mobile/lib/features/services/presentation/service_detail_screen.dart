@@ -470,7 +470,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           gradient: _addedFeedback
               ? null
               : const LinearGradient(colors: [Color(0xFF06B6D4), Color(0xFF2563EB)]),
-          color: _addedFeedback ? Colors.greenAccent.withOpacity(0.15) : null,
+          color: _addedFeedback ? Colors.greenAccent.withValues(alpha: 0.15) : null,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -501,7 +501,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
       onTap: onTap,
       child: Container(
         width: 40, height: 40,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.black38,
           shape: BoxShape.circle,
         ),
@@ -605,7 +605,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                   children: [
                     const Icon(Icons.shopping_cart, color: Color(0xFF67E8F9), size: 20),
                     const SizedBox(width: 10),
-                    Text('Your cart', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                    const Text('Your cart', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
                     const Spacer(),
                     Text('${cartState.itemCount} items', style: const TextStyle(color: Colors.white38, fontSize: 13)),
                   ],

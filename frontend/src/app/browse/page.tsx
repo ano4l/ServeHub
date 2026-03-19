@@ -13,6 +13,8 @@ import { ProviderCardSkeleton } from "@/components/ui/skeleton";
 import { providersApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/store/ui.store";
+import { useCartStore } from "@/store/cart.store";
+import type { ServiceItem } from "@/lib/services-directory";
 
 const defaultFilters = {
   verifiedOnly: false,
@@ -26,6 +28,8 @@ function BrowsePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast } = useUIStore();
+  const addItem = useCartStore((s) => s.addItem);
+  const [addedProviders, setAddedProviders] = useState<Set<string>>(new Set());
   const [providers, setProviders] = useState<ProviderCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -276,6 +280,25 @@ function BrowsePageContent() {
 
   const handleBook = (providerId: string) => {
     router.push(`/providers/${providerId}`);
+  };
+
+  const handleAddToCart = (providerId: string) => {
+    const provider = providers.find((p) => p.id === providerId);
+    if (!provider) return;
+    const service: ServiceItem = {
+      id: Math.abs(provider.id.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)),
+      name: provider.category,
+      categoryId: provider.category.toLowerCase().replace(/\s+/g, "-"),
+      imageUrl: provider.avatar || "",
+      description: provider.bio || `${provider.category} by ${provider.name}`,
+      priceRange: provider.startingPrice ? `From R${provider.startingPrice}` : "Quote on request",
+      duration: "1-2 hrs",
+      rating: provider.rating,
+    };
+    addItem(service);
+    setAddedProviders((prev) => new Set(prev).add(providerId));
+    addToast({ type: "success", message: `${provider.name} added to cart` });
+    setTimeout(() => setAddedProviders((prev) => { const n = new Set(prev); n.delete(providerId); return n; }), 2500);
   };
 
   return (
@@ -709,7 +732,13 @@ function BrowsePageContent() {
             </div>
           ) : (
             filteredProviders.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} onBook={handleBook} />
+              <ProviderCard
+                key={provider.id}
+                provider={provider}
+                onBook={handleBook}
+                onAddToCart={handleAddToCart}
+                addedToCart={addedProviders.has(provider.id)}
+              />
             ))
           )}
         </div>

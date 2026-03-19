@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../providers/cart_provider.dart' as cart;
 
 // ─── Service directory data (100 services, 11 categories) ───
 
@@ -46,9 +48,9 @@ class ServiceItem {
 }
 
 final List<ServiceCategory> kServiceCategories = [
-  ServiceCategory(
-    id: 'home-repair', name: 'Home Repair', emoji: '🔧', icon: Icons.build_rounded, color: const Color(0xFF3B82F6),
-    services: const [
+  const ServiceCategory(
+    id: 'home-repair', name: 'Home Repair', emoji: '🔧', icon: Icons.build_rounded, color: Color(0xFF3B82F6),
+    services: [
       ServiceItem(id: 1, name: 'Plumbing', categoryId: 'home-repair', popular: true),
       ServiceItem(id: 2, name: 'Emergency plumber', categoryId: 'home-repair', popular: true),
       ServiceItem(id: 3, name: 'Electrical repairs', categoryId: 'home-repair', popular: true),
@@ -71,9 +73,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 20, name: 'Handyman services', categoryId: 'home-repair', popular: true),
     ],
   ),
-  ServiceCategory(
-    id: 'cleaning', name: 'Cleaning', emoji: '🧹', icon: Icons.cleaning_services_rounded, color: const Color(0xFF10B981),
-    services: const [
+  const ServiceCategory(
+    id: 'cleaning', name: 'Cleaning', emoji: '🧹', icon: Icons.cleaning_services_rounded, color: Color(0xFF10B981),
+    services: [
       ServiceItem(id: 21, name: 'House cleaning', categoryId: 'cleaning', popular: true),
       ServiceItem(id: 22, name: 'Deep cleaning', categoryId: 'cleaning', popular: true),
       ServiceItem(id: 23, name: 'Carpet cleaning', categoryId: 'cleaning'),
@@ -86,9 +88,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 30, name: 'Waste removal', categoryId: 'cleaning'),
     ],
   ),
-  ServiceCategory(
-    id: 'outdoor', name: 'Outdoor & Garden', emoji: '🌿', icon: Icons.park_rounded, color: const Color(0xFF22C55E),
-    services: const [
+  const ServiceCategory(
+    id: 'outdoor', name: 'Outdoor & Garden', emoji: '🌿', icon: Icons.park_rounded, color: Color(0xFF22C55E),
+    services: [
       ServiceItem(id: 31, name: 'Lawn mowing', categoryId: 'outdoor', popular: true),
       ServiceItem(id: 32, name: 'Garden maintenance', categoryId: 'outdoor', popular: true),
       ServiceItem(id: 33, name: 'Landscaping', categoryId: 'outdoor'),
@@ -101,9 +103,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 40, name: 'Pest control', categoryId: 'outdoor'),
     ],
   ),
-  ServiceCategory(
-    id: 'vehicle', name: 'Vehicle Services', emoji: '🚗', icon: Icons.directions_car_rounded, color: const Color(0xFFF97316),
-    services: const [
+  const ServiceCategory(
+    id: 'vehicle', name: 'Vehicle Services', emoji: '🚗', icon: Icons.directions_car_rounded, color: Color(0xFFF97316),
+    services: [
       ServiceItem(id: 41, name: 'Mobile mechanic', categoryId: 'vehicle', popular: true),
       ServiceItem(id: 42, name: 'Car diagnostic', categoryId: 'vehicle'),
       ServiceItem(id: 43, name: 'Car battery replacement', categoryId: 'vehicle'),
@@ -116,9 +118,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 50, name: 'Car locksmith', categoryId: 'vehicle'),
     ],
   ),
-  ServiceCategory(
-    id: 'construction', name: 'Construction', emoji: '🧑‍🔧', icon: Icons.construction_rounded, color: const Color(0xFFEAB308),
-    services: const [
+  const ServiceCategory(
+    id: 'construction', name: 'Construction', emoji: '🧑‍🔧', icon: Icons.construction_rounded, color: Color(0xFFEAB308),
+    services: [
       ServiceItem(id: 51, name: 'Painting', categoryId: 'construction', popular: true),
       ServiceItem(id: 52, name: 'Interior painting', categoryId: 'construction'),
       ServiceItem(id: 53, name: 'Exterior painting', categoryId: 'construction'),
@@ -131,9 +133,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 60, name: 'Building contractor', categoryId: 'construction'),
     ],
   ),
-  ServiceCategory(
-    id: 'tech', name: 'Tech & Digital', emoji: '🧑‍💻', icon: Icons.computer_rounded, color: const Color(0xFF8B5CF6),
-    services: const [
+  const ServiceCategory(
+    id: 'tech', name: 'Tech & Digital', emoji: '🧑‍💻', icon: Icons.computer_rounded, color: Color(0xFF8B5CF6),
+    services: [
       ServiceItem(id: 61, name: 'WiFi installation', categoryId: 'tech', popular: true),
       ServiceItem(id: 62, name: 'Router setup', categoryId: 'tech'),
       ServiceItem(id: 63, name: 'CCTV installation', categoryId: 'tech', popular: true),
@@ -146,9 +148,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 70, name: 'IT support', categoryId: 'tech'),
     ],
   ),
-  ServiceCategory(
-    id: 'personal', name: 'Personal & Lifestyle', emoji: '💇', icon: Icons.content_cut_rounded, color: const Color(0xFFEC4899),
-    services: const [
+  const ServiceCategory(
+    id: 'personal', name: 'Personal & Lifestyle', emoji: '💇', icon: Icons.content_cut_rounded, color: Color(0xFFEC4899),
+    services: [
       ServiceItem(id: 71, name: 'Barber (mobile haircut)', categoryId: 'personal', popular: true),
       ServiceItem(id: 72, name: 'Hair stylist', categoryId: 'personal', popular: true),
       ServiceItem(id: 73, name: 'Makeup artist', categoryId: 'personal'),
@@ -161,9 +163,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 80, name: 'Photographer', categoryId: 'personal'),
     ],
   ),
-  ServiceCategory(
-    id: 'pet', name: 'Pet Services', emoji: '🐶', icon: Icons.pets_rounded, color: const Color(0xFFF59E0B),
-    services: const [
+  const ServiceCategory(
+    id: 'pet', name: 'Pet Services', emoji: '🐶', icon: Icons.pets_rounded, color: Color(0xFFF59E0B),
+    services: [
       ServiceItem(id: 81, name: 'Pet grooming', categoryId: 'pet', popular: true),
       ServiceItem(id: 82, name: 'Dog walking', categoryId: 'pet', popular: true),
       ServiceItem(id: 83, name: 'Pet sitting', categoryId: 'pet'),
@@ -171,9 +173,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 85, name: 'Pet training', categoryId: 'pet'),
     ],
   ),
-  ServiceCategory(
-    id: 'moving', name: 'Moving & Delivery', emoji: '📦', icon: Icons.local_shipping_rounded, color: const Color(0xFF0EA5E9),
-    services: const [
+  const ServiceCategory(
+    id: 'moving', name: 'Moving & Delivery', emoji: '📦', icon: Icons.local_shipping_rounded, color: Color(0xFF0EA5E9),
+    services: [
       ServiceItem(id: 86, name: 'Moving services', categoryId: 'moving', popular: true),
       ServiceItem(id: 87, name: 'Furniture moving', categoryId: 'moving'),
       ServiceItem(id: 88, name: 'Small parcel delivery', categoryId: 'moving'),
@@ -181,9 +183,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 90, name: 'Grocery delivery', categoryId: 'moving'),
     ],
   ),
-  ServiceCategory(
-    id: 'business', name: 'Business & Professional', emoji: '🏢', icon: Icons.business_center_rounded, color: const Color(0xFF64748B),
-    services: const [
+  const ServiceCategory(
+    id: 'business', name: 'Business & Professional', emoji: '🏢', icon: Icons.business_center_rounded, color: Color(0xFF64748B),
+    services: [
       ServiceItem(id: 91, name: 'Accountant', categoryId: 'business'),
       ServiceItem(id: 92, name: 'Tax consultant', categoryId: 'business'),
       ServiceItem(id: 93, name: 'Legal consultation', categoryId: 'business'),
@@ -191,9 +193,9 @@ final List<ServiceCategory> kServiceCategories = [
       ServiceItem(id: 95, name: 'Marketing consultant', categoryId: 'business'),
     ],
   ),
-  ServiceCategory(
-    id: 'emergency', name: 'Emergency', emoji: '⚡', icon: Icons.flash_on_rounded, color: const Color(0xFFEF4444),
-    services: const [
+  const ServiceCategory(
+    id: 'emergency', name: 'Emergency', emoji: '⚡', icon: Icons.flash_on_rounded, color: Color(0xFFEF4444),
+    services: [
       ServiceItem(id: 96, name: 'Emergency electrician', categoryId: 'emergency', popular: true),
       ServiceItem(id: 97, name: 'Emergency plumber', categoryId: 'emergency', popular: true),
       ServiceItem(id: 98, name: 'Emergency locksmith', categoryId: 'emergency'),
@@ -208,14 +210,14 @@ final List<ServiceItem> kPopularServices = kAllServices.where((s) => s.popular).
 
 // ─── Screen ───
 
-class ServicesDirectoryScreen extends StatefulWidget {
+class ServicesDirectoryScreen extends ConsumerStatefulWidget {
   const ServicesDirectoryScreen({super.key});
 
   @override
-  State<ServicesDirectoryScreen> createState() => _ServicesDirectoryScreenState();
+  ConsumerState<ServicesDirectoryScreen> createState() => _ServicesDirectoryScreenState();
 }
 
-class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
+class _ServicesDirectoryScreenState extends ConsumerState<ServicesDirectoryScreen> {
   String _query = '';
   String? _selectedCategoryId;
   final _searchController = TextEditingController();
@@ -259,11 +261,45 @@ class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
     context.push('/services/${service.id}');
   }
 
+  void _addToCart(ServiceItem service) {
+    final cartNotifier = ref.read(cart.cartProvider.notifier);
+    cartNotifier.addItem(cart.ServiceItem(
+      id: service.id,
+      name: service.name,
+      categoryId: service.categoryId,
+      imageUrl: service.imageUrl,
+      description: service.description,
+      priceRange: service.priceRange,
+      duration: service.duration,
+      rating: service.rating,
+    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${service.name} added to cart'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(label: 'VIEW CART', onPressed: () => context.push('/book')),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFF07111F);
+    final cartState = ref.watch(cart.cartProvider);
     return Scaffold(
       backgroundColor: bg,
+      floatingActionButton: cartState.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/book'),
+              backgroundColor: const Color(0xFF06B6D4),
+              icon: const Icon(Icons.shopping_cart_rounded, size: 20),
+              label: Text(
+                '${cartState.itemCount} · ${cartState.cartTotal}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -374,10 +410,10 @@ class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
         // Popular services
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.flash_on_rounded, color: Color(0xFFFBBF24), size: 18),
-            const SizedBox(width: 6),
+            Icon(Icons.flash_on_rounded, color: Color(0xFFFBBF24), size: 18),
+            SizedBox(width: 6),
             Text('Popular right now', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
           ],
         ),
@@ -388,11 +424,12 @@ class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
           children: kPopularServices.take(9).map((s) => _ServiceChipButton(
             service: s,
             onTap: () => _tapService(s),
+            onAddToCart: () => _addToCart(s),
           )).toList(),
         ),
         const SizedBox(height: 28),
         // All categories
-        Text('All categories', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+        const Text('All categories', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
         const SizedBox(height: 2),
         Text(
           '${kServiceCategories.length} categories · ${kAllServices.length} services',
@@ -451,6 +488,7 @@ class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
             children: items.map((s) => _ServiceChipButton(
               service: s,
               onTap: () => _tapService(s),
+              onAddToCart: () => _addToCart(s),
             )).toList(),
           ),
       ],
@@ -495,14 +533,16 @@ class _Chip extends StatelessWidget {
 class _ServiceChipButton extends StatelessWidget {
   final ServiceItem service;
   final VoidCallback onTap;
+  final VoidCallback? onAddToCart;
 
-  const _ServiceChipButton({required this.service, required this.onTap});
+  const _ServiceChipButton({required this.service, required this.onTap, this.onAddToCart});
 
   @override
   Widget build(BuildContext context) {
     final cat = kServiceCategories.firstWhere((c) => c.id == service.categoryId);
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onAddToCart,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -527,6 +567,20 @@ class _ServiceChipButton extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(cat.emoji, style: const TextStyle(fontSize: 12)),
+            if (onAddToCart != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: onAddToCart,
+                child: Container(
+                  width: 24, height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.add_shopping_cart_rounded, size: 13, color: Color(0xFF06B6D4)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

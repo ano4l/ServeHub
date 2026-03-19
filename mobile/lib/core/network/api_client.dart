@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:serveify/core/config/env.dart';
 import 'package:serveify/core/storage/secure_storage.dart';
@@ -20,7 +21,7 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(LogInterceptor(
     requestBody: true,
     responseBody: true,
-    logPrint: (obj) => print('[DIO] $obj'),
+    logPrint: (obj) => debugPrint('[DIO] $obj'),
   ));
 
   return dio;

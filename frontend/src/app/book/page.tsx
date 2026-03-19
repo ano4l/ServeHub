@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -21,6 +21,14 @@ import {
   Trash2,
   Minus,
   Plus,
+  User,
+  Mail,
+  Phone,
+  Pencil,
+  Package,
+  CircleCheckBig,
+  FileText,
+  HelpCircle,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { AddressAutocomplete } from "@/components/booking/AddressAutocomplete";
@@ -29,19 +37,22 @@ import { useCartStore, type CartItem } from "@/store/cart.store";
 import { getCategoryById } from "@/lib/services-directory";
 
 interface BookingFormData {
+  personal: {
+    name: string;
+    email: string;
+    phone: string;
+  };
   scheduling: {
     date: string;
     time: string;
     urgency: "standard" | "urgent" | "emergency";
   };
-  location: {
+  delivery: {
     address: string;
     lat?: number;
     lng?: number;
     type: "home" | "office" | "other";
     notes: string;
-    name: string;
-    phone: string;
   };
   payment: {
     method: "card" | "cash" | "eft";
@@ -49,9 +60,9 @@ interface BookingFormData {
 }
 
 const STEPS = [
-  { id: 1, label: "Cart & Schedule", icon: ShoppingCart },
-  { id: 2, label: "Location", icon: MapPin },
-  { id: 3, label: "Confirm", icon: Check },
+  { id: 1, label: "User Detail", icon: User },
+  { id: 2, label: "Delivery", icon: MapPin },
+  { id: 3, label: "Payment", icon: CreditCard },
 ];
 
 const TIME_SLOTS = [
@@ -69,9 +80,12 @@ export default function BookNowPage() {
   const router = useRouter();
   const { items, removeItem, updateQuantity, getCartTotal, getItemCount, clearCart } = useCartStore();
   const [currentStep, setCurrentStep] = useState(1);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
   const [formData, setFormData] = useState<BookingFormData>({
+    personal: { name: "", email: "", phone: "" },
     scheduling: { date: "", time: "", urgency: "standard" },
-    location: { address: "", type: "home", notes: "", name: "", phone: "" },
+    delivery: { address: "", type: "home", notes: "" },
     payment: { method: "card" },
   });
 
@@ -86,9 +100,9 @@ export default function BookNowPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!(items.length > 0 && formData.scheduling.date && formData.scheduling.time);
+        return !!(formData.personal.name && formData.personal.phone && formData.scheduling.date && formData.scheduling.time);
       case 2:
-        return !!(formData.location.address && formData.location.name && formData.location.phone);
+        return !!formData.delivery.address;
       case 3:
         return true;
       default:
@@ -98,15 +112,90 @@ export default function BookNowPage() {
 
   const nextStep = () => currentStep < STEPS.length && setCurrentStep(currentStep + 1);
   const prevStep = () => currentStep > 1 && setCurrentStep(currentStep - 1);
+
+  const estimatedArrival = useMemo(() => {
+    if (!formData.scheduling.date) return "";
+    const d = new Date(formData.scheduling.date);
+    return d.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  }, [formData.scheduling.date]);
+
   const submit = () => {
-    console.log("Booking submitted:", { items, formData });
+    const ref = `SH${Date.now().toString(36).toUpperCase()}`;
+    setOrderNumber(ref);
     clearCart();
-    router.push("/bookings");
+    setOrderSuccess(true);
   };
 
-  const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
+  // ─── Order Success Screen ───
+  if (orderSuccess) {
+    return (
+      <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.18),transparent_50%)]" />
+        <div className="relative mx-auto max-w-lg px-4 pt-12 pb-24 sm:px-6 text-center">
+          {/* Celebration */}
+          <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/10">
+            <CircleCheckBig className="h-14 w-14 text-emerald-400" />
+          </div>
 
-  // Empty cart redirect
+          <h1 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">
+            Order Successful!
+          </h1>
+          <p className="mt-3 text-sm text-white/55 max-w-sm mx-auto leading-relaxed">
+            Thank you for choosing ServeHub. Your invoice has been sent
+            {formData.personal.email ? ` to ${formData.personal.email}` : ""}.
+          </p>
+
+          {/* Meta row */}
+          <div className="mt-6 flex items-center justify-center gap-6 text-xs">
+            <div>
+              <p className="text-white/40">Est. Arrival</p>
+              <p className="mt-0.5 font-semibold text-white/80">{estimatedArrival || "TBD"}</p>
+            </div>
+            <div className="h-6 w-px bg-white/10" />
+            <div>
+              <p className="text-white/40">Order</p>
+              <p className="mt-0.5 font-semibold text-cyan-300">#{orderNumber}</p>
+            </div>
+          </div>
+
+          {/* Action cards */}
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={() => router.push("/bookings")}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/8 py-3.5 text-sm font-semibold text-emerald-300 transition-all hover:bg-emerald-400/12 active:scale-[0.98]"
+            >
+              <FileText className="h-4 w-4" /> See Invoice
+            </button>
+            <button
+              onClick={() => router.push("/bookings")}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-400/8 py-3.5 text-sm font-semibold text-cyan-300 transition-all hover:bg-cyan-400/12 active:scale-[0.98]"
+            >
+              <Package className="h-4 w-4" /> See Order Status
+            </button>
+            <button
+              onClick={() => router.push("/bookings")}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/4 py-3.5 text-sm font-medium text-white/50 transition-all hover:bg-white/8"
+            >
+              <HelpCircle className="h-4 w-4" /> I need help with this booking
+            </button>
+          </div>
+
+          {/* Browse more */}
+          <div className="mt-10">
+            <p className="text-xs text-white/30 mb-3">You might also like</p>
+            <button
+              onClick={() => router.push("/services")}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
+            >
+              Browse more services <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Empty cart ───
   if (items.length === 0 && typeof window !== "undefined") {
     return (
       <div className="min-h-screen bg-[#07111f] text-white flex flex-col items-center justify-center px-4">
@@ -139,12 +228,7 @@ export default function BookNowPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">Checkout</h1>
-            <p className="text-xs text-white/45">
-              Step {currentStep} of {STEPS.length} · {STEPS[currentStep - 1].label}
-            </p>
-          </div>
+          <h1 className="flex-1 text-center text-lg font-semibold tracking-tight">Cart</h1>
           <button
             onClick={() => router.back()}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/8 text-white/40 hover:bg-white/12 active:scale-95"
@@ -153,70 +237,101 @@ export default function BookNowPage() {
           </button>
         </div>
 
-        {/* Progress bar */}
-        <div className="mt-4 h-1 rounded-full bg-white/8 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Step indicators */}
-        <div className="mt-3 flex items-center justify-between">
+        {/* Step tabs (matching reference) */}
+        <div className="mt-5 flex items-center justify-center gap-0 rounded-full border border-white/8 bg-white/4 p-1">
           {STEPS.map((step) => {
             const active = currentStep === step.id;
             const done = currentStep > step.id;
-            const Icon = step.icon;
             return (
               <button
                 key={step.id}
                 onClick={() => done && setCurrentStep(step.id)}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                  "relative flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all",
                   active
-                    ? "bg-white/10 text-white"
+                    ? "bg-white text-slate-950 shadow-sm"
                     : done
-                      ? "text-cyan-300/70 cursor-pointer hover:text-cyan-200"
-                      : "text-white/25",
+                      ? "text-cyan-300/80 cursor-pointer hover:text-cyan-200"
+                      : "text-white/30",
                 )}
               >
-                <div
-                  className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-full transition-all",
-                    active
-                      ? "bg-white text-slate-950"
-                      : done
-                        ? "bg-cyan-400/20 text-cyan-300"
-                        : "bg-white/6 text-white/25",
-                  )}
-                >
-                  {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
-                </div>
-                <span className="hidden sm:inline">{step.label}</span>
+                {done && (
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500">
+                    <Check className="h-2.5 w-2.5 text-white" />
+                  </div>
+                )}
+                {active && (
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500">
+                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                  </div>
+                )}
+                {step.label}
               </button>
             );
           })}
         </div>
 
+        {/* Compact cart strip (always visible) */}
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/4 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">{itemCount} Total {itemCount === 1 ? "Item" : "Items"}</p>
+            <button
+              onClick={() => setCurrentStep(1)}
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              <Pencil className="mr-1 inline h-3 w-3" />Edit
+            </button>
+          </div>
+
+          {/* Thumbnail row */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {items.map((item) => (
+              <div
+                key={item.service.id}
+                className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border border-white/10"
+              >
+                <img
+                  src={item.service.imageUrl}
+                  alt={item.service.name}
+                  className="h-full w-full object-cover"
+                />
+                {item.quantity > 1 && (
+                  <div className="absolute bottom-0 right-0 rounded-tl-lg bg-cyan-500 px-1 text-[9px] font-bold text-white">
+                    ×{item.quantity}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Total */}
+          <div className="mt-3 flex items-center justify-between border-t border-white/6 pt-3">
+            <span className="text-lg font-bold text-white">{cartTotal}+</span>
+            <span className="text-[11px] text-white/30">Est. · final quote after review</span>
+          </div>
+        </div>
+
         {/* Step content */}
         <div className="mt-6">
           {currentStep === 1 && (
-            <StepCartAndSchedule
+            <StepPersonalDetails
               items={items}
+              personal={formData.personal}
               scheduling={formData.scheduling}
+              onPersonalUpdate={(d) => update("personal", d)}
               onScheduleUpdate={(d) => update("scheduling", d)}
               onRemoveItem={removeItem}
               onUpdateQuantity={updateQuantity}
             />
           )}
           {currentStep === 2 && (
-            <StepLocation
-              location={formData.location}
-              onUpdate={(d) => update("location", d)}
+            <StepDelivery
+              delivery={formData.delivery}
+              onUpdate={(d) => update("delivery", d)}
             />
           )}
           {currentStep === 3 && (
-            <StepConfirm
+            <StepPayment
               items={items}
               formData={formData}
               cartTotal={cartTotal}
@@ -238,18 +353,13 @@ export default function BookNowPage() {
             </button>
           )}
 
-          <div className="hidden sm:block text-sm">
-            <p className="text-white/40 text-xs">Est. total</p>
-            <p className="font-semibold">{cartTotal}+</p>
-          </div>
-
           {currentStep === STEPS.length ? (
             <button
               onClick={submit}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-white active:scale-[0.98] transition-all shadow-lg shadow-cyan-500/20"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 font-semibold text-white active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20"
             >
               <Check className="h-5 w-5" />
-              Place order · {itemCount} {itemCount === 1 ? "service" : "services"}
+              Place order · {cartTotal}+
             </button>
           ) : (
             <button
@@ -272,22 +382,25 @@ export default function BookNowPage() {
   );
 }
 
-/* ─── Step 1: Cart items + Scheduling ─── */
-function StepCartAndSchedule({
+/* ─── Step 1: Personal Details + Cart items + Scheduling ─── */
+function StepPersonalDetails({
   items,
+  personal,
   scheduling,
+  onPersonalUpdate,
   onScheduleUpdate,
   onRemoveItem,
   onUpdateQuantity,
 }: {
   items: CartItem[];
+  personal: BookingFormData["personal"];
   scheduling: BookingFormData["scheduling"];
+  onPersonalUpdate: (d: Partial<BookingFormData["personal"]>) => void;
   onScheduleUpdate: (d: Partial<BookingFormData["scheduling"]>) => void;
   onRemoveItem: (id: number) => void;
   onUpdateQuantity: (id: number, qty: number) => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
-
   const quickDates = (() => {
     const d = new Date();
     const fmt = (date: Date) => date.toISOString().split("T")[0];
@@ -302,12 +415,42 @@ function StepCartAndSchedule({
 
   return (
     <div className="space-y-8">
-      {/* Cart items */}
+      {/* Personal Details (matching reference) */}
+      <section>
+        <h2 className="text-lg font-semibold mb-1">Personal Details</h2>
+        <p className="text-sm text-white/40 mb-4">We&apos;ll use these to confirm your booking</p>
+        <div className="space-y-3">
+          <FormInput
+            icon={<User className="h-4 w-4" />}
+            label="Full Name"
+            placeholder="e.g. Thabo Mokoena"
+            value={personal.name}
+            onChange={(v) => onPersonalUpdate({ name: v })}
+          />
+          <FormInput
+            icon={<Mail className="h-4 w-4" />}
+            label="Email Address"
+            placeholder="you@example.com"
+            type="email"
+            value={personal.email}
+            onChange={(v) => onPersonalUpdate({ email: v })}
+          />
+          <FormInput
+            icon={<Phone className="h-4 w-4" />}
+            label="Phone Number"
+            placeholder="+27 83 123 4567"
+            type="tel"
+            value={personal.phone}
+            onChange={(v) => onPersonalUpdate({ phone: v })}
+          />
+        </div>
+      </section>
+
+      {/* Cart items (expandable) */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <ShoppingCart className="h-4 w-4 text-cyan-400" />
-          <h2 className="text-lg font-semibold">Your services</h2>
-          <span className="text-sm text-white/40">({items.length})</span>
+          <h2 className="text-lg font-semibold">My Cart ({items.length})</h2>
         </div>
         <div className="space-y-3">
           {items.map((item) => {
@@ -315,61 +458,64 @@ function StepCartAndSchedule({
             return (
               <div
                 key={item.service.id}
-                className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/4 p-3"
+                className="rounded-2xl border border-white/8 bg-white/4 p-3"
               >
-                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl">
-                  <img
-                    src={item.service.imageUrl}
-                    alt={item.service.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white line-clamp-1">
-                    {item.service.name}
-                  </p>
-                  {cat && (
-                    <p className="text-[11px] text-white/35">
-                      {cat.emoji} {cat.name}
-                    </p>
-                  )}
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-white/40">
-                    <span className="flex items-center gap-0.5">
-                      <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
-                      {item.service.rating}
-                    </span>
-                    <span>·</span>
-                    <span className="flex items-center gap-0.5">
-                      <Clock className="h-2.5 w-2.5" />
-                      {item.service.duration}
-                    </span>
+                <div className="flex items-start gap-3">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl">
+                    <img
+                      src={item.service.imageUrl}
+                      alt={item.service.name}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
-                  <p className="mt-0.5 text-xs font-semibold text-cyan-300">
-                    {item.service.priceRange}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white line-clamp-1">
+                      {item.service.name}
+                    </p>
+                    {cat && (
+                      <p className="text-[11px] text-white/35 mt-0.5">
+                        {cat.emoji} {cat.name}
+                      </p>
+                    )}
+                    <div className="mt-1.5 flex items-baseline gap-2">
+                      <span className="text-base font-bold text-cyan-300">{item.service.priceRange}</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-[11px] text-white/40">
+                      <span className="flex items-center gap-0.5">
+                        <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
+                        {item.service.rating}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Clock className="h-2.5 w-2.5" />
+                        {item.service.duration}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => onRemoveItem(item.service.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white/30 transition hover:bg-red-500/15 hover:text-red-400"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="flex items-center gap-1">
+                {/* Qty + Remove row */}
+                <div className="mt-2 flex items-center justify-between border-t border-white/6 pt-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-white/40 mr-1">Qty:</span>
                     <button
                       onClick={() => onUpdateQuantity(item.service.id, item.quantity - 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 active:scale-90"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
-                    <span className="w-5 text-center text-xs font-medium">{item.quantity}</span>
+                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
                     <button
                       onClick={() => onUpdateQuantity(item.service.id, item.quantity + 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 active:scale-90"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>
+                  <button
+                    onClick={() => onRemoveItem(item.service.id)}
+                    className="flex items-center gap-1 text-xs font-medium text-red-400/80 transition hover:text-red-400 active:scale-95"
+                  >
+                    Remove <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
             );
@@ -382,8 +528,7 @@ function StepCartAndSchedule({
         <h2 className="text-lg font-semibold mb-1">When do you need it?</h2>
         <p className="text-sm text-white/40 mb-4">Pick a date and time</p>
 
-        {/* Quick date chips */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           {quickDates.map((qd) => (
             <button
               key={qd.value}
@@ -421,7 +566,6 @@ function StepCartAndSchedule({
           </label>
         </div>
 
-        {/* Time grid */}
         <div className="grid grid-cols-5 gap-2">
           {TIME_SLOTS.map((t) => (
             <button
@@ -440,7 +584,6 @@ function StepCartAndSchedule({
           ))}
         </div>
 
-        {/* Urgency */}
         <div className="mt-5 flex gap-2">
           {URGENCY_OPTIONS.map((opt) => {
             const Icon = opt.icon;
@@ -472,13 +615,13 @@ function StepCartAndSchedule({
   );
 }
 
-/* ─── Step 2: Location (with autocomplete + contact) ─── */
-function StepLocation({
-  location,
+/* ─── Step 2: Delivery / Location ─── */
+function StepDelivery({
+  delivery,
   onUpdate,
 }: {
-  location: BookingFormData["location"];
-  onUpdate: (d: Partial<BookingFormData["location"]>) => void;
+  delivery: BookingFormData["delivery"];
+  onUpdate: (d: Partial<BookingFormData["delivery"]>) => void;
 }) {
   return (
     <div className="space-y-8">
@@ -488,7 +631,7 @@ function StepLocation({
           Where should the provider come?
         </p>
         <AddressAutocomplete
-          value={location.address}
+          value={delivery.address}
           onChange={(address, lat, lng) => onUpdate({ address, lat, lng })}
           placeholder="Search for an address…"
         />
@@ -501,7 +644,7 @@ function StepLocation({
               onClick={() => onUpdate({ type: t })}
               className={cn(
                 "rounded-full border px-4 py-2 text-sm font-medium capitalize transition-all active:scale-95",
-                location.type === t
+                delivery.type === t
                   ? "border-cyan-400/50 bg-cyan-400/15 text-white"
                   : "border-white/10 bg-white/4 text-white/50 hover:bg-white/8",
               )}
@@ -513,39 +656,18 @@ function StepLocation({
 
         <textarea
           placeholder="Gate code, parking info, or special instructions…"
-          value={location.notes}
+          value={delivery.notes}
           onChange={(e) => onUpdate({ notes: e.target.value })}
           rows={2}
           className="mt-4 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-cyan-400/40 transition-all resize-none"
         />
       </section>
-
-      <section>
-        <h2 className="text-lg font-semibold mb-1">Your details</h2>
-        <p className="text-sm text-white/40 mb-4">So the provider can reach you</p>
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Full name"
-            value={location.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-cyan-400/40 transition-all"
-          />
-          <input
-            type="tel"
-            placeholder="Phone number (e.g. +27 83 123 4567)"
-            value={location.phone}
-            onChange={(e) => onUpdate({ phone: e.target.value })}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-cyan-400/40 transition-all"
-          />
-        </div>
-      </section>
     </div>
   );
 }
 
-/* ─── Step 3: Confirm (order review + payment) ─── */
-function StepConfirm({
+/* ─── Step 3: Payment + Review ─── */
+function StepPayment({
   items,
   formData,
   cartTotal,
@@ -566,19 +688,45 @@ function StepConfirm({
 
   return (
     <div className="space-y-6">
-      {/* Order summary */}
+      {/* Payment method */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3">Payment method</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {PAYMENT_METHODS.map((pm) => {
+            const Icon = pm.icon;
+            const active = formData.payment.method === pm.value;
+            return (
+              <button
+                key={pm.value}
+                type="button"
+                onClick={() => onPaymentUpdate({ method: pm.value })}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-2xl border py-4 text-xs font-medium transition-all active:scale-95",
+                  active
+                    ? "border-cyan-400/50 bg-cyan-400/10 text-white"
+                    : "border-white/8 bg-white/4 text-white/45 hover:bg-white/6",
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{pm.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Order review */}
       <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
         <div className="px-4 pt-4 pb-2">
-          <h3 className="text-sm font-semibold text-white/70">Order summary</h3>
+          <h3 className="text-sm font-semibold text-white/70">Order review</h3>
         </div>
 
-        {/* Cart items */}
         <div className="px-4 space-y-3 pb-3">
           {items.map((item) => {
             const cat = getCategoryById(item.service.categoryId);
             return (
               <div key={item.service.id} className="flex items-center gap-3">
-                <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
+                <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg">
                   <img
                     src={item.service.imageUrl}
                     alt={item.service.name}
@@ -604,65 +752,29 @@ function StepConfirm({
           })}
         </div>
 
-        <div className="border-t border-white/6 p-4 space-y-3">
+        <div className="border-t border-white/6 p-4 space-y-2.5">
           <SummaryRow label="Date" value={
             formData.scheduling.date
-              ? new Date(formData.scheduling.date).toLocaleDateString("en-ZA", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })
+              ? new Date(formData.scheduling.date).toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })
               : "—"
           } />
           <SummaryRow label="Time" value={formData.scheduling.time || "—"} />
-          <SummaryRow
-            label="Urgency"
-            value={urgencyLabel ? `${urgencyLabel.label} ${urgencyLabel.price}` : "Standard"}
-          />
-          <div className="border-t border-white/6 pt-3" />
-          <SummaryRow label="Address" value={formData.location.address || "—"} truncate />
-          <SummaryRow label="Contact" value={formData.location.name || "—"} />
-          <SummaryRow label="Phone" value={formData.location.phone || "—"} />
-          {formData.location.notes && (
-            <SummaryRow label="Notes" value={formData.location.notes} truncate />
-          )}
-          <div className="border-t border-white/6 pt-3" />
+          <SummaryRow label="Urgency" value={urgencyLabel ? `${urgencyLabel.label} ${urgencyLabel.price}` : "Standard"} />
+          <div className="border-t border-white/6 pt-2.5" />
+          <SummaryRow label="Address" value={formData.delivery.address || "—"} truncate />
+          <SummaryRow label="Contact" value={formData.personal.name || "—"} />
+          <SummaryRow label="Phone" value={formData.personal.phone || "—"} />
+          {formData.delivery.notes && <SummaryRow label="Notes" value={formData.delivery.notes} truncate />}
+          <div className="border-t border-white/6 pt-2.5" />
           <div className="flex items-center justify-between">
             <span className="text-sm text-white/50">Estimated total (from)</span>
             <span className="text-lg font-bold text-cyan-200">{cartTotal}+</span>
           </div>
           <p className="text-[10px] text-white/25">
-            Final price confirmed after provider reviews the scope of work.
+            Final price confirmed after provider reviews the scope.
           </p>
         </div>
       </div>
-
-      {/* Payment method */}
-      <section>
-        <h2 className="text-base font-semibold mb-3">Payment method</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {PAYMENT_METHODS.map((pm) => {
-            const Icon = pm.icon;
-            const active = formData.payment.method === pm.value;
-            return (
-              <button
-                key={pm.value}
-                type="button"
-                onClick={() => onPaymentUpdate({ method: pm.value })}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-2xl border py-4 text-xs font-medium transition-all active:scale-95",
-                  active
-                    ? "border-cyan-400/50 bg-cyan-400/10 text-white"
-                    : "border-white/8 bg-white/4 text-white/45 hover:bg-white/6",
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{pm.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Secure booking banner */}
       <div className="flex items-start gap-3 rounded-2xl bg-cyan-400/8 border border-cyan-400/20 p-4">
@@ -678,7 +790,40 @@ function StepConfirm({
   );
 }
 
-/* ─── Utility: summary row ─── */
+/* ─── Shared: labelled form input ─── */
+function FormInput({
+  icon,
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-white/50">{label}</label>
+      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 focus-within:border-cyan-400/40 transition-all">
+        <span className="text-white/30">{icon}</span>
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Shared: summary row ─── */
 function SummaryRow({ label, value, truncate }: { label: string; value: string; truncate?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4 text-sm">

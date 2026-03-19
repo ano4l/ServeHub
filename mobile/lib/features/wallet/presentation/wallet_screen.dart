@@ -101,15 +101,15 @@ class WalletScreen extends ConsumerWidget {
 
             transactions.when(
               data: (list) => list.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
+                        padding: EdgeInsets.all(32),
                         child: Column(
                           children: [
                             Icon(Icons.receipt_long_outlined,
                                 size: 48, color: AppColors.textMuted),
-                            const SizedBox(height: 12),
-                            const Text('No transactions yet',
+                            SizedBox(height: 12),
+                            Text('No transactions yet',
                                 style: TextStyle(
                                     color: AppColors.textSecondary, fontSize: 15)),
                           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:serveify/core/theme/app_theme.dart';
 
 // ─── Mock data ───
@@ -35,15 +36,15 @@ class _StatusConfig {
 _StatusConfig _statusConfig(String status) {
   switch (status) {
     case 'in_progress':
-      return _StatusConfig(label: 'In Progress', color: AppColors.info, dot: const Color(0xFF3B82F6));
+      return const _StatusConfig(label: 'In Progress', color: AppColors.info, dot: Color(0xFF3B82F6));
     case 'confirmed':
-      return _StatusConfig(label: 'Confirmed', color: AppColors.success, dot: const Color(0xFF22C55E));
+      return const _StatusConfig(label: 'Confirmed', color: AppColors.success, dot: Color(0xFF22C55E));
     case 'requested':
-      return _StatusConfig(label: 'Pending', color: AppColors.warning, dot: const Color(0xFFF59E0B));
+      return const _StatusConfig(label: 'Pending', color: AppColors.warning, dot: Color(0xFFF59E0B));
     case 'completed':
       return const _StatusConfig(label: 'Completed', color: Colors.white54, dot: Colors.white38);
     case 'cancelled':
-      return _StatusConfig(label: 'Cancelled', color: AppColors.error, dot: const Color(0xFFEF4444));
+      return const _StatusConfig(label: 'Cancelled', color: AppColors.error, dot: Color(0xFFEF4444));
     default:
       return const _StatusConfig(label: 'Unknown', color: Colors.white38, dot: Colors.white24);
   }
@@ -253,12 +254,12 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         child: Stack(
                           children: [
                             Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent.withValues(alpha: 0.3))),
-                            Center(child: Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent))),
+                            Center(child: Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.accent))),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(booking.eta ?? '', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.accent)),
+                      Text(booking.eta ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.accent)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -269,7 +270,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     child: LinearProgressIndicator(
                       value: booking.progress,
                       backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      valueColor: AlwaysStoppedAnimation(AppColors.accent),
+                      valueColor: const AlwaysStoppedAnimation(AppColors.accent),
                       minHeight: 5,
                     ),
                   ),
@@ -290,7 +291,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         child: SizedBox(
                           height: 40,
                           child: ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Live tracking coming soon'), duration: Duration(seconds: 2)),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: AppColors.primary,
@@ -320,7 +323,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return SizedBox(
       width: 40, height: 40,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Coming soon'), duration: Duration(seconds: 1)),
+        ),
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
           side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
@@ -436,7 +441,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                 const SizedBox(width: 3),
                                 Text('${booking.date} · ${booking.time}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35))),
                                 const SizedBox(width: 10),
-                                Icon(Icons.star_rounded, size: 11, color: AppColors.warning),
+                                const Icon(Icons.star_rounded, size: 11, color: AppColors.warning),
                                 const SizedBox(width: 2),
                                 Text('${booking.rating}', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35))),
                                 const Spacer(),
@@ -486,13 +491,15 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: _cardActionBtn(Icons.refresh_rounded, 'Rebook', () {}),
+                              child: _cardActionBtn(Icons.refresh_rounded, 'Rebook', () => context.push('/services')),
                             ),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 36, height: 36,
                               child: OutlinedButton(
-                                onPressed: () {},
+                                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Reviews coming soon'), duration: Duration(seconds: 1)),
+                                ),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
@@ -504,16 +511,20 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                           ],
                         )
                       else if (booking.status == 'cancelled')
-                        _cardActionBtn(Icons.refresh_rounded, 'Book again', () {})
+                        _cardActionBtn(Icons.refresh_rounded, 'Book again', () => context.push('/services'))
                       else if (isActive)
                         Row(
                           children: [
-                            Expanded(child: _cardActionBtn(null, 'View details', () {})),
+                            Expanded(child: _cardActionBtn(null, 'View details', () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Booking detail view coming soon'), duration: Duration(seconds: 1)),
+                            ))),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 36, height: 36,
                               child: OutlinedButton(
-                                onPressed: () {},
+                                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Chat coming soon'), duration: Duration(seconds: 1)),
+                                ),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),

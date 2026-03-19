@@ -1,5 +1,5 @@
 "use client";
-import { Star, MapPin, ShieldCheck, Clock, Zap } from "lucide-react";
+import { Star, MapPin, ShieldCheck, Clock, Zap, ShoppingCart, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -27,10 +27,12 @@ export interface ProviderCardData {
 interface ProviderCardProps {
   provider: ProviderCardData;
   onBook?: (id: string) => void;
+  onAddToCart?: (id: string) => void;
+  addedToCart?: boolean;
   className?: string;
 }
 
-export function ProviderCard({ provider, onBook, className }: ProviderCardProps) {
+export function ProviderCard({ provider, onBook, onAddToCart, addedToCart, className }: ProviderCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -122,6 +124,20 @@ export function ProviderCard({ provider, onBook, className }: ProviderCardProps)
           )}
         </div>
         <div className="flex gap-2">
+          {onAddToCart && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onAddToCart(provider.id)}
+              className={addedToCart ? "text-emerald-600 border-emerald-200 bg-emerald-50" : ""}
+            >
+              {addedToCart ? (
+                <><Check className="h-3.5 w-3.5" /> Added</>
+              ) : (
+                <><ShoppingCart className="h-3.5 w-3.5" /> Cart</>
+              )}
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="sm"

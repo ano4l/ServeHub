@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:serveify/core/demo/customer_demo_data.dart';
 import 'package:serveify/core/network/api_client.dart';
-import 'package:serveify/core/theme/app_theme.dart';
 import 'package:serveify/core/widgets/skeleton.dart';
-import 'package:serveify/features/auth/providers/auth_provider.dart';
 import 'package:serveify/features/services/presentation/services_directory_screen.dart';
 
 // ─── Data providers ───
@@ -84,10 +82,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
     final bookings = ref.watch(_homeBookingsProvider);
     final providers = ref.watch(_featuredProvidersProvider);
-    final name = auth.email?.split('@').first.replaceAll('.', ' ').split(' ').map(_capitalise).join(' ') ?? 'Alex';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -171,7 +167,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
                         onTap: () => setState(() {
-                          if (active) _activeChips.remove(chip); else _activeChips.add(chip);
+                          if (active) {
+                            _activeChips.remove(chip);
+                          } else {
+                            _activeChips.add(chip);
+                          }
                         }),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
@@ -754,11 +754,6 @@ String _statusLabel(String status) {
     case 'COMPLETED': return 'Done';
     default: return 'Pending';
   }
-}
-
-String _capitalise(String value) {
-  if (value.isEmpty) return value;
-  return value[0].toUpperCase() + value.substring(1);
 }
 
 String _initials(String name) {

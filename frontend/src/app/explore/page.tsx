@@ -15,11 +15,15 @@ import {
 	ChevronUp,
 	X,
 	Send,
+	ShoppingCart,
+	Check,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { EXPLORE_FEED_FIXTURES, type ExploreFeedFixturePost } from "@/lib/explore-feed-fixtures";
 import { cn } from "@/lib/utils";
 import { generateImageUrl, generateFallbackGradient } from "@/lib/image-utils";
+import { useCartStore } from "@/store/cart.store";
+import type { ServiceItem } from "@/lib/services-directory";
 
 function compactCount(value: number) {
 	if (value >= 1000000) return `${(value / 1000000).toFixed(1).replace(".0", "")}M`;
@@ -45,6 +49,8 @@ export default function ExplorePage() {
 	const [commentText, setCommentText] = useState("");
 	const [doubleTapTimer, setDoubleTapTimer] = useState<NodeJS.Timeout | null>(null);
 	const [showHeart, setShowHeart] = useState(false);
+	const [addedPosts, setAddedPosts] = useState<Set<string>>(new Set());
+	const addItem = useCartStore((s) => s.addItem);
 
 	const posts = useMemo(() => {
 		const search = query.trim().toLowerCase();
@@ -125,16 +131,25 @@ export default function ExplorePage() {
 		setTimeout(() => setShowHeart(false), 800);
 	};
 
-	const handleBookNow = (post: ExploreFeedFixturePost) => {
-		sessionStorage.setItem(
-			"bookingData",
-			JSON.stringify({
-				provider: post.name,
-				service: post.category,
-				category: post.category,
-				price: "Quote on request",
-			}),
-		);
+	const postToServiceItem = (post: ExploreFeedFixturePost, index: number): ServiceItem => ({
+		id: Math.abs(post.postId.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)),
+		name: post.headline || post.category,
+		categoryId: post.category.toLowerCase().replace(/\s+/g, "-"),
+		imageUrl: photoForPost(post, index),
+		description: post.caption,
+		priceRange: "Quote on request",
+		duration: "1-2 hrs",
+		rating: post.rating,
+	});
+
+	const handleAddToCart = (post: ExploreFeedFixturePost, index: number) => {
+		addItem(postToServiceItem(post, index));
+		setAddedPosts((prev) => new Set(prev).add(post.postId));
+		setTimeout(() => setAddedPosts((prev) => { const n = new Set(prev); n.delete(post.postId); return n; }), 2000);
+	};
+
+	const handleBookNow = (post: ExploreFeedFixturePost, index: number) => {
+		addItem(postToServiceItem(post, index));
 		router.push("/book");
 	};
 
@@ -336,16 +351,36 @@ export default function ExplorePage() {
 									)}
 								</div>
 
-								{/* Book Now CTA */}
-								<button
-									onClick={(e) => {
-										e.stopPropagation();
-										handleBookNow(post);
-									}}
-									className="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-black hover:bg-white/90 active:scale-95 transition-all shadow-lg"
-								>
-									Book Now
-								</button>
+								{/* Action CTAs */}
+								<div className="mt-3 flex items-center gap-2">
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											handleAddToCart(post, index);
+										}}
+										className={cn(
+											"inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold transition-all active:scale-95 shadow-lg",
+											addedPosts.has(post.postId)
+												? "bg-emerald-500 text-white"
+												: "bg-white/15 text-white backdrop-blur-md border border-white/20 hover:bg-white/25",
+										)}
+									>
+										{addedPosts.has(post.postId) ? (
+											<><Check className="h-4 w-4" /> Added</>
+										) : (
+											<><ShoppingCart className="h-4 w-4" /> Add to Cart</>
+										)}
+									</button>
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											handleBookNow(post, index);
+										}}
+										className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-black hover:bg-white/90 active:scale-95 transition-all shadow-lg"
+									>
+										Book Now
+									</button>
+								</div>
 							</div>
 
 							{/* Scroll indicator (first slide only) */}

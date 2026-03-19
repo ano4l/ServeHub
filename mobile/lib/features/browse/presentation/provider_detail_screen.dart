@@ -236,11 +236,11 @@ class _ServiceTile extends StatelessWidget {
         leading: Container(
           width: 40, height: 40,
           decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.miscellaneous_services_outlined, color: AppColors.accent, size: 20),
+          child: const Icon(Icons.miscellaneous_services_outlined, color: AppColors.accent, size: 20),
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         trailing: price.isNotEmpty
-            ? Text('R$price', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent))
+            ? Text('R$price', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent))
             : null,
         onTap: () {
           if (serviceId != null) {

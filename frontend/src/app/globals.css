@@ -292,6 +292,6 @@ img[loading="lazy"] {
 /* ─── Pull-to-refresh resistance (prevents accidental navigation) ─── */
 @media (max-width: 768px) {
   body {
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: contain;
   }
 }

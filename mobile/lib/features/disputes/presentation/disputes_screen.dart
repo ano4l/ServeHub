@@ -30,13 +30,13 @@ class DisputesScreen extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(_disputesProvider),
         child: disputes.when(
           data: (list) => list.isEmpty
-              ? Center(
+              ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.gavel_outlined, size: 48, color: AppColors.textMuted),
-                      const SizedBox(height: 12),
-                      const Text('No disputes', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                      SizedBox(height: 12),
+                      Text('No disputes', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
                     ],
                   ),
                 )

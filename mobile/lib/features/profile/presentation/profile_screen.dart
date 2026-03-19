@@ -11,7 +11,9 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final email = auth.email ?? 'sarah.johnson@email.com';
-    final displayName = 'Sarah Johnson';
+    final displayName = auth.email != null
+        ? auth.email!.split('@').first.replaceAll('.', ' ').split(' ').map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}').join(' ')
+        : 'Sarah Johnson';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -103,14 +105,14 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     // Stats row
-                    Row(
+                    const Row(
                       children: [
                         _StatBox(icon: Icons.calendar_today_rounded, value: '24', label: 'BOOKINGS'),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         _StatBox(icon: Icons.star_rounded, value: '4.8', label: 'RATING'),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         _StatBox(icon: Icons.account_balance_wallet_outlined, value: 'R12,450', label: 'SPENT'),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         _StatBox(icon: Icons.favorite_outline_rounded, value: '8', label: 'SAVED'),
                       ],
                     ),
@@ -123,14 +125,14 @@ class ProfileScreen extends ConsumerWidget {
           ),
 
           // Saved addresses
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: _GlassSection(
                 icon: Icons.location_on_outlined,
                 title: 'Saved addresses',
                 action: '+ Add new',
-                children: const [
+                children: [
                   _AddressRow(label: 'Home', address: '83 Rivonia Road, Sandton, 2196', isDefault: true),
                   _AddressRow(label: 'Office', address: '15 Tyrwhitt Avenue, Rosebank, 2196', isDefault: false),
                   _AddressRow(label: "Mom's place", address: '22 Jan Smuts Ave, Parktown, 2193', isDefault: false),
@@ -140,14 +142,14 @@ class ProfileScreen extends ConsumerWidget {
           ),
 
           // Payment methods
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: _GlassSection(
                 icon: Icons.credit_card_rounded,
                 title: 'Payment methods',
                 action: '+ Add new',
-                children: const [
+                children: [
                   _PaymentRow(label: 'Visa ending 4289', isDefault: true),
                   _PaymentRow(label: 'Mastercard ending 7731', isDefault: false),
                   _PaymentRow(label: 'Instant EFT', isDefault: false),
@@ -157,10 +159,10 @@ class ProfileScreen extends ConsumerWidget {
           ),
 
           // Preferences
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _SettingsSection(title: 'PREFERENCES', items: const [
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _SettingsSection(title: 'PREFERENCES', items: [
                 _SettingsItem(icon: Icons.notifications_none_rounded, label: 'Notifications', desc: 'Push, email & SMS settings'),
                 _SettingsItem(icon: Icons.dark_mode_outlined, label: 'Appearance', desc: 'Dark mode (active)', badge: 'Dark'),
                 _SettingsItem(icon: Icons.language_rounded, label: 'Language', desc: 'English (South Africa)'),
@@ -169,10 +171,10 @@ class ProfileScreen extends ConsumerWidget {
           ),
 
           // Account
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _SettingsSection(title: 'ACCOUNT', items: const [
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _SettingsSection(title: 'ACCOUNT', items: [
                 _SettingsItem(icon: Icons.shield_outlined, label: 'Privacy & Security', desc: 'Password, 2FA, data'),
                 _SettingsItem(icon: Icons.help_outline_rounded, label: 'Help & Support', desc: 'FAQ, contact support'),
                 _SettingsItem(icon: Icons.settings_outlined, label: 'App Settings', desc: 'Cache, defaults, debug'),
@@ -196,11 +198,11 @@ class ProfileScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.logout_rounded, color: AppColors.error, size: 16),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text('Sign out', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w500, fontSize: 14)),
                     ],
                   ),
@@ -276,7 +278,7 @@ class _GlassSection extends StatelessWidget {
               const SizedBox(width: 8),
               Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
               const Spacer(),
-              Text(action, style: TextStyle(fontSize: 12, color: AppColors.accent)),
+              Text(action, style: const TextStyle(fontSize: 12, color: AppColors.accent)),
             ],
           ),
           const SizedBox(height: 12),
@@ -320,7 +322,7 @@ class _AddressRow extends StatelessWidget {
                             color: AppColors.accent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(100),
                           ),
-                          child: Text('Default', style: TextStyle(fontSize: 10, color: AppColors.accent)),
+                          child: const Text('Default', style: TextStyle(fontSize: 10, color: AppColors.accent)),
                         ),
                       ],
                     ],
@@ -376,7 +378,7 @@ class _PaymentRow extends StatelessWidget {
                         color: AppColors.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(100),
                       ),
-                      child: Text('Default', style: TextStyle(fontSize: 10, color: AppColors.accent)),
+                      child: const Text('Default', style: TextStyle(fontSize: 10, color: AppColors.accent)),
                     ),
                   ],
                 ],
@@ -436,7 +438,9 @@ class _SettingsRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {},
+          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings coming soon'), duration: Duration(seconds: 1)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
