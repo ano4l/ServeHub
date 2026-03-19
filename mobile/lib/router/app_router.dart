@@ -12,6 +12,7 @@ import 'package:serveify/features/browse/presentation/provider_detail_screen.dar
 import 'package:serveify/features/chat/presentation/chat_screen.dart';
 import 'package:serveify/features/home/presentation/customer_home_screen.dart';
 import 'package:serveify/features/services/presentation/services_directory_screen.dart';
+import 'package:serveify/features/services/presentation/service_detail_screen.dart';
 import 'package:serveify/features/notifications/presentation/notifications_screen.dart';
 import 'package:serveify/features/profile/presentation/profile_screen.dart';
 import 'package:serveify/features/provider_dashboard/presentation/provider_home_screen.dart';
@@ -55,6 +56,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final id = int.parse(state.pathParameters['id']!);
           return ProviderDetailScreen(providerId: id);
+        },
+      ),
+      GoRoute(
+        path: '/services/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ServiceDetailScreen(serviceId: id);
         },
       ),
       GoRoute(

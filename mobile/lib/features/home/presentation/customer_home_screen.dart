@@ -320,7 +320,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   (context, index) {
                     final service = kPopularServices[index];
                     final cat = kServiceCategories.firstWhere((c) => c.id == service.categoryId);
-                    return _PopularServiceCard(service: service, category: cat, onTap: () => context.go('/book'));
+                    return _PopularServiceCard(service: service, category: cat, onTap: () => context.push('/services/${service.id}'));
                   },
                   childCount: kPopularServices.length > 6 ? 6 : kPopularServices.length,
                 ),

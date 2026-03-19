@@ -35,6 +35,7 @@ import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { generateImageUrl } from "@/lib/image-utils";
 import { AppTabs } from "@/components/navigation/AppTabs";
+import { CartDrawer, CartFab } from "@/components/cart/CartDrawer";
 import { SERVICE_CATEGORIES, POPULAR_SERVICES } from "@/lib/services-directory";
 
 interface AreaPoint {
@@ -491,16 +492,8 @@ export default function HomePage() {
   }, [filteredServices, mapBounds]);
 
   const openService = (service: RecommendedService) => {
-    // Pass service data to booking workflow
-    const bookingData = {
-      provider: service.providerName,
-      service: service.title,
-      category: service.category,
-      price: service.priceLabel
-    };
-    // Store booking data in session storage for the booking wizard
-    sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
-    router.push("/book");
+    // Navigate to provider/explore detail (featured cards are live providers)
+    router.push("/explore");
   };
 
   const handleServiceImageLoad = (index: number) => {
@@ -534,6 +527,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.08),transparent_28%)]" />
       <AppTabs />
+      <CartDrawer />
+      <CartFab />
 
       <div className="relative mx-auto max-w-3xl pb-24">
         {/* ═══ Sticky Header: Search + Address ═══ */}
@@ -797,10 +792,7 @@ export default function HomePage() {
                 return (
                   <button
                     key={service.id}
-                    onClick={() => {
-                      sessionStorage.setItem("bookingData", JSON.stringify({ service: service.name, category: cat?.name ?? "" }));
-                      router.push("/book");
-                    }}
+                    onClick={() => router.push(`/services/${service.id}`)}
                     className="group relative overflow-hidden rounded-2xl border border-white/8 bg-white/4 text-left transition-all active:scale-[0.97] hover:border-white/14"
                   >
                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
@@ -816,9 +808,15 @@ export default function HomePage() {
                       <p className="text-[13px] font-medium leading-tight text-white/90 line-clamp-1">
                         {service.name}
                       </p>
-                      {cat && (
-                        <p className="mt-0.5 text-[11px] text-white/35">{cat.emoji} {cat.name}</p>
-                      )}
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-white/40">
+                        <span className="flex items-center gap-0.5">
+                          <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
+                          {service.rating}
+                        </span>
+                        <span>·</span>
+                        <span>{service.duration}</span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] font-medium text-cyan-300/70">{service.priceRange}</p>
                     </div>
                   </button>
                 );

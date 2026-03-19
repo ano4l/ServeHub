@@ -26,12 +26,22 @@ class ServiceItem {
   final String name;
   final String categoryId;
   final bool popular;
+  final String imageUrl;
+  final String description;
+  final String priceRange;
+  final String duration;
+  final double rating;
 
   const ServiceItem({
     required this.id,
     required this.name,
     required this.categoryId,
     this.popular = false,
+    this.imageUrl = '',
+    this.description = '',
+    this.priceRange = 'R150 – R500',
+    this.duration = '1–2 hrs',
+    this.rating = 4.7,
   });
 }
 
@@ -246,7 +256,7 @@ class _ServicesDirectoryScreenState extends State<ServicesDirectoryScreen> {
   }
 
   void _tapService(ServiceItem service) {
-    context.go('/book');
+    context.push('/services/${service.id}');
   }
 
   @override

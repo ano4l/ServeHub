@@ -17,20 +17,18 @@ import {
   Banknote,
   Smartphone,
   Sparkles,
+  ShoppingCart,
+  Trash2,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { AddressAutocomplete } from "@/components/booking/AddressAutocomplete";
 import { cn } from "@/lib/utils";
-import { HOME_SERVICE_FIXTURES } from "@/lib/app-home-fixtures";
+import { useCartStore, type CartItem } from "@/store/cart.store";
+import { getCategoryById } from "@/lib/services-directory";
 
 interface BookingFormData {
-  service: {
-    provider: string;
-    service: string;
-    category: string;
-    price: string;
-    imageUrl: string;
-  };
   scheduling: {
     date: string;
     time: string;
@@ -51,7 +49,7 @@ interface BookingFormData {
 }
 
 const STEPS = [
-  { id: 1, label: "Service & Time", icon: Calendar },
+  { id: 1, label: "Cart & Schedule", icon: ShoppingCart },
   { id: 2, label: "Location", icon: MapPin },
   { id: 3, label: "Confirm", icon: Check },
 ];
@@ -69,30 +67,12 @@ const URGENCY_OPTIONS = [
 
 export default function BookNowPage() {
   const router = useRouter();
+  const { items, removeItem, updateQuantity, getCartTotal, getItemCount, clearCart } = useCartStore();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<BookingFormData>(() => {
-    const base: BookingFormData = {
-      service: { provider: "", service: "", category: "", price: "", imageUrl: "" },
-      scheduling: { date: "", time: "", urgency: "standard" },
-      location: { address: "", type: "home", notes: "", name: "", phone: "" },
-      payment: { method: "card" },
-    };
-    if (typeof window !== "undefined") {
-      try {
-        const stored = sessionStorage.getItem("bookingData");
-        if (stored) {
-          const d = JSON.parse(stored);
-          base.service = {
-            provider: d.provider || "",
-            service: d.service || "",
-            category: d.category || "",
-            price: d.price || "",
-            imageUrl: d.imageUrl || "",
-          };
-        }
-      } catch {}
-    }
-    return base;
+  const [formData, setFormData] = useState<BookingFormData>({
+    scheduling: { date: "", time: "", urgency: "standard" },
+    location: { address: "", type: "home", notes: "", name: "", phone: "" },
+    payment: { method: "card" },
   });
 
   const update = <K extends keyof BookingFormData>(
@@ -100,10 +80,13 @@ export default function BookNowPage() {
     data: Partial<BookingFormData[K]>,
   ) => setFormData((prev) => ({ ...prev, [key]: { ...prev[key], ...data } }));
 
+  const itemCount = getItemCount();
+  const cartTotal = getCartTotal();
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!(formData.service.service && formData.scheduling.date && formData.scheduling.time);
+        return !!(items.length > 0 && formData.scheduling.date && formData.scheduling.time);
       case 2:
         return !!(formData.location.address && formData.location.name && formData.location.phone);
       case 3:
@@ -116,11 +99,33 @@ export default function BookNowPage() {
   const nextStep = () => currentStep < STEPS.length && setCurrentStep(currentStep + 1);
   const prevStep = () => currentStep > 1 && setCurrentStep(currentStep - 1);
   const submit = () => {
-    console.log("Booking submitted:", formData);
-    router.push("/bookings/confirmation");
+    console.log("Booking submitted:", { items, formData });
+    clearCart();
+    router.push("/bookings");
   };
 
   const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
+
+  // Empty cart redirect
+  if (items.length === 0 && typeof window !== "undefined") {
+    return (
+      <div className="min-h-screen bg-[#07111f] text-white flex flex-col items-center justify-center px-4">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
+          <ShoppingCart className="h-8 w-8 text-white/20" />
+        </div>
+        <h2 className="mt-5 text-xl font-semibold">Your cart is empty</h2>
+        <p className="mt-2 text-sm text-white/40 text-center">
+          Browse services and add them to your cart to get started.
+        </p>
+        <button
+          onClick={() => router.push("/services")}
+          className="mt-6 flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white transition-all active:scale-95"
+        >
+          Browse services <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
@@ -135,7 +140,7 @@ export default function BookNowPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">Book a Service</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Checkout</h1>
             <p className="text-xs text-white/45">
               Step {currentStep} of {STEPS.length} · {STEPS[currentStep - 1].label}
             </p>
@@ -196,11 +201,12 @@ export default function BookNowPage() {
         {/* Step content */}
         <div className="mt-6">
           {currentStep === 1 && (
-            <StepServiceAndTime
-              service={formData.service}
+            <StepCartAndSchedule
+              items={items}
               scheduling={formData.scheduling}
-              onServiceUpdate={(d) => update("service", d)}
               onScheduleUpdate={(d) => update("scheduling", d)}
+              onRemoveItem={removeItem}
+              onUpdateQuantity={updateQuantity}
             />
           )}
           {currentStep === 2 && (
@@ -211,7 +217,9 @@ export default function BookNowPage() {
           )}
           {currentStep === 3 && (
             <StepConfirm
+              items={items}
               formData={formData}
+              cartTotal={cartTotal}
               onPaymentUpdate={(d) => update("payment", d)}
             />
           )}
@@ -230,21 +238,18 @@ export default function BookNowPage() {
             </button>
           )}
 
-          {/* Price summary in CTA bar */}
-          {formData.service.price && (
-            <div className="hidden sm:block text-sm">
-              <p className="text-white/40 text-xs">Total</p>
-              <p className="font-semibold">{formData.service.price}</p>
-            </div>
-          )}
+          <div className="hidden sm:block text-sm">
+            <p className="text-white/40 text-xs">Est. total</p>
+            <p className="font-semibold">{cartTotal}+</p>
+          </div>
 
           {currentStep === STEPS.length ? (
             <button
               onClick={submit}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white font-semibold text-slate-950 active:scale-[0.98] transition-all shadow-lg shadow-white/10"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-white active:scale-[0.98] transition-all shadow-lg shadow-cyan-500/20"
             >
               <Check className="h-5 w-5" />
-              Confirm Booking
+              Place order · {itemCount} {itemCount === 1 ? "service" : "services"}
             </button>
           ) : (
             <button
@@ -267,21 +272,22 @@ export default function BookNowPage() {
   );
 }
 
-/* ─── Step 1: Service & Time ─── */
-function StepServiceAndTime({
-  service,
+/* ─── Step 1: Cart items + Scheduling ─── */
+function StepCartAndSchedule({
+  items,
   scheduling,
-  onServiceUpdate,
   onScheduleUpdate,
+  onRemoveItem,
+  onUpdateQuantity,
 }: {
-  service: BookingFormData["service"];
+  items: CartItem[];
   scheduling: BookingFormData["scheduling"];
-  onServiceUpdate: (d: Partial<BookingFormData["service"]>) => void;
   onScheduleUpdate: (d: Partial<BookingFormData["scheduling"]>) => void;
+  onRemoveItem: (id: number) => void;
+  onUpdateQuantity: (id: number, qty: number) => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
 
-  // Quick-date chips (Uber pattern: Today, Tomorrow, Pick a date)
   const quickDates = (() => {
     const d = new Date();
     const fmt = (date: Date) => date.toISOString().split("T")[0];
@@ -296,164 +302,172 @@ function StepServiceAndTime({
 
   return (
     <div className="space-y-8">
-      {/* Service selector */}
+      {/* Cart items */}
       <section>
-        <h2 className="text-lg font-semibold mb-1">Choose a service</h2>
-        <p className="text-sm text-white/40 mb-4">Select the service you need</p>
+        <div className="flex items-center gap-2 mb-4">
+          <ShoppingCart className="h-4 w-4 text-cyan-400" />
+          <h2 className="text-lg font-semibold">Your services</h2>
+          <span className="text-sm text-white/40">({items.length})</span>
+        </div>
         <div className="space-y-3">
-          {HOME_SERVICE_FIXTURES.map((s) => {
-            const selected = service.service === s.title;
+          {items.map((item) => {
+            const cat = getCategoryById(item.service.categoryId);
             return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() =>
-                  onServiceUpdate({
-                    provider: s.providerName,
-                    service: s.title,
-                    category: s.category,
-                    price: s.priceLabel,
-                    imageUrl: s.imageUrl,
-                  })
-                }
-                className={cn(
-                  "flex w-full items-center gap-4 rounded-2xl border p-3 text-left transition-all active:scale-[0.98]",
-                  selected
-                    ? "border-cyan-400/50 bg-cyan-400/8"
-                    : "border-white/8 bg-white/4 hover:bg-white/6 hover:border-white/15",
-                )}
+              <div
+                key={item.service.id}
+                className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/4 p-3"
               >
-                {/* Service image thumbnail */}
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl">
                   <img
-                    src={s.imageUrl}
-                    alt={s.title}
+                    src={item.service.imageUrl}
+                    alt={item.service.name}
                     className="h-full w-full object-cover"
                   />
-                  {selected && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-cyan-400/40">
-                      <Check className="h-5 w-5 text-white" />
-                    </div>
-                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium truncate">{s.title}</p>
-                    {s.availableNow && (
-                      <span className="flex-shrink-0 rounded-full bg-green-400/15 px-2 py-0.5 text-[10px] font-semibold text-green-300">
-                        Available
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-white/45 truncate mt-0.5">{s.providerName}</p>
-                  <div className="mt-1.5 flex items-center gap-3">
-                    <span className="text-sm font-semibold text-cyan-200">{s.priceLabel}</span>
-                    <span className="flex items-center gap-1 text-xs text-white/40">
-                      <Star className="h-3 w-3 fill-amber-300 text-amber-300" />
-                      {s.rating} ({s.reviews})
+                  <p className="text-sm font-medium text-white line-clamp-1">
+                    {item.service.name}
+                  </p>
+                  {cat && (
+                    <p className="text-[11px] text-white/35">
+                      {cat.emoji} {cat.name}
+                    </p>
+                  )}
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-white/40">
+                    <span className="flex items-center gap-0.5">
+                      <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
+                      {item.service.rating}
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-0.5">
+                      <Clock className="h-2.5 w-2.5" />
+                      {item.service.duration}
                     </span>
                   </div>
+                  <p className="mt-0.5 text-xs font-semibold text-cyan-300">
+                    {item.service.priceRange}
+                  </p>
                 </div>
-              </button>
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    onClick={() => onRemoveItem(item.service.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-white/30 transition hover:bg-red-500/15 hover:text-red-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onUpdateQuantity(item.service.id, item.quantity - 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="w-5 text-center text-xs font-medium">{item.quantity}</span>
+                    <button
+                      onClick={() => onUpdateQuantity(item.service.id, item.quantity + 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
       </section>
 
       {/* Scheduling */}
-      {service.service && (
-        <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <h2 className="text-lg font-semibold mb-1">When do you need it?</h2>
-          <p className="text-sm text-white/40 mb-4">Pick a date and time</p>
+      <section>
+        <h2 className="text-lg font-semibold mb-1">When do you need it?</h2>
+        <p className="text-sm text-white/40 mb-4">Pick a date and time</p>
 
-          {/* Quick date chips */}
-          <div className="flex gap-2 mb-4">
-            {quickDates.map((qd) => (
-              <button
-                key={qd.value}
-                type="button"
-                onClick={() => onScheduleUpdate({ date: qd.value })}
-                className={cn(
-                  "rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-95",
-                  scheduling.date === qd.value
-                    ? "border-cyan-400/50 bg-cyan-400/15 text-white"
-                    : "border-white/10 bg-white/4 text-white/55 hover:bg-white/8",
-                )}
-              >
-                {qd.label}
-              </button>
-            ))}
-            {/* Custom date picker */}
-            <label
+        {/* Quick date chips */}
+        <div className="flex gap-2 mb-4">
+          {quickDates.map((qd) => (
+            <button
+              key={qd.value}
+              type="button"
+              onClick={() => onScheduleUpdate({ date: qd.value })}
               className={cn(
-                "relative cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-all",
-                scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
+                "rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-95",
+                scheduling.date === qd.value
                   ? "border-cyan-400/50 bg-cyan-400/15 text-white"
                   : "border-white/10 bg-white/4 text-white/55 hover:bg-white/8",
               )}
             >
-              <Calendar className="mr-1 -mt-0.5 inline h-3.5 w-3.5" />
-              {scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
-                ? new Date(scheduling.date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
-                : "Other"}
-              <input
-                type="date"
-                min={today}
-                value={scheduling.date}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onScheduleUpdate({ date: e.target.value })}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              />
-            </label>
-          </div>
+              {qd.label}
+            </button>
+          ))}
+          <label
+            className={cn(
+              "relative cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-all",
+              scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
+                ? "border-cyan-400/50 bg-cyan-400/15 text-white"
+                : "border-white/10 bg-white/4 text-white/55 hover:bg-white/8",
+            )}
+          >
+            <Calendar className="mr-1 -mt-0.5 inline h-3.5 w-3.5" />
+            {scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
+              ? new Date(scheduling.date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
+              : "Other"}
+            <input
+              type="date"
+              min={today}
+              value={scheduling.date}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onScheduleUpdate({ date: e.target.value })}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
+        </div>
 
-          {/* Time grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {TIME_SLOTS.map((t) => (
+        {/* Time grid */}
+        <div className="grid grid-cols-5 gap-2">
+          {TIME_SLOTS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onScheduleUpdate({ time: t })}
+              className={cn(
+                "rounded-xl border py-2.5 text-sm font-medium transition-all active:scale-95",
+                scheduling.time === t
+                  ? "border-cyan-400/50 bg-cyan-400/15 text-white"
+                  : "border-white/8 bg-white/4 text-white/50 hover:bg-white/8",
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Urgency */}
+        <div className="mt-5 flex gap-2">
+          {URGENCY_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const active = scheduling.urgency === opt.value;
+            return (
               <button
-                key={t}
+                key={opt.value}
                 type="button"
-                onClick={() => onScheduleUpdate({ time: t })}
+                onClick={() => onScheduleUpdate({ urgency: opt.value as BookingFormData["scheduling"]["urgency"] })}
                 className={cn(
-                  "rounded-xl border py-2.5 text-sm font-medium transition-all active:scale-95",
-                  scheduling.time === t
-                    ? "border-cyan-400/50 bg-cyan-400/15 text-white"
-                    : "border-white/8 bg-white/4 text-white/50 hover:bg-white/8",
+                  "flex flex-1 flex-col items-center gap-1 rounded-2xl border py-3 text-xs font-medium transition-all active:scale-95",
+                  active
+                    ? "border-cyan-400/50 bg-cyan-400/10 text-white"
+                    : "border-white/8 bg-white/4 text-white/45 hover:bg-white/6",
                 )}
               >
-                {t}
+                <Icon className="h-4 w-4" />
+                <span>{opt.label}</span>
+                <span className="text-[10px] text-white/30">{opt.sub}</span>
+                {opt.price && (
+                  <span className="text-[10px] font-semibold text-amber-300">{opt.price}</span>
+                )}
               </button>
-            ))}
-          </div>
-
-          {/* Urgency */}
-          <div className="mt-5 flex gap-2">
-            {URGENCY_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const active = scheduling.urgency === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onScheduleUpdate({ urgency: opt.value as BookingFormData["scheduling"]["urgency"] })}
-                  className={cn(
-                    "flex flex-1 flex-col items-center gap-1 rounded-2xl border py-3 text-xs font-medium transition-all active:scale-95",
-                    active
-                      ? "border-cyan-400/50 bg-cyan-400/10 text-white"
-                      : "border-white/8 bg-white/4 text-white/45 hover:bg-white/6",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{opt.label}</span>
-                  <span className="text-[10px] text-white/30">{opt.sub}</span>
-                  {opt.price && (
-                    <span className="text-[10px] font-semibold text-amber-300">{opt.price}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
@@ -468,7 +482,6 @@ function StepLocation({
 }) {
   return (
     <div className="space-y-8">
-      {/* Address */}
       <section>
         <h2 className="text-lg font-semibold mb-1">Service address</h2>
         <p className="text-sm text-white/40 mb-4">
@@ -480,7 +493,6 @@ function StepLocation({
           placeholder="Search for an address…"
         />
 
-        {/* Location type chips */}
         <div className="mt-4 flex gap-2">
           {(["home", "office", "other"] as const).map((t) => (
             <button
@@ -499,7 +511,6 @@ function StepLocation({
           ))}
         </div>
 
-        {/* Special instructions */}
         <textarea
           placeholder="Gate code, parking info, or special instructions…"
           value={location.notes}
@@ -509,7 +520,6 @@ function StepLocation({
         />
       </section>
 
-      {/* Contact */}
       <section>
         <h2 className="text-lg font-semibold mb-1">Your details</h2>
         <p className="text-sm text-white/40 mb-4">So the provider can reach you</p>
@@ -534,12 +544,16 @@ function StepLocation({
   );
 }
 
-/* ─── Step 3: Confirm (payment + review summary) ─── */
+/* ─── Step 3: Confirm (order review + payment) ─── */
 function StepConfirm({
+  items,
   formData,
+  cartTotal,
   onPaymentUpdate,
 }: {
+  items: CartItem[];
   formData: BookingFormData;
+  cartTotal: string;
   onPaymentUpdate: (d: Partial<BookingFormData["payment"]>) => void;
 }) {
   const PAYMENT_METHODS = [
@@ -552,25 +566,45 @@ function StepConfirm({
 
   return (
     <div className="space-y-6">
-      {/* Booking summary card */}
+      {/* Order summary */}
       <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        {/* Service header with image */}
-        {formData.service.imageUrl && (
-          <div className="relative h-28 w-full overflow-hidden">
-            <img
-              src={formData.service.imageUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0a1525] via-transparent" />
-            <div className="absolute bottom-3 left-4 right-4">
-              <p className="text-sm font-semibold">{formData.service.service}</p>
-              <p className="text-xs text-white/50">{formData.service.provider}</p>
-            </div>
-          </div>
-        )}
+        <div className="px-4 pt-4 pb-2">
+          <h3 className="text-sm font-semibold text-white/70">Order summary</h3>
+        </div>
 
-        <div className="p-4 space-y-3">
+        {/* Cart items */}
+        <div className="px-4 space-y-3 pb-3">
+          {items.map((item) => {
+            const cat = getCategoryById(item.service.categoryId);
+            return (
+              <div key={item.service.id} className="flex items-center gap-3">
+                <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
+                  <img
+                    src={item.service.imageUrl}
+                    alt={item.service.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white line-clamp-1">
+                    {item.service.name}
+                    {item.quantity > 1 && (
+                      <span className="text-white/40"> ×{item.quantity}</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-white/35">
+                    {cat?.emoji} {cat?.name} · {item.service.duration}
+                  </p>
+                </div>
+                <p className="text-sm font-medium text-cyan-300">
+                  {item.service.priceRange}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-white/6 p-4 space-y-3">
           <SummaryRow label="Date" value={
             formData.scheduling.date
               ? new Date(formData.scheduling.date).toLocaleDateString("en-ZA", {
@@ -586,11 +620,7 @@ function StepConfirm({
             value={urgencyLabel ? `${urgencyLabel.label} ${urgencyLabel.price}` : "Standard"}
           />
           <div className="border-t border-white/6 pt-3" />
-          <SummaryRow
-            label="Address"
-            value={formData.location.address || "—"}
-            truncate
-          />
+          <SummaryRow label="Address" value={formData.location.address || "—"} truncate />
           <SummaryRow label="Contact" value={formData.location.name || "—"} />
           <SummaryRow label="Phone" value={formData.location.phone || "—"} />
           {formData.location.notes && (
@@ -598,11 +628,12 @@ function StepConfirm({
           )}
           <div className="border-t border-white/6 pt-3" />
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/50">Estimated total</span>
-            <span className="text-lg font-bold text-cyan-200">
-              {formData.service.price || "—"}
-            </span>
+            <span className="text-sm text-white/50">Estimated total (from)</span>
+            <span className="text-lg font-bold text-cyan-200">{cartTotal}+</span>
           </div>
+          <p className="text-[10px] text-white/25">
+            Final price confirmed after provider reviews the scope of work.
+          </p>
         </div>
       </div>
 
@@ -633,13 +664,13 @@ function StepConfirm({
         </div>
       </section>
 
-      {/* Confirmation banner */}
+      {/* Secure booking banner */}
       <div className="flex items-start gap-3 rounded-2xl bg-cyan-400/8 border border-cyan-400/20 p-4">
         <Shield className="h-5 w-5 text-cyan-400 mt-0.5 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium text-cyan-100">Secure booking</p>
           <p className="text-xs text-white/45 mt-1">
-            You won't be charged until the service is confirmed. Free cancellation up to 2 hours before.
+            You won&apos;t be charged until the service is confirmed. Free cancellation up to 2 hours before.
           </p>
         </div>
       </div>

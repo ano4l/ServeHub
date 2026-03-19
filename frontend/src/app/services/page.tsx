@@ -11,6 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
+import { CartDrawer, CartFab } from "@/components/cart/CartDrawer";
 import { cn } from "@/lib/utils";
 import {
   SERVICE_CATEGORIES,
@@ -47,21 +48,15 @@ export default function ServicesPage() {
     : null;
 
   const handleServiceTap = (service: ServiceItem) => {
-    const cat = SERVICE_CATEGORIES.find((c) => c.id === service.categoryId);
-    sessionStorage.setItem(
-      "bookingData",
-      JSON.stringify({
-        service: service.name,
-        category: cat?.name ?? "",
-      }),
-    );
-    router.push("/book");
+    router.push(`/services/${service.id}`);
   };
 
   return (
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_28%)]" />
       <AppTabs />
+      <CartDrawer />
+      <CartFab />
 
       <div className="relative mx-auto max-w-3xl pb-24">
         {/* ─── Sticky header ─── */}
@@ -286,9 +281,15 @@ function ServiceCard({
         <p className="text-[13px] font-medium leading-tight text-white/90 line-clamp-2">
           {service.name}
         </p>
-        {cat && (
-          <p className="mt-1 text-[11px] text-white/35">{cat.emoji} {cat.name}</p>
-        )}
+        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/40">
+          <span className="flex items-center gap-0.5">
+            <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
+            {service.rating}
+          </span>
+          <span>·</span>
+          <span>{service.duration}</span>
+        </div>
+        <p className="mt-1 text-[11px] font-medium text-cyan-300/70">{service.priceRange}</p>
       </div>
     </button>
   );
