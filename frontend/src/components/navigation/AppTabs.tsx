@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck2, Compass, Home, UserCircle2 } from "lucide-react";
+import { CalendarCheck2, Compass, Home, LayoutGrid, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -11,6 +11,12 @@ const TABS = [
     label: "Home",
     icon: Home,
     matches: ["/"],
+  },
+  {
+    href: "/services",
+    label: "Services",
+    icon: LayoutGrid,
+    matches: ["/services"],
   },
   {
     href: "/explore",

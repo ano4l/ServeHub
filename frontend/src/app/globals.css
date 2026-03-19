@@ -196,3 +196,102 @@ body {
     -moz-osx-font-smoothing: auto;
   }
 }
+
+/* ─── UX Improvements: Smooth Scrolling & Momentum ─── */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* Prevent overscroll bounce on main page (keeps it within carousels) */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* ─── Touch Optimizations ─── */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ─── Skeleton shimmer animation ─── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ─── Image lazy-load fade-in ─── */
+@keyframes img-fade-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: scale(1); }
+}
+img[loading="lazy"] {
+  content-visibility: auto;
+}
+.img-loaded {
+  animation: img-fade-in 0.4s ease-out both;
+}
+
+/* ─── Horizontal scroll snap for carousels ─── */
+.snap-x-mandatory {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-x-proximity {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-start {
+  scroll-snap-align: start;
+}
+.snap-center {
+  scroll-snap-align: center;
+}
+
+/* ─── Dark theme focus rings ─── */
+[data-theme="dark"] :focus-visible,
+.bg-\[\#07111f\] :focus-visible {
+  outline-color: #67e8f9;
+}
+
+/* ─── Sticky header blur fallback ─── */
+@supports not (backdrop-filter: blur(12px)) {
+  .backdrop-blur-xl {
+    background-color: rgba(7, 17, 31, 0.98) !important;
+  }
+}
+
+/* ─── Active states for mobile (pressed feedback) ─── */
+@media (hover: none) and (pointer: coarse) {
+  .active\:scale-95:active { transform: scale(0.95); }
+  .active\:scale-\[0\.97\]:active { transform: scale(0.97); }
+  .active\:scale-\[0\.98\]:active { transform: scale(0.98); }
+}
+
+/* ─── Line clamp utilities ─── */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ─── Pull-to-refresh resistance (prevents accidental navigation) ─── */
+@media (max-width: 768px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+}

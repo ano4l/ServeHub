@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarCheck2,
+  ChevronDown,
   ChevronRight,
   Clock3,
+  Heart,
   MapPin,
   Search,
-  Sparkles,
   Star,
+  X,
+  Zap,
 } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   bookingsApi,
   customerApi,
@@ -27,7 +26,6 @@ import {
 import {
   HOME_ADDRESS_FIXTURES,
   HOME_BOOKING_FIXTURES,
-  HOME_HIGHLIGHTS,
   HOME_ORDER_HISTORY_FIXTURES,
   HOME_SERVICE_FIXTURES,
   type HomeAddressFixture,
@@ -35,8 +33,9 @@ import {
 } from "@/lib/app-home-fixtures";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
-import { generateImageUrl, generateFallbackGradient } from "@/lib/image-utils";
+import { generateImageUrl } from "@/lib/image-utils";
 import { AppTabs } from "@/components/navigation/AppTabs";
+import { SERVICE_CATEGORIES, POPULAR_SERVICES } from "@/lib/services-directory";
 
 interface AreaPoint {
   label: string;
@@ -292,6 +291,7 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [loadedServiceImages, setLoadedServiceImages] = useState<Set<number>>(new Set());
+  const [activeChips, setActiveChips] = useState<Set<string>>(new Set());
 
   // Data states
   const [addresses, setAddresses] = useState<HomeAddressOption[]>([]);
@@ -519,453 +519,402 @@ export default function HomePage() {
     return null;
   }
 
+  const FILTER_CHIPS = ["Offers", "Under 30 min", "Top rated", "Available now"];
+
+  const toggleChip = (chip: string) => {
+    setActiveChips((prev) => {
+      const next = new Set(prev);
+      if (next.has(chip)) next.delete(chip);
+      else next.add(chip);
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#07111f] text-white safe-area-top safe-area-bottom">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_24%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.08),transparent_28%)]" />
       <AppTabs />
-      <div className="relative mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8">
-        {/* Mobile-optimized header */}
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex-1">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/55 sm:text-[12px]">
-              Homepage
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl lg:text-[2.2rem]">
-              Good morning, {homeName}
-            </h1>
-            <p className="mt-2 text-sm text-white/58 sm:text-base">
-              Set an address, check the map, and jump into services or bookings from one place.
-            </p>
-          </div>
-          <div className="flex justify-center sm:justify-end">
-            <Avatar name={user?.fullName ?? "ServeHub"} src={user?.avatar} size="lg" />
-          </div>
-        </div>
 
-        {/* Mobile-first grid layout */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[0.88fr_1.12fr] xl:grid-cols-[0.88fr_1.12fr]">
-          <div className="space-y-6">
-            {/* Address input - mobile optimized */}
-            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md sm:p-5">
-              <div className="space-y-3">
-                <Input
-                  value={address}
-                  onChange={(event) => {
-                    setAddress(event.target.value);
-                    setAddressSuggestionsOpen(true);
-                  }}
-                  onFocus={() => setAddressSuggestionsOpen(true)}
-                  onBlur={() => {
-                    window.setTimeout(() => setAddressSuggestionsOpen(false), 120);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && addressSuggestions[0]) {
-                      event.preventDefault();
-                      setAddress(addressSuggestions[0].value);
-                      setAddressSuggestionsOpen(false);
-                    }
-                  }}
-                  placeholder="Enter address"
-                  leftIcon={<MapPin className="h-4 w-4" />}
-                  rightIcon={<ChevronRight className="h-4 w-4" />}
-                  className="h-12 rounded-full border-white/8 bg-white text-slate-950 placeholder:text-slate-400 text-base sm:text-sm"
-                />
-                
-                {/* Address suggestions - mobile optimized */}
-                {addressSuggestionsOpen ? (
-                  <div className="mt-3 space-y-2 rounded-[20px] border border-white/10 bg-[#08111f] p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                      Suggested addresses
-                    </p>
-                    <div className="space-y-2">
-                      {addressSuggestions.slice(0, 5).map((suggestion) => (
-                        <button
-                          key={suggestion.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            setAddress(suggestion.value);
-                            setAddressSuggestionsOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between rounded-[16px] bg-white/6 px-3 py-3 text-left min-h-[44px] active:bg-white/10"
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-white truncate">{suggestion.label}</p>
-                            <p className="mt-1 text-xs text-white/48 truncate">{suggestion.value}</p>
-                          </div>
-                          <span className="text-[11px] uppercase tracking-[0.12em] text-cyan-200 flex-shrink-0">
-                            {suggestion.area}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                
-                {/* Quick address buttons - mobile optimized */}
-                <div className="flex flex-wrap gap-2">
-                  {addresses.slice(0, 4).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setAddress(item.value)}
-                      className={cn(
-                        "min-h-[44px] min-w-[44px] rounded-full border px-3 py-2 text-xs transition-colors active:scale-95",
-                        address === item.value
-                          ? "border-cyan-300/40 bg-cyan-400/12 text-cyan-100"
-                          : "border-white/10 bg-black/20 text-white/72",
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs text-white/50">Matched area: {activeArea.label}</p>
-              </div>
+      <div className="relative mx-auto max-w-3xl pb-24">
+        {/* ═══ Sticky Header: Search + Address ═══ */}
+        <div className="sticky top-0 z-40 bg-[#07111f]/95 backdrop-blur-xl">
+          <div className="px-4 pb-2 pt-3 sm:px-6">
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+              <input
+                value={serviceQuery}
+                onChange={(e) => setServiceQuery(e.target.value)}
+                placeholder="Search ServeHub"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/6 pl-11 pr-10 text-[15px] text-white placeholder:text-white/30 outline-none transition focus:border-white/20 focus:bg-white/8"
+              />
+              {serviceQuery && (
+                <button
+                  onClick={() => setServiceQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-white/40 hover:text-white/70"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            <div className="overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#8ef7d6_0%,#ffd27f_52%,#ff9d7d_100%)] p-5 text-slate-950">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
-                Recommended right now
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
-                The app home should feel like booking, not browsing a landing page.
-              </h2>
-              <div className="mt-3 space-y-1 text-sm text-slate-700">
-                {HOME_HIGHLIGHTS.map((item) => (
-                  <p key={item}>{item}</p>
-                ))}
-              </div>
-              <Button
-                className="mt-4 min-h-11 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                onClick={() => router.push("/explore")}
+            {/* Address row */}
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setAddressSuggestionsOpen(!addressSuggestionsOpen)}
+                className="flex items-center gap-1.5 rounded-full py-1 text-sm text-white/70 transition hover:text-white"
               >
-                Open explore
-              </Button>
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="max-w-[200px] truncate">{address.split(",")[0]}</span>
+                <ChevronDown className="h-3 w-3 text-white/40" />
+              </button>
+              <button
+                onClick={() => router.push("/bookings")}
+                className="flex items-center gap-1.5 rounded-full py-1 text-sm text-white/50 transition hover:text-white"
+              >
+                <CalendarCheck2 className="h-3.5 w-3.5" />
+                Bookings ({currentBookings.length})
+              </button>
             </div>
 
-            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Current bookings</p>
-                  <p className="text-xs text-white/45">
-                    Open the jobs already in motion or jump to the full bookings page.
-                  </p>
-                </div>
-                <Button variant="ghost" onClick={() => router.push("/bookings")}>
-                  View all
-                </Button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {currentBookings.map((booking) => (
-                  <button
-                    key={booking.id}
-                    type="button"
-                    onClick={() => router.push("/bookings")}
-                    className="w-full rounded-[24px] border border-white/10 bg-black/20 p-4 text-left transition hover:bg-black/28"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{booking.service}</p>
-                        <p className="mt-1 text-sm text-white/55">{booking.provider}</p>
-                      </div>
-                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                        {booking.statusLabel}
-                      </span>
-                    </div>
-                    <div className="mt-4 h-2 rounded-full bg-white/10">
-                      <div
-                        className="h-2 rounded-full bg-[linear-gradient(90deg,#8ef7d6_0%,#7dd3fc_100%)]"
-                        style={{ width: `${booking.progress}%` }}
-                      />
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white/50">
-                      <span>{booking.scheduledLabel}</span>
-                      <span>{booking.etaLabel}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Map widget</p>
-                  <p className="text-xs text-white/45">
-                    Services nearest to your selected address, just like the app home used to do.
-                  </p>
-                </div>
-                <Badge className="rounded-full border border-cyan-300/18 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/12">
-                  {activeArea.label}
-                </Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {serviceCategories.map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setSelectedCategory(category)}
-                    className={cn(
-                      "min-h-10 rounded-full px-3 py-2 text-xs transition-colors",
-                      selectedCategory === category
-                        ? "bg-white text-slate-950"
-                        : "border border-white/10 bg-black/20 text-white/72",
-                    )}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-[#091220]">
-                <div className="relative h-[320px]">
-                  <iframe
-                    title="Service coverage map"
-                    src={mapUrl}
-                    loading="lazy"
-                    className="absolute inset-0 h-full w-full"
-                  />
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,31,0.24),rgba(7,17,31,0.55))] pointer-events-none" />
-                  <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/45 px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-white/78">
-                    Service coverage
-                  </div>
-                  {mapPins.map((service) => (
+            {/* Address dropdown */}
+            {addressSuggestionsOpen && (
+              <div className="mt-2 rounded-2xl border border-white/10 bg-[#0a1525] p-3 shadow-xl">
+                <p className="mb-2 text-[11px] uppercase tracking-wider text-white/35">
+                  Your addresses
+                </p>
+                <div className="space-y-1">
+                  {addressSuggestions.slice(0, 5).map((s) => (
                     <button
-                      key={service.id}
+                      key={s.id}
                       type="button"
-                      onClick={() => setSelectedServiceId(service.id)}
-                      className="absolute -translate-x-1/2 -translate-y-1/2"
-                      style={{ left: `${service.left}%`, top: `${service.top}%` }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setAddress(s.value);
+                        setAddressSuggestionsOpen(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/6 active:bg-white/8"
                     >
-                      <span
-                        className={cn(
-                          "relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-[0_12px_24px_rgba(5,11,20,0.45)]",
-                          selectedService?.id === service.id
-                            ? "border-cyan-200 bg-cyan-400 text-slate-950"
-                            : "border-white/14 bg-black/45",
-                        )}
-                      >
-                        <MapPin className="h-4 w-4" />
-                      </span>
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/8">
+                        <MapPin className="h-3.5 w-3.5 text-white/50" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{s.label}</p>
+                        <p className="text-xs text-white/40 truncate">{s.value}</p>
+                      </div>
                     </button>
                   ))}
-                  {selectedService ? (
-                    <div className="absolute inset-x-4 bottom-4 rounded-[20px] border border-white/10 bg-[#08111f]/92 p-4 backdrop-blur-md">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">{selectedService.title}</p>
-                          <p className="mt-1 text-xs text-white/52">
-                            {selectedService.providerName} | {selectedService.neighborhood}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/72">
-                          {travelMinutes(selectedService, activeArea)} min
-                        </span>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <p className="text-xs text-white/48">{selectedService.priceLabel}</p>
-                        <button
-                          type="button"
-                          onClick={() => openService(selectedService)}
-                          className="text-xs font-semibold text-cyan-200"
-                        >
-                          Open service
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Search services near you</p>
-                  <p className="text-xs text-white/45">
-                    The home screen should surface what to book next, not make you hunt for it.
-                  </p>
-                </div>
-                <Search className="h-4 w-4 text-cyan-200" />
-              </div>
-              <div className="mt-3">
-                <Input
-                  value={serviceQuery}
-                  onChange={(event) => setServiceQuery(event.target.value)}
-                  placeholder="Search cleaning, plumbing, electrical..."
-                  leftIcon={<Search className="h-4 w-4" />}
-                  className="h-12 rounded-full border-white/8 bg-black/20 text-white placeholder:text-white/35"
-                />
-              </div>
-              <p className="mt-3 text-xs text-white/48">
-                Sorted by distance from {activeArea.label}.
-              </p>
-            </div>
+            )}
           </div>
+
+          {/* ═══ Horizontal category filter tabs ═══ */}
+          <div className="flex gap-2.5 overflow-x-auto px-4 pb-2 scrollbar-none sm:px-6">
+            <button
+              onClick={() => setSelectedCategory("All")}
+              className={cn(
+                "flex h-9 flex-shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-all active:scale-95",
+                selectedCategory === "All"
+                  ? "bg-white text-[#07111f]"
+                  : "border border-white/10 bg-white/5 text-white/60",
+              )}
+            >
+              All
+            </button>
+            {serviceCategories
+              .filter((c) => c !== "All")
+              .map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "flex h-9 flex-shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-all active:scale-95",
+                    selectedCategory === cat
+                      ? "bg-white text-[#07111f]"
+                      : "border border-white/10 bg-white/5 text-white/60",
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+          </div>
+          <div className="h-px bg-white/6" />
         </div>
 
-        <div className="mt-6 rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">Recommended services</p>
-              <p className="text-xs text-white/45">
-                Quick tiles to jump straight into booking from the home screen.
-              </p>
-            </div>
-            <Button variant="ghost" onClick={() => router.push("/explore")}>
-              Explore all
-            </Button>
+        {/* ═══ Scrollable content ═══ */}
+        <div className="px-4 pt-4 sm:px-6">
+
+          {/* ─── Category icon bubbles (Uber Eats style) ─── */}
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-none">
+            {SERVICE_CATEGORIES.slice(0, 8).map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => router.push(`/services?cat=${cat.id}`)}
+                className="flex flex-shrink-0 flex-col items-center gap-2 transition-transform active:scale-95"
+              >
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/6 text-2xl transition hover:bg-white/10">
+                  {cat.emoji}
+                </div>
+                <span className="max-w-[72px] truncate text-center text-[11px] text-white/60">
+                  {cat.name.split("&")[0].trim()}
+                </span>
+              </button>
+            ))}
           </div>
-          {filteredServices.length === 0 ? (
-            <div className="mt-4 rounded-[24px] border border-dashed border-white/12 bg-white/6 p-6 text-center">
-              <p className="text-sm font-semibold">No services found</p>
-              <p className="mt-2 text-sm text-white/50">
-                Try another search term or switch your category filter.
-              </p>
+
+          {/* ─── Filter chips ─── */}
+          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none">
+            {FILTER_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                onClick={() => toggleChip(chip)}
+                className={cn(
+                  "flex h-9 flex-shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-all active:scale-95",
+                  activeChips.has(chip)
+                    ? "bg-white text-[#07111f]"
+                    : "border border-white/10 bg-white/5 text-white/60",
+                )}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          {/* ─── Active booking strip (Uber-style top bar) ─── */}
+          {currentBookings.length > 0 && (
+            <button
+              onClick={() => router.push("/bookings")}
+              className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-cyan-400/20 bg-cyan-500/8 p-4 text-left transition-all active:scale-[0.98] hover:bg-cyan-500/12"
+            >
+              <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center">
+                <div className="absolute inset-0 animate-ping rounded-full bg-cyan-400/20" />
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400/25">
+                  <Clock3 className="h-4 w-4 text-cyan-300" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">
+                  {currentBookings[0].service}
+                </p>
+                <p className="text-xs text-white/50">
+                  {currentBookings[0].etaLabel} · {currentBookings[0].provider}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-xs font-medium text-cyan-300">{currentBookings[0].statusLabel}</span>
+                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-cyan-400"
+                    style={{ width: `${currentBookings[0].progress}%` }}
+                  />
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* ═══ Featured on ServeHub (large cards like Uber Eats) ═══ */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Featured on ServeHub</h2>
+                <p className="text-xs text-white/35">Sponsored</p>
+              </div>
+              <button
+                onClick={() => router.push("/explore")}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/8 transition hover:bg-white/12"
+              >
+                <ArrowRight className="h-4 w-4 text-white/60" />
+              </button>
             </div>
-          ) : (
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {filteredServices.slice(0, 8).map((service, index) => (
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+              {filteredServices.slice(0, 6).map((service, index) => (
                 <button
                   key={service.id}
-                  type="button"
                   onClick={() => openService(service)}
-                  className={`relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br ${service.accent} p-4 text-left text-white`}
+                  className="group relative w-[260px] flex-shrink-0 overflow-hidden rounded-2xl border border-white/8 bg-white/4 text-left transition-all active:scale-[0.97] hover:border-white/14"
                 >
-                  <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,15,28,0.94),rgba(8,15,28,0.18))]" />
-                  
-                  {/* Service Image */}
-                  <div className="absolute inset-0">
-                    <div className={`absolute inset-0 bg-gradient-to-br ${generateFallbackGradient(service.category)}`} />
+                  {/* Card image */}
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-white/5">
                     <img
-                      src={service.imageUrl || generateImageUrl(service.category, index, { width: 400, height: 300 })}
-                      alt={`${service.category} service`}
-                      className={cn(
-                        "absolute inset-0 h-full w-full object-cover transition-all duration-500",
-                        loadedServiceImages.has(index) ? "opacity-30" : "opacity-0"
-                      )}
+                      src={service.imageUrl || generateImageUrl(service.category, index, { width: 400, height: 250 })}
+                      alt={service.title}
                       loading="lazy"
                       onLoad={() => handleServiceImageLoad(index)}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+                      className={cn(
+                        "h-full w-full object-cover transition-all duration-500",
+                        loadedServiceImages.has(index) ? "opacity-100 scale-100" : "opacity-0 scale-105",
+                      )}
                     />
+                    {!loadedServiceImages.has(index) && (
+                      <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-white/5 via-white/10 to-white/5" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/60 via-transparent to-transparent" />
+                    {service.availableNow && (
+                      <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">
+                        <Zap className="h-2.5 w-2.5" /> Available now
+                      </div>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white/60 transition hover:text-white"
+                    >
+                      <Heart className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  
-                  <div className="relative">
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-medium">
-                        {service.badge}
+                  {/* Card body */}
+                  <div className="p-3">
+                    <p className="text-[14px] font-medium leading-tight text-white/90 line-clamp-1">
+                      {service.providerName}
+                    </p>
+                    <p className="mt-0.5 text-[12px] text-white/40 line-clamp-1">{service.title}</p>
+                    <div className="mt-2 flex items-center gap-2 text-[12px] text-white/50">
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-current text-amber-400" />
+                        {service.rating.toFixed(1)} ({service.reviews})
                       </span>
-                      <Sparkles className="h-5 w-5 text-white/86" />
-                    </div>
-                    <h3 className="mt-10 text-xl font-semibold">{service.title}</h3>
-                    <p className="mt-1 text-sm text-white/72">{service.subtitle}</p>
-                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/24 px-3 py-2 text-sm">
-                      <Clock3 className="h-4 w-4" />
-                      {travelMinutes(service, activeArea)} min
-                    </div>
-                    <div className="mt-3 flex items-center gap-3 text-xs text-white/66">
-                      <span className="inline-flex items-center gap-1">
-                        <Star className="h-3.5 w-3.5 fill-current text-amber-300" />
-                        {service.rating.toFixed(1)}
+                      <span>·</span>
+                      <span className="flex items-center gap-1">
+                        <Clock3 className="h-3 w-3" />
+                        {travelMinutes(service, activeArea)} min
                       </span>
-                      <span>{service.reviews} reviews</span>
                     </div>
-                    <p className="mt-3 text-xs text-white/55">{service.priceLabel}</p>
-                    <p className="mt-2 text-xs text-cyan-100/82">{service.neighborhood}</p>
+                    <p className="mt-1 text-xs text-cyan-300/80">{service.priceLabel}</p>
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* ═══ Popular services grid (Uber Eats "Picked for you") ═══ */}
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold">Popular services</h2>
+            <p className="text-xs text-white/35">Most booked this week</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {POPULAR_SERVICES.slice(0, 6).map((service) => {
+                const cat = SERVICE_CATEGORIES.find((c) => c.id === service.categoryId);
+                return (
+                  <button
+                    key={service.id}
+                    onClick={() => {
+                      sessionStorage.setItem("bookingData", JSON.stringify({ service: service.name, category: cat?.name ?? "" }));
+                      router.push("/book");
+                    }}
+                    className="group relative overflow-hidden rounded-2xl border border-white/8 bg-white/4 text-left transition-all active:scale-[0.97] hover:border-white/14"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
+                      <img
+                        src={service.imageUrl}
+                        alt={service.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#07111f] via-[#07111f]/30 to-transparent" />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[13px] font-medium leading-tight text-white/90 line-clamp-1">
+                        {service.name}
+                      </p>
+                      {cat && (
+                        <p className="mt-0.5 text-[11px] text-white/35">{cat.emoji} {cat.name}</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ═══ All recommended / filtered ═══ */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {selectedCategory === "All" ? "All services near you" : selectedCategory}
+              </h2>
+              <button
+                onClick={() => router.push("/services")}
+                className="text-xs font-medium text-cyan-300 transition hover:text-cyan-200"
+              >
+                View all 100 →
+              </button>
+            </div>
+            {filteredServices.length === 0 ? (
+              <div className="mt-4 flex flex-col items-center rounded-2xl border border-dashed border-white/10 bg-white/4 py-12 text-center">
+                <Search className="h-6 w-6 text-white/20" />
+                <p className="mt-3 text-sm font-medium text-white/50">No services found</p>
+                <p className="mt-1 text-xs text-white/30">Try a different search or category</p>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {filteredServices.slice(0, 8).map((service, index) => (
+                  <button
+                    key={service.id}
+                    onClick={() => openService(service)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-white/8 bg-white/4 p-3 text-left transition-all active:scale-[0.98] hover:border-white/12 hover:bg-white/6"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative h-[80px] w-[80px] flex-shrink-0 overflow-hidden rounded-xl bg-white/5">
+                      <img
+                        src={service.imageUrl || generateImageUrl(service.category, index, { width: 200, height: 200 })}
+                        alt={service.title}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium text-white line-clamp-1">
+                        {service.providerName}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-white/45 line-clamp-1">{service.title}</p>
+                      <div className="mt-1.5 flex items-center gap-2 text-[12px] text-white/40">
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-current text-amber-400" />
+                          {service.rating.toFixed(1)} ({service.reviews}+)
+                        </span>
+                        <span>·</span>
+                        <span>{travelMinutes(service, activeArea)} min</span>
+                      </div>
+                      <p className="mt-1 text-xs text-cyan-300/70">{service.priceLabel}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-white/20" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ═══ Recent reorders ═══ */}
+          {recentOrders.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Order again</h2>
+                <button
+                  onClick={() => router.push("/bookings")}
+                  className="text-xs font-medium text-cyan-300 transition hover:text-cyan-200"
+                >
+                  See all
+                </button>
+              </div>
+              <div className="mt-3 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                {recentOrders.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => router.push("/bookings")}
+                    className="w-[180px] flex-shrink-0 rounded-2xl border border-white/8 bg-white/4 p-3 text-left transition-all active:scale-[0.97] hover:bg-white/6"
+                  >
+                    <p className="text-sm font-medium text-white line-clamp-1">{item.title}</p>
+                    <p className="mt-1 text-xs text-white/40">{item.provider}</p>
+                    <div className="mt-2 flex items-center justify-between text-[11px]">
+                      <span className="text-white/30">{item.dateLabel}</span>
+                      <span className="font-medium text-cyan-300">{item.priceLabel}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-        </div>
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">Recent reorders</p>
-                <p className="text-xs text-white/45">
-                  Jump back into services you already trust.
-                </p>
-              </div>
-              <CalendarCheck2 className="h-4 w-4 text-cyan-200" />
-            </div>
-            <div className="mt-4 space-y-3">
-              {recentOrders.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => router.push("/bookings")}
-                  className="w-full rounded-[22px] border border-white/10 bg-black/20 p-4 text-left transition hover:bg-black/28"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="mt-1 text-sm text-white/55">{item.provider}</p>
-                    </div>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/72">
-                      {item.priceLabel}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-white/45">
-                    <span>{item.dateLabel}</span>
-                    <span className="text-cyan-200">Rebook</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[26px] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">Why this home works</p>
-                <p className="text-xs text-white/45">
-                  The app home is where location, discovery, and active jobs meet.
-                </p>
-              </div>
-              <Badge className="rounded-full border border-white/10 bg-white/8 text-white hover:bg-white/8">
-                App home
-              </Badge>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {[
-                {
-                  title: "Address first",
-                  body: "Your location anchors everything from recommendations to the map widget.",
-                },
-                {
-                  title: "Map in context",
-                  body: "You can see service coverage without leaving the home screen.",
-                },
-                {
-                  title: "Bookings stay close",
-                  body: "Current jobs and repeat services are one scroll away instead of buried.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-[22px] border border-white/10 bg-black/20 p-4"
-                >
-                  <p className="font-medium text-white">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/62">{item.body}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={() => router.push("/explore")}>
-                Explore now
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={() => router.push("/bookings")}>
-                Open bookings
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

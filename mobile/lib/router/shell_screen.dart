@@ -80,6 +80,7 @@ class ShellScreen extends StatelessWidget {
       if (location.startsWith('/provider/profile')) return '/provider/profile';
       return '/provider';
     }
+    if (location.startsWith('/services')) return '/services';
     if (location.startsWith('/browse')) return '/browse';
     if (location.startsWith('/bookings')) return '/bookings';
     if (location.startsWith('/notifications')) return '/notifications';
@@ -98,6 +99,7 @@ class ShellScreen extends StatelessWidget {
     }
     return const [
       _ShellNavItem(route: '/home', label: 'Home', icon: Icons.home_outlined, selectedIcon: Icons.home_rounded),
+      _ShellNavItem(route: '/services', label: 'Services', icon: Icons.grid_view_outlined, selectedIcon: Icons.grid_view_rounded),
       _ShellNavItem(route: '/browse', label: 'Explore', icon: Icons.explore_outlined, selectedIcon: Icons.explore_rounded),
       _ShellNavItem(route: '/bookings', label: 'Bookings', icon: Icons.calendar_today_outlined, selectedIcon: Icons.calendar_today_rounded),
       _ShellNavItem(route: '/notifications', label: 'Alerts', icon: Icons.notifications_none_rounded, selectedIcon: Icons.notifications_rounded),
