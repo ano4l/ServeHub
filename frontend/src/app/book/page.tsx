@@ -45,7 +45,7 @@ interface BookingFormData {
   scheduling: {
     date: string;
     time: string;
-    urgency: "standard" | "urgent" | "emergency";
+    urgency: "standard" | "urgent";
   };
   delivery: {
     address: string;
@@ -71,9 +71,8 @@ const TIME_SLOTS = [
 ];
 
 const URGENCY_OPTIONS = [
-  { value: "standard", label: "Standard", sub: "3–5 days", icon: Clock, price: "" },
-  { value: "urgent", label: "Urgent", sub: "24–48 hours", icon: Zap, price: "+25%" },
-  { value: "emergency", label: "Same-day", sub: "ASAP", icon: Sparkles, price: "+50%" },
+  { value: "standard", label: "Standard", sub: "Within work hours (08:00–17:00)", icon: Clock, price: "" },
+  { value: "urgent", label: "Urgent", sub: "Outside work hours (evenings/weekends)", icon: Zap, price: "+25%" },
 ] as const;
 
 export default function BookNowPage() {
@@ -382,6 +381,158 @@ export default function BookNowPage() {
   );
 }
 
+/* ─── Calendar Picker ─── */
+function CalendarPicker({
+  selectedDate,
+  onSelect,
+}: {
+  selectedDate: string;
+  onSelect: (date: string) => void;
+}) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days: Array<{ day: number; dateStr: string; isToday: boolean; isPast: boolean }> = [];
+
+    // Empty slots for days before the first day of month
+    for (let i = 0; i < firstDay; i++) {
+      days.push({ day: 0, dateStr: "", isToday: false, isPast: true });
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(year, month, day);
+      const dateStr = dateObj.toISOString().split("T")[0];
+      const isToday = dateObj.getTime() === today.getTime();
+      const isPast = dateObj < today;
+      days.push({ day, dateStr, isToday, isPast });
+    }
+
+    return days;
+  };
+
+  const navigateMonth = (direction: number) => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1));
+  };
+
+  const days = getDaysInMonth(currentMonth);
+  const monthYear = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={() => navigateMonth(-1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/8 text-white/60 hover:bg-white/12 transition-all"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold text-white">{monthYear}</span>
+        <button
+          type="button"
+          onClick={() => navigateMonth(1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/8 text-white/60 hover:bg-white/12 transition-all"
+        >
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Week day headers */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {weekDays.map((day) => (
+          <div key={day} className="text-center text-[11px] font-medium text-white/40 py-1">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((dayInfo, index) => {
+          if (dayInfo.day === 0) {
+            return <div key={index} className="aspect-square" />;
+          }
+
+          const isSelected = selectedDate === dayInfo.dateStr;
+
+          return (
+            <button
+              key={dayInfo.dateStr}
+              type="button"
+              disabled={dayInfo.isPast}
+              onClick={() => onSelect(dayInfo.dateStr)}
+              className={cn(
+                "aspect-square rounded-xl text-sm font-medium transition-all active:scale-95",
+                isSelected
+                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"
+                  : dayInfo.isToday
+                    ? "border border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
+                    : dayInfo.isPast
+                      ? "text-white/20 cursor-not-allowed"
+                      : "text-white/70 hover:bg-white/10",
+              )}
+            >
+              {dayInfo.day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Quick select */}
+      <div className="flex gap-2 mt-4 pt-3 border-t border-white/10">
+        <button
+          type="button"
+          onClick={() => {
+            const today = new Date().toISOString().split("T")[0];
+            onSelect(today);
+            setCurrentMonth(new Date());
+          }}
+          className={cn(
+            "flex-1 rounded-xl border py-2 text-xs font-medium transition-all",
+            selectedDate === new Date().toISOString().split("T")[0]
+              ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
+              : "border-white/10 bg-white/4 text-white/50 hover:bg-white/8",
+          )}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+            onSelect(tomorrow);
+            setCurrentMonth(new Date(Date.now() + 86400000));
+          }}
+          className={cn(
+            "flex-1 rounded-xl border py-2 text-xs font-medium transition-all",
+            selectedDate === new Date(Date.now() + 86400000).toISOString().split("T")[0]
+              ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
+              : "border-white/10 bg-white/4 text-white/50 hover:bg-white/8",
+          )}
+        >
+          Tomorrow
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Step 1: Personal Details + Cart items + Scheduling ─── */
 function StepPersonalDetails({
   items,
@@ -528,45 +679,14 @@ function StepPersonalDetails({
         <h2 className="text-lg font-semibold mb-1">When do you need it?</h2>
         <p className="text-sm text-white/40 mb-4">Pick a date and time</p>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          {quickDates.map((qd) => (
-            <button
-              key={qd.value}
-              type="button"
-              onClick={() => onScheduleUpdate({ date: qd.value })}
-              className={cn(
-                "rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-95",
-                scheduling.date === qd.value
-                  ? "border-cyan-400/50 bg-cyan-400/15 text-white"
-                  : "border-white/10 bg-white/4 text-white/55 hover:bg-white/8",
-              )}
-            >
-              {qd.label}
-            </button>
-          ))}
-          <label
-            className={cn(
-              "relative cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-all",
-              scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
-                ? "border-cyan-400/50 bg-cyan-400/15 text-white"
-                : "border-white/10 bg-white/4 text-white/55 hover:bg-white/8",
-            )}
-          >
-            <Calendar className="mr-1 -mt-0.5 inline h-3.5 w-3.5" />
-            {scheduling.date && !quickDates.some((q) => q.value === scheduling.date)
-              ? new Date(scheduling.date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
-              : "Other"}
-            <input
-              type="date"
-              min={today}
-              value={scheduling.date}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onScheduleUpdate({ date: e.target.value })}
-              className="absolute inset-0 cursor-pointer opacity-0"
-            />
-          </label>
-        </div>
+        {/* Calendar */}
+        <CalendarPicker
+          selectedDate={scheduling.date}
+          onSelect={(date: string) => onScheduleUpdate({ date })}
+        />
 
-        <div className="grid grid-cols-5 gap-2">
+        {/* Time slots */}
+        <div className="mt-5 grid grid-cols-5 gap-2">
           {TIME_SLOTS.map((t) => (
             <button
               key={t}
@@ -584,27 +704,33 @@ function StepPersonalDetails({
           ))}
         </div>
 
-        <div className="mt-5 flex gap-2">
+        {/* Urgency */}
+        <div className="mt-5 flex gap-3">
           {URGENCY_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             const active = scheduling.urgency === opt.value;
+            const isUrgent = opt.value === "urgent";
             return (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => onScheduleUpdate({ urgency: opt.value as BookingFormData["scheduling"]["urgency"] })}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1 rounded-2xl border py-3 text-xs font-medium transition-all active:scale-95",
+                  "flex flex-1 flex-col items-center gap-2 rounded-2xl border p-4 text-xs font-medium transition-all active:scale-95",
                   active
-                    ? "border-cyan-400/50 bg-cyan-400/10 text-white"
+                    ? isUrgent
+                      ? "border-amber-400/50 bg-amber-400/10 text-white"
+                      : "border-cyan-400/50 bg-cyan-400/10 text-white"
                     : "border-white/8 bg-white/4 text-white/45 hover:bg-white/6",
                 )}
               >
-                <Icon className="h-4 w-4" />
-                <span>{opt.label}</span>
-                <span className="text-[10px] text-white/30">{opt.sub}</span>
+                <Icon className={cn("h-5 w-5", isUrgent ? "text-amber-400" : "text-cyan-400")} />
+                <span className="text-sm font-semibold">{opt.label}</span>
+                <span className="text-[10px] text-white/40 text-center leading-tight">{opt.sub}</span>
                 {opt.price && (
-                  <span className="text-[10px] font-semibold text-amber-300">{opt.price}</span>
+                  <span className="mt-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                    {opt.price}
+                  </span>
                 )}
               </button>
             );
