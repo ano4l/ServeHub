@@ -1,10 +1,21 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "./constants";
 import type { BookingStatus, ProviderStatus, UserRole } from "./constants";
-import type { User } from "@/store/auth.store";
+import { useAuthStore, type User } from "@/store/auth.store";
 import { EXPLORE_FEED_FIXTURES } from "@/lib/explore-feed-fixtures";
-import { HOME_SERVICE_FIXTURES, HOME_BOOKING_FIXTURES } from "@/lib/app-home-fixtures";
+import { HOME_SERVICE_FIXTURES } from "@/lib/app-home-fixtures";
 import { DEMO_CUSTOMER_PROFILE_FIXTURE } from "@/lib/demo-profile-fixtures";
+import {
+  createDemoBooking,
+  getDemoBooking,
+  getDemoBookingEvents,
+  getDemoBookings,
+  getDemoMessages,
+  sendDemoMessage,
+  updateDemoBookingStatus,
+  rescheduleDemoBooking,
+  type DemoCreateBookingPayload,
+} from "@/lib/demo-booking-store";
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -64,7 +75,7 @@ api.interceptors.response.use(
 
 type ApiResult<T> = Promise<{ data: T }>;
 
-const DEMO_MODE = true;
+export const DEMO_MODE = true;
 
 interface AuthApiResponse {
   userId: number;
@@ -280,6 +291,13 @@ export interface BookingListItem {
   cancelledReason?: string;
   createdAt: string;
   bookingType: "AT_CUSTOMER";
+  providerPhone?: string;
+  providerEmail?: string;
+  serviceCategory?: string;
+  imageUrl?: string;
+  providerRating?: number;
+  providerReviewCount?: number;
+  estimatedDuration?: string;
 }
 
 export interface ChatMessageItem {
@@ -598,32 +616,63 @@ function demoProviders(): ProviderListItem[] {
   }));
 }
 
-function demoBookings(): BookingListItem[] {
-  const statuses: BookingStatus[] = ["REQUESTED", "ACCEPTED", "IN_PROGRESS", "COMPLETED"];
-  return HOME_BOOKING_FIXTURES.map((booking, index) => ({
-    id: booking.id,
-    reference: `BK-${1000 + index}`,
-    status: statuses[index % statuses.length],
-    provider: {
-      id: `provider-${index}`,
-      name: booking.provider,
-      avatar: `https://randomuser.me/api/portraits/men/${index + 20}.jpg`,
-    },
-    customer: {
-      id: "demo-customer-1",
-      name: "Demo Customer",
-      avatar: "https://randomuser.me/api/portraits/women/10.jpg",
-    },
-    service: booking.service,
-    serviceOfferingId: `offering-${index}`,
-    scheduledAt: new Date(Date.now() + index * 60 * 60 * 1000).toISOString(),
-    address: booking.address,
-    notes: "Demo booking generated locally",
-    price: 350 + index * 140,
-    cancelledReason: undefined,
-    createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-    bookingType: "AT_CUSTOMER",
+function demoProviderById(id: string): ProviderListItem | null {
+  return demoProviders().find((provider) => provider.id === id) ?? null;
+}
+
+function demoOfferingsForProvider(providerId: string): ServiceOfferingItem[] {
+  const matching = HOME_SERVICE_FIXTURES.filter((service) => service.providerId === providerId);
+  const source = matching.length > 0 ? matching : HOME_SERVICE_FIXTURES.filter((_, index) => index < 2);
+
+  return source.map((service, index) => ({
+    id: `demo-offering-${HOME_SERVICE_FIXTURES.findIndex((item) => item.id === service.id)}`,
+    providerId: service.providerId,
+    providerName: service.providerName,
+    category: service.category,
+    serviceName: service.title,
+    pricingType: "FIXED",
+    price: Number(service.priceLabel.replace(/[^\d.]/g, "")) || 450,
+    estimatedDurationMinutes: 60 + index * 15,
   }));
+}
+
+function demoCustomerParticipant() {
+  const user = useAuthStore.getState().user;
+  return {
+    id: user?.id ?? DEMO_CUSTOMER_PROFILE_FIXTURE.id,
+    name: user?.fullName ?? DEMO_CUSTOMER_PROFILE_FIXTURE.fullName,
+    avatar: user?.avatar ?? DEMO_CUSTOMER_PROFILE_FIXTURE.avatarUrl,
+  };
+}
+
+function demoCurrentSender(booking: BookingListItem) {
+  const { user } = useAuthStore.getState();
+  const activeRole = user?.activeRole;
+
+  if (activeRole === "PROVIDER") {
+    return {
+      sender: booking.provider,
+      autoReply: {
+        sender: booking.customer,
+        content: "Thanks, I see your update. I will keep an eye on this booking from my side.",
+      },
+    };
+  }
+
+  return {
+    sender: {
+      id: user?.id ?? booking.customer.id,
+      name: user?.fullName ?? booking.customer.name,
+      avatar: user?.avatar ?? booking.customer.avatar,
+    },
+    autoReply: {
+      sender: booking.provider,
+      content:
+        booking.status === "IN_PROGRESS"
+          ? "I am on-site right now and will send the next update here."
+          : "Thanks, I have the note and will keep everything updated in this thread.",
+    },
+  };
 }
 
 function demoSocialFeed(): SocialFeedPostItem[] {
@@ -700,7 +749,26 @@ export const providersApi = {
   },
   async getById(id: string): ApiResult<ProviderProfileItem> {
     if (DEMO_MODE) {
-      return { data: { ...DEMO_PROVIDER_PROFILE, id, fullName: `Provider ${id}` } };
+      const match = demoProviderById(id);
+      return {
+        data: match
+          ? {
+              ...DEMO_PROVIDER_PROFILE,
+              id: match.id,
+              userId: `user-${match.id}`,
+              fullName: match.name,
+              email: `${match.name.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@servehub.demo`,
+              city: match.city,
+              bio: match.bio ?? DEMO_PROVIDER_PROFILE.bio,
+              serviceRadiusKm: match.serviceRadiusKm,
+              averageRating: match.rating,
+              reviewCount: match.reviewCount,
+              completionRate: match.completionRate ?? DEMO_PROVIDER_PROFILE.completionRate,
+              responseTimeMinutes: Number(match.responseTime?.replace(/[^\d]/g, "")) || 12,
+              profileImageUrl: match.avatar,
+            }
+          : { ...DEMO_PROVIDER_PROFILE, id, userId: `user-${id}`, fullName: `Provider ${id}` },
+      };
     }
     const { data } = await api.get<BackendProvider>(`/providers/${id}`);
     return { data: toProviderProfileItem(data) };
@@ -722,18 +790,7 @@ export const providersApi = {
     }),
   async getOfferings(providerId: string): ApiResult<ServiceOfferingItem[]> {
     if (DEMO_MODE) {
-      return {
-        data: HOME_SERVICE_FIXTURES.map((service, index) => ({
-          id: `demo-offering-${index}`,
-          providerId,
-          providerName: service.providerName,
-          category: service.category,
-          serviceName: service.title,
-          pricingType: "FIXED",
-          price: Number(service.priceLabel.replace(/[^\d.]/g, "")) || 450,
-          estimatedDurationMinutes: 60 + index * 15,
-        })),
-      };
+      return { data: demoOfferingsForProvider(providerId) };
     }
     const { data } = await api.get<BackendServiceOffering[]>(
       `/catalog/services/providers/${providerId}/offerings`,
@@ -766,8 +823,7 @@ export const catalogApi = {
 export const bookingsApi = {
   async getAll(params?: BookingFilterParams): ApiResult<{ content: BookingListItem[] }> {
     if (DEMO_MODE) {
-      void params;
-      return { data: { content: demoBookings() } };
+      return { data: { content: getDemoBookings(params) } };
     }
     void params;
     const { data } = await api.get<BackendBooking[]>("/bookings");
@@ -775,25 +831,163 @@ export const bookingsApi = {
   },
   async getById(id: string): ApiResult<BookingListItem> {
     if (DEMO_MODE) {
-      const match = demoBookings().find((booking) => booking.id === id) ?? demoBookings()[0];
-      return { data: { ...match, id } };
+      const match = getDemoBooking(id) ?? getDemoBookings()[0];
+      return { data: match };
     }
     const { data } = await api.get<BackendBooking>(`/bookings/${id}`);
     return { data: toBookingListItem(data) };
   },
   async create(data: CreateBookingPayload): ApiResult<BookingListItem> {
-    const response = await api.post<BackendBooking>("/bookings", data);
+    if (DEMO_MODE) {
+      const booking = createDemoBooking(
+        data as DemoCreateBookingPayload,
+        demoCustomerParticipant(),
+      );
+      return { data: booking };
+    }
+
+    const {
+      demoProviderId,
+      demoProviderName,
+      demoProviderAvatar,
+      demoProviderPhone,
+      demoProviderEmail,
+      demoServiceName,
+      demoServiceCategory,
+      demoImageUrl,
+      demoPrice,
+      demoProviderRating,
+      demoProviderReviewCount,
+      demoEstimatedDuration,
+      ...payload
+    } = data;
+    void demoProviderId;
+    void demoProviderName;
+    void demoProviderAvatar;
+    void demoProviderPhone;
+    void demoProviderEmail;
+    void demoServiceName;
+    void demoServiceCategory;
+    void demoImageUrl;
+    void demoPrice;
+    void demoProviderRating;
+    void demoProviderReviewCount;
+    void demoEstimatedDuration;
+
+    const response = await api.post<BackendBooking>("/bookings", payload);
     return { data: toBookingListItem(response.data) };
   },
-  accept: (id: string) => api.post(`/bookings/${id}/accept`),
-  decline: (id: string, reason: string) =>
-    api.post(`/bookings/${id}/decline`, { reason }),
-  start: (id: string) => api.post(`/bookings/${id}/start`),
-  complete: (id: string, data?: object) => api.post(`/bookings/${id}/complete`, data),
-  cancel: (id: string, reason: string) =>
-    api.post(`/bookings/${id}/cancel`, { reason }),
-  reschedule: (id: string, data: object) => api.post(`/bookings/${id}/reschedule`, data),
-  getEvents: (id: string) => api.get(`/bookings/${id}/events`),
+  async accept(id: string) {
+    if (DEMO_MODE) {
+      const booking = getDemoBooking(id);
+      return {
+        data: updateDemoBookingStatus(id, {
+          status: "ACCEPTED",
+          detail: "The provider accepted this appointment in demo mode.",
+          message: booking
+            ? {
+                sender: booking.provider,
+                content: "I have confirmed the appointment. See you at the scheduled time.",
+              }
+            : undefined,
+        }),
+      };
+    }
+    return api.post(`/bookings/${id}/accept`);
+  },
+  async decline(id: string, reason: string) {
+    if (DEMO_MODE) {
+      const booking = getDemoBooking(id);
+      return {
+        data: updateDemoBookingStatus(id, {
+          status: "DECLINED",
+          detail: `The provider declined this appointment: ${reason}`,
+          cancelledReason: reason,
+          message: booking
+            ? {
+                sender: booking.provider,
+                content: `I need to decline this request for now: ${reason}`,
+              }
+            : undefined,
+        }),
+      };
+    }
+    return api.post(`/bookings/${id}/decline`, { reason });
+  },
+  async start(id: string) {
+    if (DEMO_MODE) {
+      const booking = getDemoBooking(id);
+      return {
+        data: updateDemoBookingStatus(id, {
+          status: "IN_PROGRESS",
+          detail: "The provider started the job.",
+          message: booking
+            ? {
+                sender: booking.provider,
+                content: "I am on-site and the job is now in progress.",
+              }
+            : undefined,
+        }),
+      };
+    }
+    return api.post(`/bookings/${id}/start`);
+  },
+  async complete(id: string, data?: object) {
+    if (DEMO_MODE) {
+      const booking = getDemoBooking(id);
+      void data;
+      return {
+        data: updateDemoBookingStatus(id, {
+          status: "COMPLETED",
+          detail: "The provider marked the appointment complete.",
+          message: booking
+            ? {
+                sender: booking.provider,
+                content: "Everything is wrapped up. Thanks again for booking through ServeHub.",
+              }
+            : undefined,
+        }),
+      };
+    }
+    return api.post(`/bookings/${id}/complete`, data);
+  },
+  async cancel(id: string, reason: string) {
+    if (DEMO_MODE) {
+      return {
+        data: updateDemoBookingStatus(id, {
+          status: "CANCELLED",
+          detail: `The booking was cancelled: ${reason}`,
+          cancelledReason: reason,
+        }),
+      };
+    }
+    return api.post(`/bookings/${id}/cancel`, { reason });
+  },
+  async reschedule(id: string, data: { scheduledAt?: string; date?: string; time?: string }) {
+    if (DEMO_MODE) {
+      const scheduledAt =
+        data.scheduledAt ??
+        (data.date && data.time ? new Date(`${data.date}T${data.time}`).toISOString() : null);
+      if (!scheduledAt) {
+        return { data: getDemoBooking(id) };
+      }
+
+      return {
+        data: rescheduleDemoBooking(
+          id,
+          scheduledAt,
+          `The booking was rescheduled to ${new Date(scheduledAt).toLocaleString("en-ZA")}.`,
+        ),
+      };
+    }
+    return api.post(`/bookings/${id}/reschedule`, data);
+  },
+  async getEvents(id: string) {
+    if (DEMO_MODE) {
+      return { data: getDemoBookingEvents(id) };
+    }
+    return api.get(`/bookings/${id}/events`);
+  },
 };
 
 export const messagesApi = {
@@ -801,6 +995,10 @@ export const messagesApi = {
     bookingId: string,
     params?: object,
   ): ApiResult<{ content: ChatMessageItem[] }> {
+    if (DEMO_MODE) {
+      void params;
+      return { data: { content: getDemoMessages(bookingId) } };
+    }
     const { data } = await api.get<{ content?: BackendChatMessage[] }>(
       `/bookings/${bookingId}/messages`,
       { params },
@@ -808,6 +1006,19 @@ export const messagesApi = {
     return { data: { content: (data.content ?? []).map(toChatMessageItem) } };
   },
   async send(bookingId: string, content: string): ApiResult<ChatMessageItem> {
+    if (DEMO_MODE) {
+      const booking = getDemoBooking(bookingId);
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      const { sender, autoReply } = demoCurrentSender(booking);
+      const message = sendDemoMessage(bookingId, sender, content, autoReply);
+      if (!message) {
+        throw new Error("Unable to save message");
+      }
+      return { data: message };
+    }
     const { data } = await api.post<BackendChatMessage>(
       `/bookings/${bookingId}/messages`,
       { content },
@@ -1184,6 +1395,18 @@ export interface CreateBookingPayload {
   notes?: string;
   photos?: string[];
   bookingType: "AT_PROVIDER" | "AT_CUSTOMER";
+  demoProviderId?: string;
+  demoProviderName?: string;
+  demoProviderAvatar?: string;
+  demoProviderPhone?: string;
+  demoProviderEmail?: string;
+  demoServiceName?: string;
+  demoServiceCategory?: string;
+  demoImageUrl?: string;
+  demoPrice?: number;
+  demoProviderRating?: number;
+  demoProviderReviewCount?: number;
+  demoEstimatedDuration?: string;
 }
 
 export interface ReviewPayload {

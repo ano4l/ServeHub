@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -12,21 +12,19 @@ import {
   Heart,
   Share2,
   Plus,
-  Minus,
   ShoppingCart,
   Check,
   Zap,
   ThumbsUp,
-  MessageSquare,
 } from "lucide-react";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { CartDrawer, CartFab } from "@/components/cart/CartDrawer";
 import { useCartStore } from "@/store/cart.store";
+import { useUIStore } from "@/store/ui.store";
 import {
   getServiceById,
   getCategoryById,
   getServicesByCategory,
-  type ServiceItem,
 } from "@/lib/services-directory";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +48,7 @@ export default function ServiceDetailPage() {
   const params = useParams();
   const serviceId = Number(params.id);
   const { addItem, items } = useCartStore();
+  const { addToast } = useUIStore();
 
   const [liked, setLiked] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
@@ -76,6 +75,28 @@ export default function ServiceDetailPage() {
     addItem(service);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (!service) {
+      return;
+    }
+
+    const shareUrl = typeof window !== "undefined" ? window.location.href : `/services/${service.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: service.name,
+          text: `${service.name} on ServeHub`,
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        addToast({ type: "success", message: "Service link copied to your clipboard." });
+      }
+    } catch {
+      addToast({ type: "info", message: "Share was dismissed." });
+    }
   };
 
   if (!service) {
@@ -138,7 +159,10 @@ export default function ServiceDetailPage() {
               >
                 <Heart className={cn("h-5 w-5", liked && "fill-current")} />
               </button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white transition hover:bg-black/60">
+              <button
+                onClick={handleShare}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white transition hover:bg-black/60"
+              >
                 <Share2 className="h-5 w-5" />
               </button>
             </div>

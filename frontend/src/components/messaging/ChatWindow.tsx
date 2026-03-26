@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Paperclip, Image as ImageIcon, MoreVertical, AlertOctagon } from "lucide-react";
+import { MoreVertical, Paperclip, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -8,8 +8,9 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
-import { messagesApi } from "@/lib/api";
+import { DEMO_MODE, messagesApi } from "@/lib/api";
 import { WS_URL } from "@/lib/constants";
+import { useUIStore } from "@/store/ui.store";
 
 interface Message {
   id: string;
@@ -35,6 +36,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProps) {
   const { user, accessToken } = useAuthStore();
+  const { addToast } = useUIStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -59,6 +61,10 @@ export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProp
 
   // WebSocket connection
   useEffect(() => {
+    if (DEMO_MODE) {
+      return;
+    }
+
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       connectHeaders: { Authorization: `Bearer ${accessToken}` },
@@ -91,6 +97,9 @@ export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProp
   }, [messages, typing]);
 
   const handleTyping = useCallback(() => {
+    if (DEMO_MODE) {
+      return;
+    }
     stompRef.current?.publish({
       destination: `/app/booking/${bookingId}/typing`,
       body: JSON.stringify({ senderId: user?.id }),
@@ -104,6 +113,8 @@ export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProp
     setInput("");
     try {
       await messagesApi.send(bookingId, text);
+      const refreshed = await messagesApi.getThread(bookingId, { page: 0, size: 50 });
+      setMessages(refreshed.data.content ?? []);
     } catch {
       setInput(text);
     } finally {
@@ -131,7 +142,10 @@ export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProp
             <p className="text-[11px] text-stone-400">Booking #{bookingRef}</p>
           )}
         </div>
-        <button className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors">
+        <button
+          onClick={() => addToast({ type: "info", message: "Conversation settings are not needed in demo mode." })}
+          className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
+        >
           <MoreVertical className="h-4 w-4" />
         </button>
       </div>
@@ -206,7 +220,10 @@ export function ChatWindow({ bookingId, otherParty, bookingRef }: ChatWindowProp
       {/* Input */}
       <div className="px-4 py-3 border-t border-stone-100 bg-stone-50/50">
         <div className="flex items-end gap-2">
-          <button className="p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors shrink-0">
+          <button
+            onClick={() => addToast({ type: "info", message: "Attachments are disabled in this demo build." })}
+            className="p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors shrink-0"
+          >
             <Paperclip className="h-4 w-4" />
           </button>
           <div className="flex-1 relative">

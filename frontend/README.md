@@ -1,33 +1,53 @@
-# ServeHub Flutter Frontend
+# ServeHub Web App
 
-This `frontend` directory now includes a Flutter frontend scaffold for the ServeHub mobile app.
+This directory contains the Next.js web app that is intended for Vercel deployment.
 
-The Flutter entry point is [lib/main.dart](/c:/Users/anoti/OneDrive/Documents/ServeHub/frontend/lib/main.dart). The previous Next.js source remains in `src/` and related config files so the migration can happen incrementally.
-
-## Run
-
-Install the Flutter SDK, then from this directory run:
+## Run locally
 
 ```bash
-flutter pub get
-flutter run -d chrome
+npm install
+npm run dev
 ```
 
-You can also target Android or iOS once those platforms are generated on a machine with the Flutter SDK installed.
+Open `http://localhost:3000`.
 
-## What is included
+## Production check
 
-- Mobile-first discovery cards for providers
-- Booking state and failure-state UX
-- Provider workspace summary
-- Booking chat surface
-- Admin operations overview
-- Adaptive navigation for phones and larger tablet/web layouts
+```bash
+npm run build
+```
 
-## Edge cases covered in the redesign
+## Demo behavior
 
-- Address ambiguity, landmarks, gate codes, and unit details before booking
-- Price drift and quote changes with explicit approval
-- Service-scope changes modeled like delivery substitutions
-- ETA drift and reconnect-safe messaging
-- Large text, RTL, and long-string layout pressure
+The current web app is configured for demo mode.
+
+- Bookings and appointments are stored in browser storage
+- Booking timelines and chat threads are also stored locally
+- No backend is required for the main demo flow
+
+## Main demo routes
+
+- `/`
+- `/services`
+- `/services/[id]`
+- `/providers/[id]`
+- `/book`
+- `/bookings`
+- `/bookings/confirmation`
+- `/dashboard/bookings`
+
+## Vercel
+
+When creating the Vercel project, set the **Root Directory** to `frontend`.
+
+The app builds with:
+
+```bash
+npm run build
+```
+
+No environment variables are required for the current demo setup.
+
+## Notes
+
+There are still Flutter-related files in this folder from earlier experiments, but the deployable web app for this repository is the Next.js app under `src/`.

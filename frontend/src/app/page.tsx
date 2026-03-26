@@ -37,6 +37,7 @@ import { generateImageUrl } from "@/lib/image-utils";
 import { AppTabs } from "@/components/navigation/AppTabs";
 import { CartDrawer, CartFab } from "@/components/cart/CartDrawer";
 import { SERVICE_CATEGORIES, POPULAR_SERVICES } from "@/lib/services-directory";
+import { useUIStore } from "@/store/ui.store";
 
 interface AreaPoint {
   label: string;
@@ -279,6 +280,7 @@ const fallbackOrders: HomeOrderCard[] = HOME_ORDER_HISTORY_FIXTURES.map((order) 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
+  const { addToast } = useUIStore();
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -293,6 +295,7 @@ export default function HomePage() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [loadedServiceImages, setLoadedServiceImages] = useState<Set<number>>(new Set());
   const [activeChips, setActiveChips] = useState<Set<string>>(new Set());
+  const [savedFeatured, setSavedFeatured] = useState<Set<string>>(new Set());
 
   // Data states
   const [addresses, setAddresses] = useState<HomeAddressOption[]>([]);
@@ -752,10 +755,23 @@ export default function HomePage() {
                       </div>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSavedFeatured((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(service.id)) {
+                            next.delete(service.id);
+                            addToast({ type: "info", message: `${service.title} removed from your saved demo items.` });
+                          } else {
+                            next.add(service.id);
+                            addToast({ type: "success", message: `${service.title} saved for later.` });
+                          }
+                          return next;
+                        });
+                      }}
                       className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white/60 transition hover:text-white"
                     >
-                      <Heart className="h-3.5 w-3.5" />
+                      <Heart className={cn("h-3.5 w-3.5", savedFeatured.has(service.id) && "fill-current text-rose-300")} />
                     </button>
                   </div>
                   {/* Card body */}

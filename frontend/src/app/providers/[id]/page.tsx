@@ -198,7 +198,7 @@ export default function ProviderProfilePage() {
 
     setBookingLoading(true);
     try {
-      await bookingsApi.create({
+      const response = await bookingsApi.create({
         offeringId: selectedOffering.id,
         scheduledAt: scheduledAt.toISOString(),
         address: bookingAddress.trim(),
@@ -206,7 +206,7 @@ export default function ProviderProfilePage() {
         bookingType: "AT_CUSTOMER",
       });
       addToast({ type: "success", message: "Booking request submitted." });
-      router.push("/dashboard/bookings");
+      router.push(`/bookings/confirmation?id=${response.data.id}`);
     } catch {
       addToast({ type: "error", message: "We couldn't place that booking right now." });
     } finally {

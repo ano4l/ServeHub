@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
   Clock,
   MapPin,
   CreditCard,
@@ -16,7 +15,6 @@ import {
   Zap,
   Banknote,
   Smartphone,
-  Sparkles,
   ShoppingCart,
   Trash2,
   Minus,
@@ -30,10 +28,12 @@ import {
   FileText,
   HelpCircle,
 } from "lucide-react";
-import { AppTabs } from "@/components/navigation/AppTabs";
 import { AddressAutocomplete } from "@/components/booking/AddressAutocomplete";
 import { cn } from "@/lib/utils";
+import { bookingsApi } from "@/lib/api";
 import { useCartStore, type CartItem } from "@/store/cart.store";
+import { useAuthStore } from "@/store/auth.store";
+import { useUIStore } from "@/store/ui.store";
 import { getCategoryById } from "@/lib/services-directory";
 
 interface BookingFormData {
@@ -77,10 +77,15 @@ const URGENCY_OPTIONS = [
 
 export default function BookNowPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const { addToast } = useUIStore();
   const { items, removeItem, updateQuantity, getCartTotal, getItemCount, clearCart } = useCartStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [primaryBookingId, setPrimaryBookingId] = useState("");
+  const [createdBookingCount, setCreatedBookingCount] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<BookingFormData>({
     personal: { name: "", email: "", phone: "" },
     scheduling: { date: "", time: "", urgency: "standard" },
@@ -118,11 +123,84 @@ export default function BookNowPage() {
     return d.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   }, [formData.scheduling.date]);
 
-  const submit = () => {
-    const ref = `SH${Date.now().toString(36).toUpperCase()}`;
-    setOrderNumber(ref);
-    clearCart();
-    setOrderSuccess(true);
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      personal: {
+        name: prev.personal.name || user.fullName,
+        email: prev.personal.email || user.email,
+        phone: prev.personal.phone || user.phone || "",
+      },
+    }));
+  }, [user]);
+
+  const submit = async () => {
+    if (submitting) {
+      return;
+    }
+
+    const scheduledAt = new Date(`${formData.scheduling.date}T${formData.scheduling.time}`);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      addToast({ type: "error", message: "Choose a valid appointment time before continuing." });
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const createdBookings: Array<{ id: string; reference: string }> = [];
+
+      for (const item of items) {
+        const category = getCategoryById(item.service.categoryId);
+        const created = await bookingsApi.create({
+          offeringId: String(item.service.id),
+          scheduledAt: scheduledAt.toISOString(),
+          address: formData.delivery.address,
+          notes: [
+            item.notes,
+            formData.delivery.notes,
+            formData.scheduling.urgency === "urgent" ? "Urgent demo booking" : undefined,
+            `Qty: ${item.quantity}`,
+            `Payment method: ${formData.payment.method.toUpperCase()}`,
+          ]
+            .filter(Boolean)
+            .join(" | "),
+          bookingType: "AT_CUSTOMER",
+          demoServiceName: item.service.name,
+          demoServiceCategory: category?.name ?? item.service.categoryId,
+          demoImageUrl: item.service.imageUrl,
+          demoPrice: Number(item.service.priceRange.replace(/[^\d.]/g, "")) || undefined,
+          demoEstimatedDuration: item.service.duration,
+        });
+
+        createdBookings.push({
+          id: created.data.id,
+          reference: created.data.reference,
+        });
+      }
+
+      const primary = createdBookings[0];
+      setOrderNumber(primary?.reference ?? `SH${Date.now().toString(36).toUpperCase()}`);
+      setPrimaryBookingId(primary?.id ?? "");
+      setCreatedBookingCount(createdBookings.length);
+      clearCart();
+      setOrderSuccess(true);
+      addToast({
+        type: "success",
+        message:
+          createdBookings.length === 1
+            ? "Your demo booking was saved in this browser."
+            : `${createdBookings.length} demo bookings were saved in this browser.`,
+      });
+    } catch {
+      addToast({ type: "error", message: "We couldn't save this demo booking right now." });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // ─── Order Success Screen ───
@@ -140,7 +218,7 @@ export default function BookNowPage() {
             Order Successful!
           </h1>
           <p className="mt-3 text-sm text-white/55 max-w-sm mx-auto leading-relaxed">
-            Thank you for choosing ServeHub. Your invoice has been sent
+            Thank you for choosing ServeHub. {createdBookingCount > 1 ? `${createdBookingCount} appointments have` : "Your appointment has"} been saved in demo mode and your invoice has been sent
             {formData.personal.email ? ` to ${formData.personal.email}` : ""}.
           </p>
 
@@ -160,7 +238,7 @@ export default function BookNowPage() {
           {/* Action cards */}
           <div className="mt-8 space-y-3">
             <button
-              onClick={() => router.push("/bookings")}
+              onClick={() => router.push(primaryBookingId ? `/bookings/confirmation?id=${primaryBookingId}` : "/bookings")}
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/8 py-3.5 text-sm font-semibold text-emerald-300 transition-all hover:bg-emerald-400/12 active:scale-[0.98]"
             >
               <FileText className="h-4 w-4" /> See Invoice
@@ -172,7 +250,7 @@ export default function BookNowPage() {
               <Package className="h-4 w-4" /> See Order Status
             </button>
             <button
-              onClick={() => router.push("/bookings")}
+              onClick={() => router.push(primaryBookingId ? `/dashboard/bookings?booking=${primaryBookingId}` : "/dashboard/bookings")}
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/4 py-3.5 text-sm font-medium text-white/50 transition-all hover:bg-white/8"
             >
               <HelpCircle className="h-4 w-4" /> I need help with this booking
@@ -355,10 +433,18 @@ export default function BookNowPage() {
           {currentStep === STEPS.length ? (
             <button
               onClick={submit}
+              disabled={submitting}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 font-semibold text-white active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20"
             >
-              <Check className="h-5 w-5" />
-              Place order · {cartTotal}+
+              {submitting ? (
+                <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <Check className="h-5 w-5" />
+              )}
+              {submitting ? "Saving booking..." : `Place order · ${cartTotal}+`}
             </button>
           ) : (
             <button
@@ -390,6 +476,16 @@ function CalendarPicker({
   onSelect: (date: string) => void;
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [quickSelectDates] = useState(() => {
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 86400000);
+    return {
+      today,
+      todayString: today.toISOString().split("T")[0],
+      tomorrow,
+      tomorrowString: tomorrow.toISOString().split("T")[0],
+    };
+  });
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -499,13 +595,12 @@ function CalendarPicker({
         <button
           type="button"
           onClick={() => {
-            const today = new Date().toISOString().split("T")[0];
-            onSelect(today);
-            setCurrentMonth(new Date());
+            onSelect(quickSelectDates.todayString);
+            setCurrentMonth(new Date(quickSelectDates.today));
           }}
           className={cn(
             "flex-1 rounded-xl border py-2 text-xs font-medium transition-all",
-            selectedDate === new Date().toISOString().split("T")[0]
+            selectedDate === quickSelectDates.todayString
               ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
               : "border-white/10 bg-white/4 text-white/50 hover:bg-white/8",
           )}
@@ -515,13 +610,12 @@ function CalendarPicker({
         <button
           type="button"
           onClick={() => {
-            const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-            onSelect(tomorrow);
-            setCurrentMonth(new Date(Date.now() + 86400000));
+            onSelect(quickSelectDates.tomorrowString);
+            setCurrentMonth(new Date(quickSelectDates.tomorrow));
           }}
           className={cn(
             "flex-1 rounded-xl border py-2 text-xs font-medium transition-all",
-            selectedDate === new Date(Date.now() + 86400000).toISOString().split("T")[0]
+            selectedDate === quickSelectDates.tomorrowString
               ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
               : "border-white/10 bg-white/4 text-white/50 hover:bg-white/8",
           )}
@@ -551,18 +645,7 @@ function StepPersonalDetails({
   onRemoveItem: (id: number) => void;
   onUpdateQuantity: (id: number, qty: number) => void;
 }) {
-  const today = new Date().toISOString().split("T")[0];
-  const quickDates = (() => {
-    const d = new Date();
-    const fmt = (date: Date) => date.toISOString().split("T")[0];
-    const label = (date: Date) =>
-      date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" });
-    return [
-      { value: fmt(d), label: "Today" },
-      { value: fmt(new Date(d.getTime() + 86400000)), label: "Tomorrow" },
-      { value: fmt(new Date(d.getTime() + 172800000)), label: label(new Date(d.getTime() + 172800000)) },
-    ];
-  })();
+  const [minDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   return (
     <div className="space-y-8">
@@ -702,6 +785,28 @@ function StepPersonalDetails({
               {t}
             </button>
           ))}
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-white/45">Choose a date</label>
+            <input
+              type="date"
+              value={scheduling.date}
+              onChange={(event) => onScheduleUpdate({ date: event.target.value })}
+              min={minDate}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400/40"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-white/45">Choose a time</label>
+            <input
+              type="time"
+              value={scheduling.time}
+              onChange={(event) => onScheduleUpdate({ time: event.target.value })}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400/40"
+            />
+          </div>
         </div>
 
         {/* Urgency */}

@@ -71,6 +71,17 @@ export default function CustomerBookingsPage() {
     void loadBookings();
   }, [loadBookings]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const bookingId = new URLSearchParams(window.location.search).get("booking");
+    if (bookingId) {
+      setSelectedBookingId(bookingId);
+    }
+  }, []);
+
   const filteredBookings =
     filter === "ALL" ? bookings : bookings.filter((booking) => booking.status === filter);
 

@@ -7,7 +7,6 @@ import {
 	MessageCircle,
 	Repeat2,
 	Search,
-	Share2,
 	Bookmark,
 	Star,
 	MapPin,
@@ -22,7 +21,9 @@ import { AppTabs } from "@/components/navigation/AppTabs";
 import { EXPLORE_FEED_FIXTURES, type ExploreFeedFixturePost } from "@/lib/explore-feed-fixtures";
 import { cn } from "@/lib/utils";
 import { generateImageUrl, generateFallbackGradient } from "@/lib/image-utils";
+import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import { useUIStore } from "@/store/ui.store";
 import type { ServiceItem } from "@/lib/services-directory";
 
 function compactCount(value: number) {
@@ -38,15 +39,19 @@ function photoForPost(post: ExploreFeedFixturePost, index: number) {
 
 export default function ExplorePage() {
 	const router = useRouter();
+	const { user } = useAuthStore();
+	const { addToast } = useUIStore();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 	const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
+	const [repostedPosts, setRepostedPosts] = useState<Set<string>>(new Set());
 	const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
 	const [commentsOpen, setCommentsOpen] = useState(false);
 	const [commentText, setCommentText] = useState("");
+	const [localComments, setLocalComments] = useState<Record<string, ExploreFeedFixturePost["comments"]>>({});
 	const [doubleTapTimer, setDoubleTapTimer] = useState<NodeJS.Timeout | null>(null);
 	const [showHeart, setShowHeart] = useState(false);
 	const [addedPosts, setAddedPosts] = useState<Set<string>>(new Set());
@@ -153,6 +158,52 @@ export default function ExplorePage() {
 		router.push("/book");
 	};
 
+	const toggleRepost = (postId: string) => {
+		setRepostedPosts((prev) => {
+			const next = new Set(prev);
+			if (next.has(postId)) {
+				next.delete(postId);
+				addToast({ type: "info", message: "Removed from your reposted demo items." });
+			} else {
+				next.add(postId);
+				addToast({ type: "success", message: "Added to your reposted demo items." });
+			}
+			return next;
+		});
+	};
+
+	const commentListForPost = (post: ExploreFeedFixturePost) => [
+		...post.comments,
+		...(localComments[post.postId] ?? []),
+	];
+
+	const commentCountForPost = (post: ExploreFeedFixturePost) =>
+		post.commentsCount + (localComments[post.postId]?.length ?? 0);
+
+	const handleCommentSubmit = () => {
+		const activePost = posts[currentIndex];
+		const text = commentText.trim();
+		if (!activePost || !text) {
+			return;
+		}
+
+		setLocalComments((prev) => ({
+			...prev,
+			[activePost.postId]: [
+				...(prev[activePost.postId] ?? []),
+				{
+					id: `local-comment-${Date.now()}`,
+					author: user?.firstName || "You",
+					handle: `@${(user?.firstName || "you").toLowerCase()}`,
+					text,
+					timeAgo: "Just now",
+				},
+			],
+		}));
+		setCommentText("");
+		addToast({ type: "success", message: "Your demo comment was added." });
+	};
+
 	return (
 		<div className="fixed inset-0 bg-black text-white">
 			<AppTabs />
@@ -166,12 +217,13 @@ export default function ExplorePage() {
 					const isActive = index === currentIndex;
 					const isLiked = likedPosts.has(post.postId);
 					const isSaved = savedPosts.has(post.postId);
+					const isReposted = repostedPosts.has(post.postId);
 
 					return (
 						<section
 							key={post.postId}
 							className="relative h-full w-full snap-start snap-always"
-							onClick={(e) => {
+							onClick={() => {
 								// Double-tap to like
 								if (doubleTapTimer) {
 									clearTimeout(doubleTapTimer);
@@ -279,7 +331,7 @@ export default function ExplorePage() {
 								>
 									<MessageCircle className="h-7 w-7" />
 									<span className="mt-1 text-[11px] font-medium">
-										{compactCount(post.commentsCount)}
+										{compactCount(commentCountForPost(post))}
 									</span>
 								</button>
 
@@ -287,12 +339,13 @@ export default function ExplorePage() {
 								<button
 									onClick={(e) => {
 										e.stopPropagation();
+										toggleRepost(post.postId);
 									}}
 									className="flex flex-col items-center active:scale-90 transition-transform"
 								>
-									<Repeat2 className="h-7 w-7" />
+									<Repeat2 className={cn("h-7 w-7", isReposted ? "text-cyan-300" : "text-white")} />
 									<span className="mt-1 text-[11px] font-medium">
-										{compactCount(post.reposts)}
+										{compactCount(post.reposts + (isReposted ? 1 : 0))}
 									</span>
 								</button>
 
@@ -483,16 +536,16 @@ export default function ExplorePage() {
 			{commentsOpen && posts[currentIndex] && (
 				<div className="fixed inset-0 z-50 flex items-end" onClick={() => setCommentsOpen(false)}>
 					<div className="absolute inset-0 bg-black/60" />
-					<div
-						className="relative w-full max-h-[70vh] rounded-t-3xl bg-[#1a1a2e] p-4 safe-area-bottom"
-						onClick={(e) => e.stopPropagation()}
-					>
+						<div
+							className="relative w-full max-h-[70vh] rounded-t-3xl bg-[#1a1a2e] p-4 safe-area-bottom"
+							onClick={(e) => e.stopPropagation()}
+						>
 						<div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
 						<h3 className="font-semibold mb-4">
-							{compactCount(posts[currentIndex].commentsCount)} comments
+							{compactCount(commentCountForPost(posts[currentIndex]))} comments
 						</h3>
 						<div className="space-y-4 max-h-[50vh] overflow-y-auto pb-16">
-							{posts[currentIndex].comments.map((comment) => (
+							{commentListForPost(posts[currentIndex]).map((comment) => (
 								<div key={comment.id} className="flex gap-3">
 									<div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">
 										{comment.author.charAt(0)}
@@ -512,10 +565,20 @@ export default function ExplorePage() {
 								<input
 									value={commentText}
 									onChange={(e) => setCommentText(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											handleCommentSubmit();
+										}
+									}}
 									placeholder="Add a comment..."
 									className="flex-1 h-10 rounded-full bg-white/10 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none"
 								/>
-								<button className="h-10 w-10 flex items-center justify-center rounded-full bg-cyan-500 active:scale-95">
+								<button
+									onClick={handleCommentSubmit}
+									disabled={!commentText.trim()}
+									className="h-10 w-10 flex items-center justify-center rounded-full bg-cyan-500 active:scale-95 disabled:opacity-50"
+								>
 									<Send className="h-4 w-4" />
 								</button>
 							</div>
