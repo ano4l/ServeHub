@@ -193,8 +193,8 @@ export default function BookNowPage() {
         type: "success",
         message:
           createdBookings.length === 1
-            ? "Your demo booking was saved in this browser."
-            : `${createdBookings.length} demo bookings were saved in this browser.`,
+            ? "Your booking has been confirmed."
+            : `${createdBookings.length} bookings have been confirmed.`,
       });
     } catch {
       addToast({ type: "error", message: "We couldn't save this demo booking right now." });
