@@ -1,0 +1,48 @@
+server:
+  port: 0
+  servlet:
+    context-path: /
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 25
+  cache:
+    type: none
+
+jwt:
+  secret: testSecretKey1234567890123456789012345678901234567890
+  access-token-expiration: 3600000
+  refresh-token-expiration: 86400000
+  issuer: serveify-test
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000
+  rate-limit:
+    requests-per-minute: 1000
+    login-attempts: 5
+    login-lockout-minutes: 15
+  booking:
+    auto-expire-minutes: 30
+    expiry-check-interval-ms: 600000
+  commission:
+    rate: 0.10
+
+logging:
+  level:
+    root: WARN
+    com.marketplace: INFO

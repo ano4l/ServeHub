@@ -16,8 +16,8 @@ void main() {
         child: ServeifyApp(),
       ),
     );
-
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byType(ServeifyApp), findsOneWidget);
   });

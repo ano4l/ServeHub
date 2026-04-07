@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:serveify/core/config/env.dart';
+import 'package:serveify/core/notifications/push_notification_service.dart';
 import 'package:serveify/features/auth/data/auth_repository.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading }
@@ -46,8 +49,10 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final PushNotificationService _pushNotificationService;
 
-  AuthNotifier(this._repository) : super(const AuthState()) {
+  AuthNotifier(this._repository, this._pushNotificationService)
+      : super(const AuthState()) {
     _checkAuth();
   }
 
@@ -72,6 +77,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         providerId: providerId,
         role: role,
       );
+      unawaited(_pushNotificationService.onAuthenticated());
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
@@ -88,6 +94,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: result.email,
         role: result.role,
       );
+      unawaited(_pushNotificationService.onAuthenticated());
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -125,6 +132,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: result.email,
         role: result.role,
       );
+      unawaited(_pushNotificationService.onAuthenticated());
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -134,11 +142,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _pushNotificationService.prepareForLogout();
     await _repository.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.read(authRepositoryProvider));
+  return AuthNotifier(
+    ref.read(authRepositoryProvider),
+    ref.read(pushNotificationServiceProvider),
+  );
 });

@@ -34,7 +34,7 @@ final _providerStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async 
 
   try {
     final walletRes = await dio.get('/wallet/balance');
-    stats['balance'] = walletRes.data['balance']?.toString() ?? '0.00';
+    stats['balance'] = walletRes.data['available']?.toString() ?? '0.00';
   } catch (_) {}
 
   if (auth.providerId != null) {
@@ -186,9 +186,15 @@ class _DashboardContent extends StatelessWidget {
         ),
         _ActionTile(
           icon: Icons.add_circle_outline,
-          title: 'Add Service',
-          subtitle: 'List a new service offering',
+          title: 'Manage Services',
+          subtitle: 'Add or view your service offerings',
           onTap: () => context.go('/provider/services'),
+        ),
+        _ActionTile(
+          icon: Icons.schedule_outlined,
+          title: 'Availability',
+          subtitle: 'Set your working hours',
+          onTap: () => context.go('/provider/availability'),
         ),
         _ActionTile(
           icon: Icons.bar_chart_outlined,

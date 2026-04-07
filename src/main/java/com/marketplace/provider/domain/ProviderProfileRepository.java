@@ -12,6 +12,8 @@ public interface ProviderProfileRepository extends JpaRepository<ProviderProfile
 
     List<ProviderProfile> findByVerificationStatus(VerificationStatus status);
 
+    long countByVerificationStatus(VerificationStatus status);
+
     Page<ProviderProfile> findByVerificationStatusIn(List<VerificationStatus> statuses, Pageable pageable);
 
     @Query("""

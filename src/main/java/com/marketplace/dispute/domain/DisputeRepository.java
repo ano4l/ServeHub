@@ -12,6 +12,8 @@ public interface DisputeRepository extends JpaRepository<Dispute, Long> {
 
     Page<Dispute> findByStatus(DisputeStatus status, Pageable pageable);
 
+    long countByStatus(DisputeStatus status);
+
     @Query("SELECT d FROM Dispute d WHERE d.openedBy.id = :userId ORDER BY d.createdAt DESC")
     Page<Dispute> findByUserId(Long userId, Pageable pageable);
 

@@ -10,6 +10,8 @@ import com.marketplace.dispute.domain.DisputeStatus;
 import com.marketplace.identity.domain.Role;
 import com.marketplace.identity.domain.UserAccount;
 import com.marketplace.identity.domain.UserAccountRepository;
+import com.marketplace.provider.domain.ProviderDocument;
+import com.marketplace.provider.domain.ProviderDocumentRepository;
 import com.marketplace.provider.domain.ProviderProfile;
 import com.marketplace.provider.domain.ProviderProfileRepository;
 import com.marketplace.provider.domain.VerificationStatus;
@@ -40,6 +42,7 @@ public class AdminController {
 
     private final UserAccountRepository userRepository;
     private final ProviderProfileRepository providerRepository;
+    private final ProviderDocumentRepository documentRepository;
     private final BookingRepository bookingRepository;
     private final DisputeRepository disputeRepository;
     private final ReviewRepository reviewRepository;
@@ -49,6 +52,7 @@ public class AdminController {
 
     public AdminController(UserAccountRepository userRepository,
                            ProviderProfileRepository providerRepository,
+                           ProviderDocumentRepository documentRepository,
                            BookingRepository bookingRepository,
                            DisputeRepository disputeRepository,
                            ReviewRepository reviewRepository,
@@ -57,6 +61,7 @@ public class AdminController {
                            CurrentUserService currentUserService) {
         this.userRepository = userRepository;
         this.providerRepository = providerRepository;
+        this.documentRepository = documentRepository;
         this.bookingRepository = bookingRepository;
         this.disputeRepository = disputeRepository;
         this.reviewRepository = reviewRepository;
@@ -119,6 +124,62 @@ public class AdminController {
         return toVerificationResponse(provider);
     }
 
+    // ── Document Reviews ─────────────────────────────────────────────────
+
+    @GetMapping("/verifications/{providerId}/documents")
+    public List<DocumentResponse> getProviderDocuments(@PathVariable Long providerId) {
+        return documentRepository.findByProviderIdOrderByCreatedAtDesc(providerId)
+            .stream().map(this::toDocumentResponse).toList();
+    }
+
+    @GetMapping("/documents/pending")
+    public List<DocumentResponse> getPendingDocuments() {
+        return documentRepository.findAll().stream()
+            .filter(d -> "PENDING".equals(d.getStatus()))
+            .map(this::toDocumentResponse).toList();
+    }
+
+    @PostMapping("/documents/{docId}/approve")
+    @Transactional
+    public DocumentResponse approveDocument(@PathVariable Long docId,
+                                            @RequestBody(required = false) ReviewDocumentRequest request) {
+        ProviderDocument doc = documentRepository.findById(docId)
+            .orElseThrow(() -> new EntityNotFoundException("Document not found: " + docId));
+        UserAccount reviewer = currentUserService.requireUser();
+        doc.approve(reviewer, request != null ? request.notes() : null);
+        logAction("APPROVE_DOCUMENT", "ProviderDocument", docId,
+            "Approved document type=" + doc.getDocumentType());
+
+        // Auto-verify provider if all documents are approved
+        checkAutoVerify(doc.getProvider());
+        return toDocumentResponse(doc);
+    }
+
+    @PostMapping("/documents/{docId}/reject")
+    @Transactional
+    public DocumentResponse rejectDocument(@PathVariable Long docId,
+                                           @Valid @RequestBody ReviewDocumentRequest request) {
+        ProviderDocument doc = documentRepository.findById(docId)
+            .orElseThrow(() -> new EntityNotFoundException("Document not found: " + docId));
+        UserAccount reviewer = currentUserService.requireUser();
+        doc.reject(reviewer, request.notes());
+        logAction("REJECT_DOCUMENT", "ProviderDocument", docId,
+            "Rejected document: " + request.notes());
+        return toDocumentResponse(doc);
+    }
+
+    private void checkAutoVerify(ProviderProfile provider) {
+        long pending = documentRepository.countByProviderIdAndStatus(provider.getId(), "PENDING");
+        long rejected = documentRepository.countByProviderIdAndStatus(provider.getId(), "REJECTED");
+        long approved = documentRepository.countByProviderIdAndStatus(provider.getId(), "APPROVED");
+        if (pending == 0 && rejected == 0 && approved > 0
+                && provider.getVerificationStatus() == VerificationStatus.PENDING_REVIEW) {
+            provider.setVerificationStatus(VerificationStatus.VERIFIED);
+            logAction("AUTO_VERIFY_PROVIDER", "Provider", provider.getId(),
+                "All documents approved — provider auto-verified");
+        }
+    }
+
     // ── Analytics ───────────────────────────────────────────────────────
 
     @GetMapping("/analytics")
@@ -126,8 +187,8 @@ public class AdminController {
         long totalUsers = userRepository.count();
         long totalProviders = providerRepository.count();
         long totalBookings = bookingRepository.count();
-        long pendingVerifications = providerRepository.findByVerificationStatus(VerificationStatus.PENDING_REVIEW).size();
-        long openDisputes = disputeRepository.findByStatus(DisputeStatus.OPEN, Pageable.unpaged()).getTotalElements();
+        long pendingVerifications = providerRepository.countByVerificationStatus(VerificationStatus.PENDING_REVIEW);
+        long openDisputes = disputeRepository.countByStatus(DisputeStatus.OPEN);
         long totalReviews = reviewRepository.count();
         return new AnalyticsResponse(totalUsers, totalProviders, totalBookings,
             pendingVerifications, openDisputes, totalReviews, 0, 0);
@@ -198,6 +259,19 @@ public class AdminController {
             p.getCreatedAt() != null ? p.getCreatedAt().toString() : null);
     }
 
+    private DocumentResponse toDocumentResponse(ProviderDocument d) {
+        return new DocumentResponse(
+            d.getId(),
+            d.getProvider().getId(),
+            d.getProvider().getUser().getFullName(),
+            d.getDocumentType(),
+            d.getFileUrl(),
+            d.getStatus(),
+            d.getReviewedBy() != null ? d.getReviewedBy().getFullName() : null,
+            d.getReviewNotes(),
+            d.getCreatedAt() != null ? d.getCreatedAt().toString() : null);
+    }
+
     private AuditLogResponse toAuditLogResponse(AuditLog l) {
         return new AuditLogResponse(l.getId(),
             l.getActor() != null ? l.getActor().getFullName() : "System",
@@ -221,6 +295,12 @@ public class AdminController {
                                        String city, String bio, VerificationStatus status, String createdAt) {}
 
     public record RejectProviderRequest(@NotBlank String reason) {}
+
+    public record DocumentResponse(Long id, Long providerId, String providerName,
+                                   String documentType, String fileUrl, String status,
+                                   String reviewerName, String reviewNotes, String createdAt) {}
+
+    public record ReviewDocumentRequest(String notes) {}
 
     public record AnalyticsResponse(long totalUsers, long totalProviders, long totalBookings,
                                     long pendingVerifications, long openDisputes, long totalReviews,

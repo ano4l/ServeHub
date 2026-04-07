@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:serveify/core/demo/customer_demo_data.dart';
 import 'package:serveify/core/network/api_client.dart';
 import 'package:serveify/core/widgets/skeleton.dart';
-import 'package:serveify/features/services/presentation/services_directory_screen.dart';
+import 'package:serveify/features/browse/data/categories_provider.dart';
+import 'package:serveify/features/services/data/service_catalog_provider.dart';
 
 // ─── Data providers ───
 
@@ -15,7 +15,7 @@ final _homeBookingsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) a
     final raw = response.data is List
         ? response.data as List
         : (response.data is Map && response.data['content'] is List ? response.data['content'] as List : <dynamic>[]);
-    if (raw.isEmpty) return CustomerDemoData.bookings();
+    if (raw.isEmpty) return [];
     return raw.map((item) {
       final map = Map<String, dynamic>.from(item as Map);
       return {
@@ -30,7 +30,7 @@ final _homeBookingsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) a
       };
     }).toList();
   } catch (_) {
-    return CustomerDemoData.bookings();
+    return [];
   }
 });
 
@@ -41,7 +41,7 @@ final _featuredProvidersProvider = FutureProvider<List<Map<String, dynamic>>>((r
     final raw = response.data is List
         ? response.data as List
         : (response.data is Map && response.data['content'] is List ? response.data['content'] as List : <dynamic>[]);
-    if (raw.isEmpty) return CustomerDemoData.providers();
+    if (raw.isEmpty) return [];
     return raw.map((item) {
       final map = Map<String, dynamic>.from(item as Map);
       return {
@@ -58,7 +58,7 @@ final _featuredProvidersProvider = FutureProvider<List<Map<String, dynamic>>>((r
       };
     }).toList();
   } catch (_) {
-    return CustomerDemoData.providers();
+    return [];
   }
 });
 
@@ -84,6 +84,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     final bookings = ref.watch(_homeBookingsProvider);
     final providers = ref.watch(_featuredProvidersProvider);
+    final categories = ref.watch(categoriesProvider);
+    final catalog = ref.watch(serviceCatalogProvider);
 
     return Scaffold(
       backgroundColor: _bg,
@@ -93,6 +95,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         onRefresh: () async {
           ref.invalidate(_homeBookingsProvider);
           ref.invalidate(_featuredProvidersProvider);
+          ref.invalidate(categoriesProvider);
+          ref.invalidate(serviceCatalogProvider);
         },
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
@@ -112,43 +116,36 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 100,
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: kServiceCategories.length > 8 ? 8 : kServiceCategories.length,
-                  itemBuilder: (context, index) {
-                    final cat = kServiceCategories[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: GestureDetector(
-                        onTap: () => context.go('/services'),
-                        child: SizedBox(
-                          width: 64,
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 56, height: 56,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.06),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(child: Text(cat.emoji, style: const TextStyle(fontSize: 24))),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                cat.name.split('&').first.split(' ').first,
-                                style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.55)),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
+                child: categories.when(
+                  data: (items) => ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: items.length > 8 ? 8 : items.length,
+                    itemBuilder: (context, index) {
+                      final category = items[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: _HomeCategoryBubble(
+                          name: category.name,
+                          icon: _categoryIcon(category.name),
+                          color: _categoryColor(category.name),
+                          onTap: () => context.go('/services'),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
+                  loading: () => ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: 6,
+                    itemBuilder: (_, __) => const Padding(
+                      padding: EdgeInsets.only(right: 16),
+                      child: _CategoryBubbleSkeleton(),
+                    ),
+                  ),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ),
             ),
@@ -290,7 +287,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     itemCount: items.length,
                     itemBuilder: (context, index) => _FeaturedCard(provider: items[index]),
                   ),
-                  loading: () => const Center(child: HomeSkeleton()),
+                  loading: () => ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: 3,
+                    itemBuilder: (_, __) => const _FeaturedCardSkeleton(),
+                  ),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
               ),
@@ -302,29 +305,56 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                 child: _SectionHeader(
                   title: 'Popular services',
-                  action: 'View all 100',
+                  action: 'View catalog',
                   onTap: () => context.go('/services'),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.6,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final service = kPopularServices[index];
-                    final cat = kServiceCategories.firstWhere((c) => c.id == service.categoryId);
-                    return _PopularServiceCard(service: service, category: cat, onTap: () => context.push('/services/${service.id}'));
-                  },
-                  childCount: kPopularServices.length > 6 ? 6 : kPopularServices.length,
+            catalog.when(
+              data: (services) {
+                final featured = services.take(6).toList();
+                if (featured.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.6,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final service = featured[index];
+                        return _CatalogPopularCard(
+                          service: service,
+                          onTap: () => context.go('/services/${service.id}'),
+                        );
+                      },
+                      childCount: featured.length,
+                    ),
+                  ),
+                );
+              },
+              loading: () => SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.6,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (_, __) => const _PopularServiceSkeleton(),
+                    childCount: 4,
+                  ),
                 ),
               ),
+              error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
 
             // ═══ Current bookings list ═══
@@ -351,7 +381,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       )).toList(),
                     );
                   },
-                  loading: () => const HomeSkeleton(),
+                  loading: () => Column(
+                    children: List.generate(
+                      3,
+                      (_) => const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: _BookingTileSkeleton(),
+                      ),
+                    ),
+                  ),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
               ),
@@ -614,14 +652,131 @@ class _FeaturedCard extends StatelessWidget {
   }
 }
 
+class _FeaturedCardSkeleton extends StatelessWidget {
+  const _FeaturedCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(right: 12),
+      child: SizedBox(
+        width: 220,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Skeleton(
+              height: 110,
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            SizedBox(height: 10),
+            Skeleton(
+              width: 140,
+              height: 14,
+              borderRadius: BorderRadius.all(Radius.circular(4)),
+            ),
+            SizedBox(height: 6),
+            Skeleton(
+              width: 90,
+              height: 12,
+              borderRadius: BorderRadius.all(Radius.circular(4)),
+            ),
+            SizedBox(height: 8),
+            Skeleton(
+              width: 70,
+              height: 12,
+              borderRadius: BorderRadius.all(Radius.circular(4)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Popular service card (2-column grid) ───
 
-class _PopularServiceCard extends StatelessWidget {
-  final ServiceItem service;
-  final ServiceCategory category;
+class _HomeCategoryBubble extends StatelessWidget {
+  final String name;
+  final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
-  const _PopularServiceCard({required this.service, required this.category, required this.onTap});
+  const _HomeCategoryBubble({
+    required this.name,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              name.split('&').first.split(' ').first,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.55),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryBubbleSkeleton extends StatelessWidget {
+  const _CategoryBubbleSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 64,
+      child: Column(
+        children: [
+          Skeleton(
+            width: 56,
+            height: 56,
+            borderRadius: BorderRadius.all(Radius.circular(999)),
+          ),
+          SizedBox(height: 6),
+          Skeleton(
+            width: 46,
+            height: 10,
+            borderRadius: BorderRadius.all(Radius.circular(4)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CatalogPopularCard extends StatelessWidget {
+  final ServiceOfferingModel service;
+  final VoidCallback onTap;
+
+  const _CatalogPopularCard({
+    required this.service,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -638,20 +793,86 @@ class _PopularServiceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(category.emoji, style: const TextStyle(fontSize: 22)),
+            Icon(
+              _categoryIcon(service.category),
+              color: _categoryColor(service.category),
+              size: 22,
+            ),
             const SizedBox(height: 6),
             Text(
-              service.name,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.9)),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
+              service.serviceName,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
-              category.name,
-              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35)),
+              service.category,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
               maxLines: 1,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              service.priceLabel,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF67E8F9),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PopularServiceSkeleton extends StatelessWidget {
+  const _PopularServiceSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Skeleton(
+            width: 22,
+            height: 22,
+            borderRadius: BorderRadius.all(Radius.circular(6)),
+          ),
+          SizedBox(height: 6),
+          Skeleton(
+            width: 100,
+            height: 13,
+            borderRadius: BorderRadius.all(Radius.circular(4)),
+          ),
+          SizedBox(height: 6),
+          Skeleton(
+            width: 74,
+            height: 11,
+            borderRadius: BorderRadius.all(Radius.circular(4)),
+          ),
+          SizedBox(height: 6),
+          Skeleton(
+            width: 48,
+            height: 11,
+            borderRadius: BorderRadius.all(Radius.circular(4)),
+          ),
+        ],
       ),
     );
   }
@@ -726,6 +947,56 @@ class _BookingTile extends StatelessWidget {
   }
 }
 
+class _BookingTileSkeleton extends StatelessWidget {
+  const _BookingTileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: const Row(
+        children: [
+          Skeleton(
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Skeleton(
+                  width: 140,
+                  height: 14,
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+                SizedBox(height: 6),
+                Skeleton(
+                  width: 90,
+                  height: 12,
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          Skeleton(
+            width: 70,
+            height: 24,
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Helpers ───
 
 class _BookingMetaInfo {
@@ -760,4 +1031,42 @@ String _initials(String name) {
   final parts = name.split(' ').where((part) => part.isNotEmpty).take(2).toList();
   if (parts.isEmpty) return '?';
   return parts.map((part) => part[0].toUpperCase()).join();
+}
+
+IconData _categoryIcon(String category) {
+  switch (category.toLowerCase()) {
+    case 'plumbing':
+      return Icons.plumbing_rounded;
+    case 'cleaning':
+      return Icons.cleaning_services_rounded;
+    case 'electrical':
+      return Icons.electrical_services_rounded;
+    case 'gardening':
+      return Icons.park_rounded;
+    case 'painting':
+      return Icons.format_paint_rounded;
+    case 'carpentry':
+      return Icons.handyman_rounded;
+    default:
+      return Icons.miscellaneous_services_rounded;
+  }
+}
+
+Color _categoryColor(String category) {
+  switch (category.toLowerCase()) {
+    case 'plumbing':
+      return const Color(0xFF3B82F6);
+    case 'cleaning':
+      return const Color(0xFF10B981);
+    case 'electrical':
+      return const Color(0xFFF59E0B);
+    case 'gardening':
+      return const Color(0xFF22C55E);
+    case 'painting':
+      return const Color(0xFFEC4899);
+    case 'carpentry':
+      return const Color(0xFF8B5CF6);
+    default:
+      return const Color(0xFF67E8F9);
+  }
 }

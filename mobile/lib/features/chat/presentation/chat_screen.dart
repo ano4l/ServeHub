@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:serveify/core/config/env.dart';
 import 'package:serveify/core/network/api_client.dart';
+import 'package:serveify/core/network/stomp_service.dart';
 import 'package:serveify/core/theme/app_theme.dart';
 import 'package:serveify/features/auth/providers/auth_provider.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final int bookingId;
@@ -18,21 +24,92 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
+  void Function()? _stompUnsubscribe;
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _loadMessages());
+    if (!Env.testMode) {
+      _connectStomp();
+    } else {
+      // In test mode, fall back to polling
+      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _loadMessages());
+    }
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _stompUnsubscribe?.call();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _connectStomp() {
+    final stomp = ref.read(stompServiceProvider);
+    _stompUnsubscribe = stomp.subscribe(
+      '/user/queue/bookings/${widget.bookingId}/chat',
+      _onStompMessage,
+    );
+  }
+
+  void _onStompMessage(StompFrame frame) {
+    if (frame.body == null) return;
+    try {
+      final data = jsonDecode(frame.body!) as Map<String, dynamic>;
+      _mergeMessage(Map<String, dynamic>.from(data));
+    } catch (_) {}
+  }
+
+  void _mergeMessage(Map<String, dynamic> message) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      final messageId = message['id'];
+      final clientMessageId = message['clientMessageId']?.toString();
+      final existingIndex = _messages.indexWhere((item) {
+        final sameId = messageId != null && item['id'] == messageId;
+        final sameClientId = clientMessageId != null &&
+            clientMessageId.isNotEmpty &&
+            item['clientMessageId']?.toString() == clientMessageId;
+        return sameId || sameClientId;
+      });
+
+      final merged = {
+        if (existingIndex >= 0) ..._messages[existingIndex],
+        ...message,
+        'pending': false,
+      };
+
+      if (existingIndex >= 0) {
+        _messages[existingIndex] = merged;
+      } else {
+        _messages.add(merged);
+      }
+
+      _messages.sort(_compareMessages);
+    });
+    _scrollToBottom();
+  }
+
+  int _compareMessages(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final left = DateTime.tryParse(a['sentAt']?.toString() ?? '');
+    final right = DateTime.tryParse(b['sentAt']?.toString() ?? '');
+    if (left == null && right == null) {
+      return 0;
+    }
+    if (left == null) {
+      return -1;
+    }
+    if (right == null) {
+      return 1;
+    }
+    return left.compareTo(right);
   }
 
   Future<void> _loadMessages() async {
@@ -51,8 +128,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         content = [];
       }
       if (mounted) {
+        final messages = content
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList()
+          ..sort(_compareMessages);
         setState(() {
-          _messages = content.cast<Map<String, dynamic>>();
+          _messages = messages;
           _loading = false;
         });
         _scrollToBottom();
@@ -82,22 +164,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final userId = int.tryParse(auth.userId ?? '');
     if (userId == null) return;
 
+    final clientMessageId = DateTime.now().microsecondsSinceEpoch.toString();
     _messageController.clear();
 
-    // Optimistic add
     setState(() {
       _messages.add({
+        'id': null,
+        'clientMessageId': clientMessageId,
         'senderId': userId,
         'senderName': 'You',
         'content': text,
         'sentAt': DateTime.now().toIso8601String(),
+        'pending': true,
       });
+      _messages.sort(_compareMessages);
     });
     _scrollToBottom();
 
-    // The WebSocket would handle this in real-time; fallback to REST
-    // The backend ChatController persists via WebSocket, but we can still poll
-    // For now, just let the optimistic message show
+    final stomp = ref.read(stompServiceProvider);
+    try {
+      if (!Env.testMode && stomp.isConnected) {
+        stomp.send('/app/bookings/${widget.bookingId}/chat', {
+          'bookingId': widget.bookingId,
+          'message': text,
+          'clientMessageId': clientMessageId,
+        });
+        return;
+      }
+
+      final response = await ref.read(dioProvider).post(
+        '/bookings/${widget.bookingId}/messages',
+        data: {
+          'content': text,
+          'clientMessageId': clientMessageId,
+        },
+      );
+      if (response.data is Map) {
+        _mergeMessage(Map<String, dynamic>.from(response.data as Map));
+      }
+    } on DioException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages.removeWhere(
+          (message) => message['clientMessageId']?.toString() == clientMessageId,
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ApiException.fromDioError(error).message)),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages.removeWhere(
+          (message) => message['clientMessageId']?.toString() == clientMessageId,
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
   }
 
   @override
@@ -143,6 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             senderName: msg['senderName']?.toString() ?? '',
                             sentAt: msg['sentAt']?.toString() ?? '',
                             isMe: isMe,
+                            pending: msg['pending'] == true,
                           );
                         },
                       ),
@@ -162,12 +292,14 @@ class _MessageBubble extends StatelessWidget {
   final String senderName;
   final String sentAt;
   final bool isMe;
+  final bool pending;
 
   const _MessageBubble({
     required this.content,
     required this.senderName,
     required this.sentAt,
     required this.isMe,
+    required this.pending,
   });
 
   @override
@@ -179,7 +311,9 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppColors.accent.withValues(alpha: 0.8) : AppColors.surfaceAlt,
+          color: isMe
+              ? AppColors.accent.withValues(alpha: pending ? 0.55 : 0.8)
+              : AppColors.surfaceAlt,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -201,6 +335,14 @@ class _MessageBubble extends StatelessWidget {
             const SizedBox(height: 4),
             Text(_formatTime(sentAt),
                 style: TextStyle(fontSize: 10, color: isMe ? Colors.white54 : AppColors.textMuted)),
+            if (pending)
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Text(
+                  'Sending...',
+                  style: TextStyle(fontSize: 10, color: Colors.white70),
+                ),
+              ),
           ],
         ),
       ),

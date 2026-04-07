@@ -101,12 +101,10 @@ public class BookingController {
     public record CreateBookingRequest(
         Long customerId,
         Long providerId,
-        Long serviceOfferingId,
-        @Future OffsetDateTime scheduledFor,
+        @NotNull Long serviceOfferingId,
+        @NotNull @Future OffsetDateTime scheduledFor,
         @NotBlank String address,
-        String notes,
-        Long offeringId,
-        @Future OffsetDateTime scheduledAt
+        String notes
     ) {
     }
 
@@ -135,6 +133,7 @@ public class BookingController {
         String providerName,
         Long serviceOfferingId,
         String serviceName,
+        Integer estimatedDurationMinutes,
         OffsetDateTime scheduledFor,
         String address,
         String notes,

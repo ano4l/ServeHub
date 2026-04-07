@@ -38,12 +38,11 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
     });
 
     try {
-      await ref.read(dioProvider).post('/reviews', data: {
-        'bookingId': widget.bookingId,
+      await ref.read(dioProvider).post('/bookings/${widget.bookingId}/review', data: {
         'rating': _rating,
-        'communicationRating': _communicationRating > 0 ? _communicationRating : null,
+        'professionalismRating': _communicationRating > 0 ? _communicationRating : null,
         'qualityRating': _qualityRating > 0 ? _qualityRating : null,
-        'valueRating': _valueRating > 0 ? _valueRating : null,
+        'punctualityRating': _valueRating > 0 ? _valueRating : null,
         'comment': _commentController.text.trim().isEmpty ? null : _commentController.text.trim(),
       });
 
@@ -100,7 +99,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
 
             // Sub-ratings
             _RatingSection(
-              label: 'Communication',
+              label: 'Professionalism',
               rating: _communicationRating,
               onChanged: (r) => setState(() => _communicationRating = r),
             ),
@@ -112,7 +111,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             ),
             const SizedBox(height: 12),
             _RatingSection(
-              label: 'Value for Money',
+              label: 'Punctuality',
               rating: _valueRating,
               onChanged: (r) => setState(() => _valueRating = r),
             ),

@@ -14,11 +14,16 @@ import com.marketplace.catalog.domain.ServiceOfferingRepository;
 import com.marketplace.identity.domain.Role;
 import com.marketplace.identity.domain.UserAccount;
 import com.marketplace.identity.domain.UserAccountRepository;
+import com.marketplace.messaging.application.RealtimeMessagingService;
 import com.marketplace.notification.application.NotificationService;
 import com.marketplace.payment.application.PaymentService;
+import com.marketplace.payment.domain.PaymentTransaction;
+import com.marketplace.payment.domain.PaymentTransactionRepository;
 import com.marketplace.provider.domain.ProviderProfile;
 import com.marketplace.provider.domain.VerificationStatus;
+import com.marketplace.provider.application.ProviderAvailabilityService;
 import com.marketplace.security.CurrentUserService;
+import com.marketplace.wallet.application.WalletService;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -34,20 +39,33 @@ public class BookingService {
     private final UserAccountRepository userRepository;
     private final ServiceOfferingRepository serviceRepository;
     private final PaymentService paymentService;
+    private final PaymentTransactionRepository paymentTransactionRepository;
+    private final WalletService walletService;
     private final NotificationService notificationService;
     private final CurrentUserService currentUserService;
+    private final RealtimeMessagingService realtimeMessagingService;
+    private final ProviderAvailabilityService providerAvailabilityService;
 
     public BookingService(BookingRepository bookingRepository, BookingEventRepository eventRepository,
                           UserAccountRepository userRepository,
                           ServiceOfferingRepository serviceRepository, PaymentService paymentService,
-                          NotificationService notificationService, CurrentUserService currentUserService) {
+                          PaymentTransactionRepository paymentTransactionRepository,
+                          WalletService walletService,
+                          NotificationService notificationService,
+                          CurrentUserService currentUserService,
+                          RealtimeMessagingService realtimeMessagingService,
+                          ProviderAvailabilityService providerAvailabilityService) {
         this.bookingRepository = bookingRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.serviceRepository = serviceRepository;
         this.paymentService = paymentService;
+        this.paymentTransactionRepository = paymentTransactionRepository;
+        this.walletService = walletService;
         this.notificationService = notificationService;
         this.currentUserService = currentUserService;
+        this.realtimeMessagingService = realtimeMessagingService;
+        this.providerAvailabilityService = providerAvailabilityService;
     }
 
     @Transactional(readOnly = true)
@@ -74,15 +92,8 @@ public class BookingService {
             throw new IllegalArgumentException("Customers may only create bookings for themselves");
         }
 
-        Long offeringId = request.serviceOfferingId() != null ? request.serviceOfferingId() : request.offeringId();
-        if (offeringId == null) {
-            throw new IllegalArgumentException("serviceOfferingId is required");
-        }
-
-        OffsetDateTime scheduledFor = request.scheduledFor() != null ? request.scheduledFor() : request.scheduledAt();
-        if (scheduledFor == null || !scheduledFor.isAfter(OffsetDateTime.now())) {
-            throw new IllegalArgumentException("scheduledFor must be in the future");
-        }
+        Long offeringId = request.serviceOfferingId();
+        OffsetDateTime scheduledFor = request.scheduledFor();
 
         UserAccount customer = userRepository.findById(customerId)
             .orElseThrow(() -> new EntityNotFoundException("Customer not found: " + customerId));
@@ -99,6 +110,12 @@ public class BookingService {
         if (provider.getVerificationStatus() != VerificationStatus.VERIFIED) {
             throw new IllegalArgumentException("Provider must be VERIFIED before accepting bookings");
         }
+        providerAvailabilityService.assertBookable(
+            provider.getId(),
+            scheduledFor,
+            offering.getEstimatedDurationMinutes(),
+            null
+        );
 
         Booking booking = bookingRepository.save(new Booking(
             customer,
@@ -109,9 +126,12 @@ public class BookingService {
             request.notes(),
             offering.getPrice()
         ));
-        eventRepository.save(new BookingEvent(booking, "BOOKING_CREATED", "Booking requested by customer"));
+        BookingEvent event = eventRepository.save(
+            new BookingEvent(booking, "BOOKING_CREATED", "Booking requested by customer")
+        );
         paymentService.createForBooking(booking);
         notificationService.sendBookingUpdate(booking, "Booking requested", "Your booking request has been created.");
+        realtimeMessagingService.publishBookingUpdate(booking, event);
 
         return toResponse(booking);
     }
@@ -123,7 +143,7 @@ public class BookingService {
         assertBookingAccess(booking);
 
         booking.transitionTo(request.status());
-        eventRepository.save(new BookingEvent(
+        BookingEvent event = eventRepository.save(new BookingEvent(
             booking,
             "STATUS_CHANGED",
             "Status changed to " + request.status() + (request.reason() == null ? "" : " (" + request.reason() + ")")
@@ -133,6 +153,7 @@ public class BookingService {
         }
         if (request.status() == com.marketplace.booking.domain.BookingStatus.COMPLETED) {
             paymentService.capture(booking.getId());
+            creditProviderWallet(booking);
         }
         if (request.status() == com.marketplace.booking.domain.BookingStatus.CANCELLED) {
             paymentService.refund(booking.getId());
@@ -142,6 +163,7 @@ public class BookingService {
             "Booking " + request.status(),
             request.reason() == null ? "Booking status updated." : request.reason()
         );
+        realtimeMessagingService.publishBookingUpdate(booking, event);
 
         return toResponse(booking);
     }
@@ -179,9 +201,12 @@ public class BookingService {
 
         booking.transitionTo(BookingStatus.CANCELLED);
         booking.setCancelledReason(reason);
-        eventRepository.save(new BookingEvent(booking, "BOOKING_CANCELLED", "Cancelled: " + reason));
+        BookingEvent event = eventRepository.save(
+            new BookingEvent(booking, "BOOKING_CANCELLED", "Cancelled: " + reason)
+        );
         paymentService.refund(booking.getId());
         notificationService.sendBookingUpdate(booking, "Booking Cancelled", reason);
+        realtimeMessagingService.publishBookingUpdate(booking, event);
         return toResponse(booking);
     }
 
@@ -196,12 +221,20 @@ public class BookingService {
             throw new IllegalArgumentException("Booking cannot be rescheduled in status: " + booking.getStatus());
         }
 
+        providerAvailabilityService.assertBookable(
+            booking.getProvider().getId(),
+            newScheduledFor,
+            booking.getServiceOffering().getEstimatedDurationMinutes(),
+            booking.getId()
+        );
+
         OffsetDateTime oldTime = booking.getScheduledFor();
         booking.setScheduledFor(newScheduledFor);
         String detail = "Rescheduled from " + oldTime + " to " + newScheduledFor
             + (reason != null ? " - " + reason : "");
-        eventRepository.save(new BookingEvent(booking, "BOOKING_RESCHEDULED", detail));
+        BookingEvent event = eventRepository.save(new BookingEvent(booking, "BOOKING_RESCHEDULED", detail));
         notificationService.sendBookingUpdate(booking, "Booking Rescheduled", detail);
+        realtimeMessagingService.publishBookingUpdate(booking, event);
         return toResponse(booking);
     }
 
@@ -223,6 +256,18 @@ public class BookingService {
             .orElseThrow(() -> new EntityNotFoundException("Booking not found: " + bookingId));
         assertBookingAccess(booking);
         return booking;
+    }
+
+    private void creditProviderWallet(Booking booking) {
+        paymentTransactionRepository.findByBookingId(booking.getId()).ifPresent(payment -> {
+            UserAccount providerUser = booking.getProvider().getUser();
+            walletService.creditEarning(
+                providerUser,
+                payment.getProviderNetAmount(),
+                booking,
+                "Earning for booking #" + booking.getId() + " (" + booking.getServiceOffering().getServiceName() + ")"
+            );
+        });
     }
 
     private void assertBookingAccess(Booking booking) {
@@ -249,6 +294,7 @@ public class BookingService {
             booking.getProvider().getUser().getFullName(),
             booking.getServiceOffering().getId(),
             booking.getServiceOffering().getServiceName(),
+            booking.getServiceOffering().getEstimatedDurationMinutes(),
             booking.getScheduledFor(),
             booking.getAddress(),
             booking.getNotes(),

@@ -6,6 +6,7 @@ public record ChatMessagePayload(
     Long bookingId,
     String sender,
     String message,
-    OffsetDateTime sentAt
+    OffsetDateTime sentAt,
+    String clientMessageId
 ) {
 }

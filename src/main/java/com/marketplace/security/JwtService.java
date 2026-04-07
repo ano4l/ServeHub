@@ -21,9 +21,17 @@ public class JwtService {
     private final long accessTokenExpirationMs;
     private final String issuer;
 
+    private static final String UNSAFE_DEFAULT = "mySecretKey123456789012345678901234567890";
+
     public JwtService(@Value("${jwt.secret}") String secret,
                       @Value("${jwt.access-token-expiration}") long accessTokenExpirationMs,
-                      @Value("${jwt.issuer}") String issuer) {
+                      @Value("${jwt.issuer}") String issuer,
+                      @Value("${spring.profiles.active:dev}") String activeProfile) {
+        if ("prod".equalsIgnoreCase(activeProfile) && UNSAFE_DEFAULT.equals(secret)) {
+            throw new IllegalStateException(
+                "JWT_SECRET must be set to a secure value in production. "
+                + "Refusing to start with the default development secret.");
+        }
         byte[] keyBytes;
         try {
             keyBytes = Decoders.BASE64.decode(secret);

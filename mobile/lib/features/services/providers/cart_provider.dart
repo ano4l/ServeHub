@@ -4,10 +4,15 @@ class ServiceItem {
   final int id;
   final String name;
   final String categoryId;
+  final int? providerId;
+  final String? providerName;
   final String imageUrl;
   final String description;
   final String priceRange;
+  final double priceValue;
   final String duration;
+  final int? estimatedDurationMinutes;
+  final String? pricingType;
   final double rating;
   final bool popular;
 
@@ -15,13 +20,53 @@ class ServiceItem {
     required this.id,
     required this.name,
     required this.categoryId,
+    this.providerId,
+    this.providerName,
     required this.imageUrl,
     required this.description,
     required this.priceRange,
+    this.priceValue = 0,
     required this.duration,
+    this.estimatedDurationMinutes,
+    this.pricingType,
     required this.rating,
     this.popular = false,
   });
+
+  ServiceItem copyWith({
+    int? id,
+    String? name,
+    String? categoryId,
+    int? providerId,
+    String? providerName,
+    String? imageUrl,
+    String? description,
+    String? priceRange,
+    double? priceValue,
+    String? duration,
+    int? estimatedDurationMinutes,
+    String? pricingType,
+    double? rating,
+    bool? popular,
+  }) {
+    return ServiceItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      providerId: providerId ?? this.providerId,
+      providerName: providerName ?? this.providerName,
+      imageUrl: imageUrl ?? this.imageUrl,
+      description: description ?? this.description,
+      priceRange: priceRange ?? this.priceRange,
+      priceValue: priceValue ?? this.priceValue,
+      duration: duration ?? this.duration,
+      estimatedDurationMinutes:
+          estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+      pricingType: pricingType ?? this.pricingType,
+      rating: rating ?? this.rating,
+      popular: popular ?? this.popular,
+    );
+  }
 }
 
 class CartItem {
@@ -53,15 +98,15 @@ class CartState {
 
   bool get isEmpty => items.isEmpty;
 
+  double get totalAmount => items.fold<double>(
+      0, (sum, item) => sum + (item.service.priceValue * item.quantity));
+
   String get cartTotal {
-    final total = items.fold<int>(0, (sum, item) {
-      final match = RegExp(r'R\s*([\d\s]+)').firstMatch(item.service.priceRange);
-      final price = match != null
-          ? int.tryParse(match.group(1)!.replaceAll(' ', '')) ?? 0
-          : 0;
-      return sum + (price * item.quantity);
-    });
-    return 'R$total';
+    final total = totalAmount;
+    final whole = total.truncateToDouble() == total;
+    return whole
+        ? 'R${total.toStringAsFixed(0)}'
+        : 'R${total.toStringAsFixed(2)}';
   }
 
   bool containsService(int serviceId) =>
@@ -102,6 +147,36 @@ class CartNotifier extends StateNotifier<CartState> {
       if (i.service.id == serviceId) return i.copyWith(quantity: quantity);
       return i;
     }).toList();
+    state = state.copyWith(items: updated);
+  }
+
+  void replaceItem(int currentServiceId, ServiceItem service) {
+    final currentIndex =
+        state.items.indexWhere((item) => item.service.id == currentServiceId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    final replacementIndex =
+        state.items.indexWhere((item) => item.service.id == service.id);
+    final updated = List<CartItem>.from(state.items);
+    final currentItem = updated[currentIndex];
+
+    if (replacementIndex >= 0 && replacementIndex != currentIndex) {
+      final mergedItem = updated[replacementIndex].copyWith(
+        quantity: updated[replacementIndex].quantity + currentItem.quantity,
+      );
+      updated[replacementIndex] = mergedItem;
+      updated.removeAt(currentIndex);
+      state = state.copyWith(items: updated);
+      return;
+    }
+
+    updated[currentIndex] = CartItem(
+      service: service,
+      quantity: currentItem.quantity,
+      notes: currentItem.notes,
+    );
     state = state.copyWith(items: updated);
   }
 

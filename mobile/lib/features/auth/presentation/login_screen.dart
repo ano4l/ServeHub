@@ -42,8 +42,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (next.status == AuthStatus.authenticated) {
         if (next.isProvider) {
           context.go('/provider');
-        } else if (next.isAdmin) {
-          context.go('/admin');
         } else {
           context.go('/home');
         }

@@ -43,6 +43,9 @@ public class PaymentTransaction {
     @Column(nullable = false, length = 80)
     private String reference;
 
+    @Column(length = 80)
+    private String payfastPaymentId;
+
     @Column(nullable = false)
     private OffsetDateTime updatedAt;
 
@@ -105,5 +108,11 @@ public class PaymentTransaction {
     public void markRefunded() {
         this.status = PaymentStatus.REFUNDED;
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public String getPayfastPaymentId() { return payfastPaymentId; }
+
+    public void setPayfastPaymentId(String payfastPaymentId) {
+        this.payfastPaymentId = payfastPaymentId;
     }
 }

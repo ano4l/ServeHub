@@ -43,6 +43,7 @@ public class AuthService {
     private final NotificationService notificationService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginAttemptService loginAttemptService;
     private final long refreshTokenExpirationMs;
 
     public AuthService(UserAccountRepository userRepository,
@@ -53,6 +54,7 @@ public class AuthService {
                        NotificationService notificationService,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
+                       LoginAttemptService loginAttemptService,
                        @Value("${jwt.refresh-token-expiration}") long refreshTokenExpirationMs) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -62,6 +64,7 @@ public class AuthService {
         this.notificationService = notificationService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginAttemptService = loginAttemptService;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
 
@@ -107,11 +110,7 @@ public class AuthService {
         }
 
         if (user.getPasswordHash() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
-            if (user.getFailedLoginAttempts() >= MAX_FAILED_ATTEMPTS) {
-                user.setLockedUntil(OffsetDateTime.now().plusMinutes(LOCKOUT_MINUTES));
-                log.warn("Account locked for user: {} after {} failed attempts", user.getEmail(), MAX_FAILED_ATTEMPTS);
-            }
+            loginAttemptService.recordFailedLogin(user.getId());
             throw new IllegalArgumentException("Invalid credentials");
         }
 

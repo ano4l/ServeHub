@@ -24,10 +24,10 @@ final _providerReviewsProvider = FutureProvider.family<List<dynamic>, int>((ref,
   }
 });
 
-final _providerServicesProvider = FutureProvider.family<List<dynamic>, int>((ref, userId) async {
+final _providerServicesProvider = FutureProvider.family<List<dynamic>, int>((ref, providerId) async {
   final dio = ref.read(dioProvider);
   try {
-    final response = await dio.get('/catalog/services', queryParameters: {'providerId': userId, 'size': 20});
+    final response = await dio.get('/catalog/services', queryParameters: {'providerId': providerId});
     if (response.data is List) return response.data as List;
     if (response.data is Map && response.data['content'] != null) {
       return response.data['content'] as List;
@@ -69,9 +69,8 @@ class _ProviderDetailContent extends ConsumerWidget {
     final rating = provider['averageRating']?.toString() ?? '0';
     final reviewCount = provider['reviewCount'] ?? 0;
     final verified = provider['verificationStatus']?.toString() == 'VERIFIED';
-    final userId = provider['userId'] as int? ?? providerId;
     final reviews = ref.watch(_providerReviewsProvider(providerId));
-    final services = ref.watch(_providerServicesProvider(userId));
+    final services = ref.watch(_providerServicesProvider(providerId));
 
     return CustomScrollView(
       slivers: [
@@ -226,8 +225,8 @@ class _ServiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = service['title']?.toString() ?? service['name']?.toString() ?? 'Service';
-    final price = service['basePrice']?.toString() ?? '';
+    final name = service['serviceName']?.toString() ?? service['title']?.toString() ?? 'Service';
+    final price = service['price']?.toString() ?? service['basePrice']?.toString() ?? '';
     final serviceId = service['id'];
 
     return Card(

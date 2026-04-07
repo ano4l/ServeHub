@@ -1,6 +1,7 @@
 package com.marketplace.notification.api;
 
 import com.marketplace.identity.domain.UserAccount;
+import com.marketplace.notification.application.NotificationService;
 import com.marketplace.notification.domain.Notification;
 import com.marketplace.notification.domain.NotificationPreference;
 import com.marketplace.notification.domain.NotificationPreferenceRepository;
@@ -8,6 +9,7 @@ import com.marketplace.notification.domain.NotificationRepository;
 import com.marketplace.security.CurrentUserService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -29,13 +31,16 @@ public class NotificationController {
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository prefRepository;
     private final CurrentUserService currentUserService;
+    private final NotificationService notificationService;
 
     public NotificationController(NotificationRepository notificationRepository,
                                   NotificationPreferenceRepository prefRepository,
-                                  CurrentUserService currentUserService) {
+                                  CurrentUserService currentUserService,
+                                  NotificationService notificationService) {
         this.notificationRepository = notificationRepository;
         this.prefRepository = prefRepository;
         this.currentUserService = currentUserService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -88,6 +93,28 @@ public class NotificationController {
         return toPreferenceResponse(pref);
     }
 
+    @PutMapping("/devices")
+    @Transactional
+    public DeviceResponse registerDevice(@Valid @RequestBody UpdateDeviceRequest request) {
+        UserAccount user = currentUserService.requireUser();
+        notificationService.registerDevice(
+            user,
+            request.token(),
+            request.platform(),
+            request.appVersion(),
+            request.locale()
+        );
+        return new DeviceResponse("registered");
+    }
+
+    @PutMapping("/devices/unregister")
+    @Transactional
+    public DeviceResponse unregisterDevice(@Valid @RequestBody UnregisterDeviceRequest request) {
+        UserAccount user = currentUserService.requireUser();
+        notificationService.unregisterDevice(user, request.token());
+        return new DeviceResponse("unregistered");
+    }
+
     private NotificationResponse toResponse(Notification n) {
         return new NotificationResponse(
             n.getId(), n.getType(), n.getTitle(), n.getMessage(),
@@ -116,4 +143,17 @@ public class NotificationController {
         boolean emailEnabled, boolean pushEnabled, boolean smsEnabled,
         boolean bookingUpdates, boolean messages, boolean promotions
     ) {}
+
+    public record UpdateDeviceRequest(
+        @NotBlank String token,
+        @NotBlank String platform,
+        String appVersion,
+        String locale
+    ) {}
+
+    public record UnregisterDeviceRequest(
+        @NotBlank String token
+    ) {}
+
+    public record DeviceResponse(String status) {}
 }
